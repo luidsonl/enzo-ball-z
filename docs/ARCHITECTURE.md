@@ -90,7 +90,7 @@ enzoballz/
 | `rng`         | PRNG determinístico com semente explícita | usar `rand::thread_rng` |
 | `input`       | `PlayerCommand`, `FarmKey`, intenção por tick | ler teclado |
 | `map`         | `TileMap`, `Tile`, parse de mapa ASCII, spawn, bandeira | carregar arquivo |
-| `entity`      | `EntityId`, `Player`, `Enemy`, `Projectile`, componentes | desenhar |
+| `entity`      | `EntityId`, `Entity`, `EntityStore`, `EntitySpec`, componentes comuns | desenhar |
 | `physics`     | gravidade, integração, colisão AABB com tiles | decidir dano |
 | `aura`        | máquina de estados do farming `6`/`7`, combo, ganho e lentidão | desenhar barra |
 | `combat`      | combo físico de 3 golpes, Mogar, dano, i-frames, knockback | input direto |
@@ -99,6 +99,44 @@ enzoballz/
 | `world`       | orquestra o passo fixo e mantém o estado | render/IO |
 | `snapshot`    | estado serializável para render/rede/save | conter lógica |
 | `events`      | eventos do tick (dano, level-up, morte, vitória) | ser estado persistente |
+
+### 3.1 Modelo padronizado de entidades
+
+Jogador, inimigos e projéteis são o **mesmo tipo** `Entity`. O que muda é o
+`EntityKind` e os dados específicos; os atributos compartilhados ficam sempre
+nos mesmos componentes.
+
+```rust
+pub struct Entity {
+    pub id: EntityId,
+    pub kind: EntityKind,      // Player | Enemy | Projectile
+    pub body: Body,            // posição, velocidade, tamanho, facing, on_ground
+    pub health: Health,        // vida atual + i-frames
+    pub stats: Stats,          // velocidade, força, vida máx., aura máx., dano do Mogar
+    pub faction: Faction,      // Players | Enemies | Neutral
+    pub combat: Combat,        // combo físico, janelas, cooldowns
+}
+
+pub enum EntityKind {
+    Player(PlayerData),        // player_id, nível, XP, pontos, atributos, farming
+    Enemy(EnemyData),          // direção de patrulha, XP concedido
+    Projectile(ProjectileData),// dono, dano, inimigos já atingidos
+}
+```
+
+- `Stats` é derivado de `Attributes` no jogador e fixo no inimigo; os dois usam a
+  mesma struct.
+- `EntityStore` é o único ponto de criação/remoção:
+  `spawn(EntitySpec)`, `despawn(id)`, `get`, `get_mut`, `iter`, `players`,
+  `enemies`, `in_rect`.
+- `EntitySpec` tem construtores explícitos: `EntitySpec::player`,
+  `EntitySpec::enemy`, `EntitySpec::mogar`. Nada de montar `Entity` à mão em
+  sistemas.
+- O store usa `BTreeMap<EntityId, Entity>` para iteração determinística e IDs
+  estáveis. IDs não são reutilizados no MVP.
+- Sistemas nunca duplicam atributos: dano, vida, velocidade e facção vêm dos
+  componentes comuns. Novos tipos de entidade entram como nova variante de
+  `EntityKind` + construtor em `EntitySpec`.
 
 ### Ordem dos sistemas em `World::step`
 
@@ -172,10 +210,28 @@ pub struct WorldSnapshot {
     pub version: u16,
     pub tick: u64,
     pub phase: GamePhase,          // Playing | LevelUp | Dead | Victory
-    pub players: Vec<PlayerSnapshot>,
-    pub enemies: Vec<EnemySnapshot>,
-    pub projectiles: Vec<ProjectileSnapshot>,
+    pub entities: Vec<EntitySnapshot>,
+    pub level_width: f32,
+    pub level_height: f32,
+    pub flag: Option<Rect>,
     pub camera_hint: Vec2,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EntitySnapshot {
+    pub id: EntityId,
+    pub kind: SnapshotKind,        // Player { player_id, level, xp, ... } | Enemy | Projectile
+    pub pos: Vec2,
+    pub size: Vec2,
+    pub vel: Vec2,
+    pub facing: i8,
+    pub on_ground: bool,
+    pub health: f32,
+    pub max_health: f32,
+    pub aura: f32,
+    pub max_aura: f32,
+    pub combo: u32,
+    pub running: bool,
 }
 ```
 

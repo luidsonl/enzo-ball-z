@@ -132,6 +132,23 @@ Explorar e enfrentar inimigos
 - Todos os inimigos renascem quando o jogador morre.
 - Sem respawn por tempo no MVP.
 
+### 9.1 Modelo comum de entidades
+
+Jogador, Capanga e projétil Mogar são instâncias do mesmo `Entity`, com os
+mesmos componentes de base:
+
+| Componente | Jogador | Capanga | Mogar |
+| ---------- | ------- | ------- | ----- |
+| `Body` (posição, velocidade, tamanho) | sim | sim | sim |
+| `Health` (vida atual, i-frames) | sim | sim | 1 de vida |
+| `Stats` (velocidade, força, vida máx., aura máx.) | derivado dos atributos | fixo | zerado |
+| `Faction` | `Players` | `Enemies` | `Players` |
+| `Combat` (combo, cooldowns) | sim | padrão | padrão |
+| Dados específicos | nível, XP, pontos, farming | patrulha, XP | dono, dano |
+
+A criação é centralizada em `EntityStore::spawn(EntitySpec)`. Nenhum sistema
+monta uma entidade à mão nem duplica atributos.
+
 ## 10. Progressão
 
 - XP necessário para o próximo nível: `100 × nível atual`.

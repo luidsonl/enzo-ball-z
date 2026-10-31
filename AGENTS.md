@@ -79,6 +79,10 @@ e justificar no commit.
    `commands` indexados por jogador. Nada de assumir um único jogador no core.
 9. **Sem rede no MVP.** Não adicione WebSocket, servidor ou matchmaking sem
    atualizar o escopo em `docs/SPEC.md`.
+10. **Entidades padronizadas.** Jogador, inimigo e projétil são o mesmo `Entity`
+    com `Body`, `Health`, `Stats`, `Faction` e `Combat`. Crie sempre via
+    `EntityStore::spawn(EntitySpec)`; não crie structs paralelas com atributos
+    duplicados nem monte `Entity` à mão nos sistemas.
 
 ## 6. Convenções de código
 
