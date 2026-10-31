@@ -3,6 +3,7 @@
 //! Este crate não conhece render, teclado, arquivos, rede ou relógio. Ele recebe
 //! [`input::TickInput`] e avança o mundo em passos fixos de `1/60 s`.
 
+pub mod entity;
 pub mod input;
 pub mod levels;
 pub mod map;
