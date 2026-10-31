@@ -4,6 +4,8 @@
 //! [`input::TickInput`] e avança o mundo em passos fixos de `1/60 s`.
 
 pub mod input;
+pub mod levels;
+pub mod map;
 pub mod math;
 pub mod rng;
 
