@@ -8,6 +8,7 @@ pub mod input;
 pub mod levels;
 pub mod map;
 pub mod math;
+pub mod physics;
 pub mod rng;
 
 pub const TICK_HZ: u32 = 60;
