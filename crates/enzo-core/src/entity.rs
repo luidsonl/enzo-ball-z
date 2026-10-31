@@ -294,6 +294,7 @@ pub struct EnemyData {
     pub patrol_dir: i8,
     pub xp_reward: f32,
     pub contact_damage: f32,
+    pub stun: f32,
 }
 
 impl Default for EnemyData {
@@ -302,6 +303,7 @@ impl Default for EnemyData {
             patrol_dir: -1,
             xp_reward: 25.0,
             contact_damage: 10.0,
+            stun: 0.0,
         }
     }
 }
