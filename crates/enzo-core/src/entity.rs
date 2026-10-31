@@ -8,8 +8,10 @@
 
 use std::collections::BTreeMap;
 
+use crate::combat::Combat;
 use crate::input::{Attribute, FarmKey};
 use crate::math::{Rect, Vec2};
+use crate::movement::Movement;
 
 pub type PlayerId = u32;
 
@@ -200,35 +202,6 @@ impl Health {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Combat {
-    pub melee_step: u8,
-    pub melee_window: f32,
-    pub attack_cooldown: f32,
-    pub attack_timer: f32,
-    pub mogar_cooldown: f32,
-}
-
-impl Combat {
-    pub fn tick(&mut self, dt: f32) {
-        self.melee_window = (self.melee_window - dt).max(0.0);
-        if self.melee_window <= 0.0 {
-            self.melee_step = 0;
-        }
-        self.attack_cooldown = (self.attack_cooldown - dt).max(0.0);
-        self.attack_timer = (self.attack_timer - dt).max(0.0);
-        self.mogar_cooldown = (self.mogar_cooldown - dt).max(0.0);
-    }
-
-    pub fn can_attack(self) -> bool {
-        self.attack_cooldown <= 0.0
-    }
-
-    pub fn can_fire_mogar(self) -> bool {
-        self.mogar_cooldown <= 0.0
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AuraFarmState {
     pub last_key: Option<FarmKey>,
     pub combo: u32,
@@ -239,7 +212,9 @@ pub struct AuraFarmState {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PlayerInput {
     pub move_x: i8,
+    pub jump_pressed: bool,
     pub jump_held: bool,
+    pub dash_pressed: bool,
     pub melee_pressed: bool,
     pub mogar_pressed: bool,
 }
@@ -254,13 +229,6 @@ pub struct PlayerData {
     pub aura: f32,
     pub farm: AuraFarmState,
     pub input: PlayerInput,
-    pub running: bool,
-    pub last_move_x: i8,
-    pub last_tap_dir: i8,
-    pub tap_timer: f32,
-    pub jump_buffer: f32,
-    pub coyote: f32,
-    pub jump_cut: bool,
     pub pending_level_up: bool,
     pub respawn: Vec2,
 }
@@ -276,13 +244,6 @@ impl PlayerData {
             aura: stats.max_aura,
             farm: AuraFarmState::default(),
             input: PlayerInput::default(),
-            running: false,
-            last_move_x: 0,
-            last_tap_dir: 0,
-            tap_timer: 0.0,
-            jump_buffer: 0.0,
-            coyote: 0.0,
-            jump_cut: false,
             pending_level_up: false,
             respawn,
         }
@@ -387,6 +348,7 @@ pub struct Entity {
     pub health: Health,
     pub stats: Stats,
     pub faction: Faction,
+    pub movement: Movement,
     pub combat: Combat,
 }
 
@@ -461,6 +423,7 @@ pub struct EntitySpec {
     pub faction: Faction,
     pub health: Health,
     pub stats: Stats,
+    pub movement: Movement,
     pub velocity: Vec2,
 }
 
@@ -474,6 +437,7 @@ impl EntitySpec {
             faction: Faction::Players,
             health: Health::full(stats.max_health),
             stats,
+            movement: Movement::player(),
             velocity: Vec2::ZERO,
         }
     }
@@ -487,6 +451,7 @@ impl EntitySpec {
             faction: Faction::Enemies,
             health: Health::full(stats.max_health),
             stats,
+            movement: Movement::enemy(),
             velocity: Vec2::new(-stats.walk_speed, 0.0),
         }
     }
@@ -505,6 +470,7 @@ impl EntitySpec {
             faction: Faction::Players,
             health: Health::full(stats.max_health),
             stats,
+            movement: Movement::none(),
             velocity: Vec2::new(if facing >= 0 { 1.0 } else { -1.0 } * MOGAR_SPEED, 0.0),
         }
     }
@@ -516,6 +482,11 @@ impl EntitySpec {
 
     pub fn with_velocity(mut self, velocity: Vec2) -> Self {
         self.velocity = velocity;
+        self
+    }
+
+    pub fn with_movement(mut self, movement: Movement) -> Self {
+        self.movement = movement;
         self
     }
 }
@@ -548,6 +519,7 @@ impl EntityStore {
             health,
             stats: spec.stats,
             faction: spec.faction,
+            movement: spec.movement,
             combat: Combat::default(),
         };
         self.entities.insert(id, entity);

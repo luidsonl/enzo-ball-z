@@ -66,6 +66,7 @@ Explorar e enfrentar inimigos
 | Mover | `A`/`D` ou `←`/`→` | analógico digital |
 | Pular | `Espaço` ou `W`/`↑` | edge-triggered |
 | Correr | double-tap na direção | segurar a direção mantém a corrida |
+| Dash | `Shift` | impulso horizontal curto, com cooldown |
 | Ataque físico | `J` | combo de 3 |
 | Mogar | `K` | custa aura |
 | Farmar aura | `6` e `7` | alternância obrigatória |
@@ -84,7 +85,15 @@ Explorar e enfrentar inimigos
 - **Double-tap:** duas pressões na mesma direção em até `0,25 s` ativam a
   corrida. Soltar a direção, inverter ou parar cancela.
 - Pulo variável: soltar o botão cedo corta a subida pela metade.
+- **Dash:** impulso de `520 px/s` por `0,14 s`, cooldown de `0,7 s`, sem custo
+  de aura. Usa a direção segurada ou o facing atual; pode ser usado no chão e no
+  ar.
+- **Voo:** componente `Fly` existe para inimigos/itens futuros, mas fica
+  desabilitado no jogador do MVP.
 - Colisão AABB contra tiles; resolução em X e depois em Y.
+
+Cada movimento é um componente próprio (`Walk`, `Jump`, `Dash`, `Fly`) dentro de
+`Movement`; o controlador só define intenção.
 
 ## 7. Aura e farming
 
@@ -143,6 +152,7 @@ mesmos componentes de base:
 | `Health` (vida atual, i-frames) | sim | sim | 1 de vida |
 | `Stats` (velocidade, força, vida máx., aura máx.) | derivado dos atributos | fixo | zerado |
 | `Faction` | `Players` | `Enemies` | `Players` |
+| `Movement` (`Walk`/`Jump`/`Dash`/`Fly`) | andar, pular, dash | andar | nenhum |
 | `Combat` (combo, cooldowns) | sim | padrão | padrão |
 | Dados específicos | nível, XP, pontos, farming | patrulha, XP | dono, dano |
 
@@ -232,7 +242,8 @@ monta uma entidade à mão nem duplica atributos.
 ## 16. Critérios de sucesso do MVP
 
 1. O jogo abre no navegador via build WASM e roda a 60 Hz de simulação.
-2. O Enzo anda, corre com double-tap, pula com coyote/buffer e colide com tiles.
+2. O Enzo anda, corre com double-tap, pula com coyote/buffer, dá dash e colide
+   com tiles.
 3. `6`/`7` alternados enchem a aura; repetir a tecla zera o combo.
 4. Farmar deixa o Enzo lento e vulnerável.
 5. O combo de 3 golpes funciona e o terceiro empurra.

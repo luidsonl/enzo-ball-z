@@ -38,6 +38,7 @@ enzoballz/
 │   │   │   ├── input.rs
 │   │   │   ├── map.rs
 │   │   │   ├── entity.rs
+│   │   │   ├── movement.rs
 │   │   │   ├── physics.rs
 │   │   │   ├── aura.rs
 │   │   │   ├── combat.rs
@@ -91,6 +92,7 @@ enzoballz/
 | `input`       | `PlayerCommand`, `FarmKey`, intenção por tick | ler teclado |
 | `map`         | `TileMap`, `Tile`, parse de mapa ASCII, spawn, bandeira | carregar arquivo |
 | `entity`      | `EntityId`, `Entity`, `EntityStore`, `EntitySpec`, componentes comuns | desenhar |
+| `movement`    | componentes `Walk`, `Jump`, `Dash`, `Fly`; intenção vira velocidade | decidir dano |
 | `physics`     | gravidade, integração, colisão AABB com tiles | decidir dano |
 | `aura`        | máquina de estados do farming `6`/`7`, combo, ganho e lentidão | desenhar barra |
 | `combat`      | combo físico de 3 golpes, Mogar, dano, i-frames, knockback | input direto |
@@ -114,7 +116,8 @@ pub struct Entity {
     pub health: Health,        // vida atual + i-frames
     pub stats: Stats,          // velocidade, força, vida máx., aura máx., dano do Mogar
     pub faction: Faction,      // Players | Enemies | Neutral
-    pub combat: Combat,        // combo físico, janelas, cooldowns
+    pub movement: Movement,    // Walk | Jump | Dash | Fly
+    pub combat: Combat,        // MeleeCombo | Mogar | futuros especiais
 }
 
 pub enum EntityKind {
@@ -137,14 +140,25 @@ pub enum EntityKind {
 - Sistemas nunca duplicam atributos: dano, vida, velocidade e facção vêm dos
   componentes comuns. Novos tipos de entidade entram como nova variante de
   `EntityKind` + construtor em `EntitySpec`.
+- `Movement` agrupa movimentos inerentes como componentes independentes
+  (`Walk`, `Jump`, `Dash`, `Fly`). Cada um tem configuração e estado próprios.
+  Jogador habilita andar/pular/dash; inimigo habilita só andar; projétil usa
+  `Movement::none()`.
+- `Combat` agrupa movimentos de ataque (`MeleeCombo`, `Mogar`). Novos golpes
+  entram como um novo componente dentro de `Combat`, nunca como lógica solta no
+  `World`.
+- Para adicionar um movimento: crie o componente em `movement`/`combat`, ligue-o
+  no construtor do `EntitySpec` e adicione a etapa correspondente no sistema. O
+  cliente só ganha uma tecla nova e um comando.
 
 ### Ordem dos sistemas em `World::step`
 
 A ordem é parte do contrato: mudá-la muda replay e rede.
 
-1. `input`: aplica comandos aos jogadores (edges de pulo/ataque/farm).
+1. `input`: aplica comandos aos jogadores (intenção de movimento, edges de pulo/
+   dash/ataque/farm).
 2. `aura`: atualiza combo, janela, ganho de aura e penalidade de movimento.
-3. `movement`: intenção (`move_x`, pulo, corrida) vira velocidade.
+3. `movement`: atualiza `Walk`/`Jump`/`Dash`/`Fly` e a intenção vira velocidade.
 4. `physics`: integra e resolve colisão com tiles (X, depois Y).
 5. `combat::melee`: avança o combo de 3 golpes e aplica hitbox.
 6. `combat::mogar`: dispara projétil se houver aura e input.
@@ -166,6 +180,8 @@ pub const MAX_PLAYERS: usize = 4;
 pub struct PlayerCommand {
     pub move_x: i8,          // -1, 0, 1
     pub jump: bool,          // pressionado neste tick (edge)
+    pub jump_held: bool,     // estado contínuo, para pulo variável
+    pub dash: bool,          // pressionado neste tick (edge)
     pub melee: bool,         // pressionado neste tick (edge)
     pub mogar: bool,         // pressionado neste tick (edge)
     pub farm: Option<FarmKey>, // Six | Seven, pressionado neste tick
@@ -265,6 +281,7 @@ render(world.snapshot(), alpha)
 | Mover            | `A`/`D` ou `←`/`→`              |
 | Pular            | `Espaço` ou `W`/`↑`             |
 | Correr           | double-tap na direção (core)    |
+| Dash             | `Shift` (esquerdo ou direito)   |
 | Combo físico     | `J`                             |
 | Mogar            | `K`                             |
 | Farmar aura      | `6` e `7`, alternando           |

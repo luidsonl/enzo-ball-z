@@ -38,6 +38,7 @@ pub struct PlayerCommand {
     pub move_x: i8,
     pub jump: bool,
     pub jump_held: bool,
+    pub dash: bool,
     pub melee: bool,
     pub mogar: bool,
     pub farm: Option<FarmKey>,
@@ -55,6 +56,7 @@ impl PlayerCommand {
     /// um tick: o edge não pode ser aplicado duas vezes.
     pub fn without_edges(mut self) -> Self {
         self.jump = false;
+        self.dash = false;
         self.melee = false;
         self.mogar = false;
         self.farm = None;
@@ -118,6 +120,7 @@ mod tests {
             move_x: -1,
             jump: true,
             jump_held: true,
+            dash: true,
             melee: true,
             mogar: true,
             farm: Some(FarmKey::Six),
@@ -130,6 +133,7 @@ mod tests {
         assert_eq!(command.move_x, -1);
         assert!(command.jump_held);
         assert!(!command.jump);
+        assert!(!command.dash);
         assert!(!command.melee);
         assert!(!command.mogar);
         assert!(command.farm.is_none());

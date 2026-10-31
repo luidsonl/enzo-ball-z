@@ -18,6 +18,41 @@ pub const CONTACT_IFRAMES: f32 = 1.0;
 pub const PLAYER_KNOCKBACK: f32 = 200.0;
 pub const PLAYER_KNOCKBACK_LIFT: f32 = 220.0;
 
+/// Componente de combate. Cada movimento de ataque tem seu próprio estado;
+/// novos especiais entram como novos campos/componentes aqui.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Combat {
+    pub melee: MeleeCombo,
+    pub mogar: MogarAbility,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MeleeCombo {
+    pub step: u8,
+    pub window: f32,
+    pub anim_timer: f32,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MogarAbility {
+    pub cooldown: f32,
+}
+
+impl Combat {
+    pub fn tick(&mut self, dt: f32) {
+        self.melee.window = (self.melee.window - dt).max(0.0);
+        if self.melee.window <= 0.0 {
+            self.melee.step = 0;
+        }
+        self.melee.anim_timer = (self.melee.anim_timer - dt).max(0.0);
+        self.mogar.cooldown = (self.mogar.cooldown - dt).max(0.0);
+    }
+
+    pub fn can_fire_mogar(self) -> bool {
+        self.mogar.cooldown <= 0.0
+    }
+}
+
 /// Avança o combo físico quando o jogador pressiona ataque neste tick.
 pub fn melee(store: &mut EntityStore, attacker_id: EntityId, events: &mut Vec<GameEvent>) {
     let Some(attacker) = store.get_mut(attacker_id) else {
@@ -33,15 +68,15 @@ pub fn melee(store: &mut EntityStore, attacker_id: EntityId, events: &mut Vec<Ga
         return;
     }
 
-    let step = if attacker.combat.melee_window > 0.0 {
-        (attacker.combat.melee_step % 3) + 1
+    let step = if attacker.combat.melee.window > 0.0 {
+        (attacker.combat.melee.step % 3) + 1
     } else {
         1
     };
 
-    attacker.combat.melee_step = step;
-    attacker.combat.melee_window = MELEE_WINDOW;
-    attacker.combat.attack_timer = MELEE_ANIM_TIME;
+    attacker.combat.melee.step = step;
+    attacker.combat.melee.window = MELEE_WINDOW;
+    attacker.combat.melee.anim_timer = MELEE_ANIM_TIME;
 
     let facing = if attacker.body.facing >= 0 { 1.0 } else { -1.0 };
     let hitbox = if facing > 0.0 {
@@ -118,7 +153,7 @@ pub fn fire_mogar(store: &mut EntityStore, player_id: PlayerId, events: &mut Vec
             return;
         }
 
-        player.combat.mogar_cooldown = MOGAR_COOLDOWN;
+        player.combat.mogar.cooldown = MOGAR_COOLDOWN;
         let facing = if player.body.facing >= 0 { 1 } else { -1 };
         let pos = Vec2::new(
             if facing > 0 {
@@ -355,7 +390,7 @@ mod tests {
         press_melee(&mut store, player, &mut events);
 
         let attacker = store.get(player).unwrap();
-        assert_eq!(attacker.combat.melee_step, 1);
+        assert_eq!(attacker.combat.melee.step, 1);
         assert!(matches!(
             events.last(),
             Some(GameEvent::MeleeHit { combo: 1, .. })

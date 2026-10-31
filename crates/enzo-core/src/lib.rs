@@ -11,6 +11,7 @@ pub mod input;
 pub mod levels;
 pub mod map;
 pub mod math;
+pub mod movement;
 pub mod physics;
 pub mod rng;
 

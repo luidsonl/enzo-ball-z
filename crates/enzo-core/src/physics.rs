@@ -4,7 +4,7 @@
 //! atravessáveis por baixo e por cima: só param o corpo quando ele está caindo
 //! e vinha acima da superfície.
 
-use crate::entity::{Body, PlayerData};
+use crate::entity::Body;
 use crate::map::{Level, TILE_SIZE};
 use crate::math::{approach, Rect};
 
@@ -13,48 +13,10 @@ pub const MAX_FALL_SPEED: f32 = 900.0;
 pub const GROUND_ACCEL: f32 = 1800.0;
 pub const GROUND_DECEL: f32 = 2200.0;
 pub const AIR_ACCEL: f32 = 1200.0;
-pub const COYOTE_TIME: f32 = 0.10;
-pub const JUMP_BUFFER_TIME: f32 = 0.12;
-pub const RUN_TAP_WINDOW: f32 = 0.25;
 
 /// Margem para evitar que o corpo fique exatamente sobre a borda do tile e
 /// seja considerado sobreposto no tick seguinte.
 const SKIN: f32 = 0.001;
-
-/// Atualiza o estado de corrida a partir do double-tap.
-///
-/// O cliente só envia `move_x`; a detecção de duas pressões na mesma direção
-/// (com soltura no meio) é regra de jogo e vive aqui.
-pub fn update_run_state(player: &mut PlayerData, move_x: i8, dt: f32) {
-    player.tap_timer = (player.tap_timer - dt).max(0.0);
-    if player.tap_timer <= 0.0 {
-        player.last_tap_dir = 0;
-    }
-
-    if move_x == 0 {
-        player.running = false;
-        player.last_move_x = 0;
-        return;
-    }
-
-    let previous = player.last_move_x;
-    if previous != 0 && previous != move_x {
-        player.running = false;
-    }
-
-    if move_x != previous {
-        if player.last_tap_dir == move_x && player.tap_timer > 0.0 {
-            player.running = true;
-            player.last_tap_dir = 0;
-            player.tap_timer = 0.0;
-        } else {
-            player.last_tap_dir = move_x;
-            player.tap_timer = RUN_TAP_WINDOW;
-        }
-    }
-
-    player.last_move_x = move_x;
-}
 
 /// Acelera a velocidade horizontal em direção à intenção do jogador.
 pub fn horizontal_step(body: &mut Body, target_speed: f32, on_ground: bool, dt: f32) {
@@ -76,45 +38,6 @@ pub fn horizontal_step(body: &mut Body, target_speed: f32, on_ground: bool, dt: 
 
 pub fn apply_gravity(body: &mut Body, dt: f32) {
     body.vel.y = (body.vel.y + GRAVITY * dt).min(MAX_FALL_SPEED);
-}
-
-pub fn jump(body: &mut Body, jump_speed: f32) {
-    body.vel.y = -jump_speed;
-    body.on_ground = false;
-}
-
-/// Soltar o botão cedo corta a subida pela metade. Só vale uma vez por pulo.
-pub fn cut_jump(body: &mut Body, player: &mut PlayerData) {
-    if player.jump_cut && body.vel.y < 0.0 {
-        body.vel.y *= 0.5;
-        player.jump_cut = false;
-    }
-}
-
-pub fn update_timers(player: &mut PlayerData, on_ground: bool, dt: f32) {
-    if on_ground {
-        player.coyote = COYOTE_TIME;
-    } else {
-        player.coyote = (player.coyote - dt).max(0.0);
-    }
-    player.jump_buffer = (player.jump_buffer - dt).max(0.0);
-}
-
-pub fn buffer_jump(player: &mut PlayerData) {
-    player.jump_buffer = JUMP_BUFFER_TIME;
-}
-
-/// Executa o pulo se houver buffer e coyote time disponíveis.
-pub fn try_jump(player: &mut PlayerData, body: &mut Body, jump_speed: f32) -> bool {
-    if player.jump_buffer > 0.0 && player.coyote > 0.0 {
-        jump(body, jump_speed);
-        player.jump_buffer = 0.0;
-        player.coyote = 0.0;
-        player.jump_cut = true;
-        true
-    } else {
-        false
-    }
 }
 
 /// Integra a velocidade e resolve colisões com o mapa.
@@ -339,96 +262,5 @@ mod tests {
         body.vel.x = 200.0;
         horizontal_step(&mut body, 0.0, false, crate::DT);
         assert_eq!(body.vel.x, 200.0);
-    }
-
-    fn player() -> PlayerData {
-        PlayerData::new(
-            0,
-            Vec2::ZERO,
-            crate::entity::Stats::player(Default::default()),
-        )
-    }
-
-    #[test]
-    fn double_tap_starts_running() {
-        let mut player = player();
-        update_run_state(&mut player, 1, crate::DT);
-        assert!(!player.running);
-        update_run_state(&mut player, 0, crate::DT);
-        update_run_state(&mut player, 1, crate::DT);
-        assert!(player.running);
-    }
-
-    #[test]
-    fn double_tap_outside_window_does_not_run() {
-        let mut player = player();
-        update_run_state(&mut player, 1, crate::DT);
-        update_run_state(&mut player, 0, crate::DT);
-        for _ in 0..30 {
-            update_run_state(&mut player, 0, crate::DT);
-        }
-        update_run_state(&mut player, 1, crate::DT);
-        assert!(!player.running);
-    }
-
-    #[test]
-    fn holding_direction_keeps_running_and_release_cancels() {
-        let mut player = player();
-        update_run_state(&mut player, 1, crate::DT);
-        update_run_state(&mut player, 0, crate::DT);
-        update_run_state(&mut player, 1, crate::DT);
-        assert!(player.running);
-        for _ in 0..10 {
-            update_run_state(&mut player, 1, crate::DT);
-        }
-        assert!(player.running);
-        update_run_state(&mut player, 0, crate::DT);
-        assert!(!player.running);
-    }
-
-    #[test]
-    fn reversing_cancels_run() {
-        let mut player = player();
-        update_run_state(&mut player, 1, crate::DT);
-        update_run_state(&mut player, 0, crate::DT);
-        update_run_state(&mut player, 1, crate::DT);
-        assert!(player.running);
-        update_run_state(&mut player, -1, crate::DT);
-        assert!(!player.running);
-    }
-
-    #[test]
-    fn jump_buffer_waits_for_landing() {
-        let mut player = player();
-        let mut body = body_at(0.0, 0.0);
-        buffer_jump(&mut player);
-        player.coyote = 0.0;
-        assert!(!try_jump(&mut player, &mut body, 560.0));
-        // Simula o pouso: coyote é renovado e o buffer ainda está ativo.
-        update_timers(&mut player, true, crate::DT);
-        assert!(try_jump(&mut player, &mut body, 560.0));
-        assert_eq!(body.vel.y, -560.0);
-    }
-
-    #[test]
-    fn coyote_allows_jump_after_leaving_ground() {
-        let mut player = player();
-        let mut body = body_at(0.0, 0.0);
-        update_timers(&mut player, true, crate::DT);
-        update_timers(&mut player, false, crate::DT);
-        buffer_jump(&mut player);
-        assert!(try_jump(&mut player, &mut body, 560.0));
-    }
-
-    #[test]
-    fn jump_cut_halves_ascent_once() {
-        let mut player = player();
-        let mut body = body_at(0.0, 0.0);
-        jump(&mut body, 560.0);
-        player.jump_cut = true;
-        cut_jump(&mut body, &mut player);
-        assert_eq!(body.vel.y, -280.0);
-        cut_jump(&mut body, &mut player);
-        assert_eq!(body.vel.y, -280.0);
     }
 }

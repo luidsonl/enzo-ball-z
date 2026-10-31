@@ -80,9 +80,12 @@ e justificar no commit.
 9. **Sem rede no MVP.** Não adicione WebSocket, servidor ou matchmaking sem
    atualizar o escopo em `docs/SPEC.md`.
 10. **Entidades padronizadas.** Jogador, inimigo e projétil são o mesmo `Entity`
-    com `Body`, `Health`, `Stats`, `Faction` e `Combat`. Crie sempre via
-    `EntityStore::spawn(EntitySpec)`; não crie structs paralelas com atributos
-    duplicados nem monte `Entity` à mão nos sistemas.
+    com `Body`, `Health`, `Stats`, `Faction`, `Movement` e `Combat`. Crie sempre
+    via `EntityStore::spawn(EntitySpec)`; não crie structs paralelas com
+    atributos duplicados nem monte `Entity` à mão nos sistemas.
+11. **Movimentos são componentes.** Andar, pular, dash e voar ficam em
+    `Movement`; combo, Mogar e futuros especiais ficam em `Combat`. O `World`
+    orquestra sistemas, não implementa movimento nem ataque inline.
 
 ## 6. Convenções de código
 
