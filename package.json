@@ -1,0 +1,13 @@
+{
+  "name": "enzoballz",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma 2D em Rust/WASM com farming de aura",
+  "scripts": {
+    "build": "bash scripts/build-wasm.sh",
+    "dev": "bash scripts/build-wasm.sh && node scripts/serve.mjs",
+    "serve": "node scripts/serve.mjs",
+    "sprites": "node scripts/gen-sprites.mjs",
+    "test": "cargo test -p enzo-core -p enzo-sim"
+  }
+}

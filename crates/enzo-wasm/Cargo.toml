@@ -1,0 +1,18 @@
+[package]
+name = "enzo-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cliente web do EnzoBallZ (macroquad + wasm)"
+
+[[bin]]
+name = "enzo-wasm"
+path = "src/main.rs"
+
+[dependencies]
+enzo-core = { workspace = true, features = ["serde"] }
+macroquad = { workspace = true }
+quad-storage = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
