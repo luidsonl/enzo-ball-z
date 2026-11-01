@@ -1,6 +1,6 @@
 //! Combo físico de três golpes.
 
-use crate::entity::{Attributes, EntityId, EntityStore};
+use crate::entities::{AttributeSet, EntityId, EntityStore, EquipmentTags};
 use crate::events::GameEvent;
 use crate::math::Rect;
 use crate::moves::{EntityType, MoveId, Requirements};
@@ -12,9 +12,13 @@ pub const MELEE_ANIM_TIME: f32 = 0.18;
 pub const KNOCKBACK_SPEED: f32 = 220.0;
 pub const KNOCKBACK_STUN: f32 = 0.18;
 
-/// O combo físico é exclusivo de jogadores no MVP.
-pub const REQUIREMENTS: Requirements =
-    Requirements::new(&[EntityType::Player], 1, Attributes::ZERO);
+/// O combo físico é exclusivo de jogáveis no MVP.
+pub const REQUIREMENTS: Requirements = Requirements::new(
+    &[EntityType::Playable],
+    1,
+    AttributeSet::ZERO,
+    EquipmentTags::NONE,
+);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct MeleeCombo {
@@ -76,10 +80,10 @@ pub fn update(store: &mut EntityStore, attacker_id: EntityId, events: &mut Vec<G
     };
 
     let damage = attacker.stats.melee_damage((step - 1) as usize);
-    let faction = attacker.faction;
+    let team = attacker.team;
 
     let targets: Vec<EntityId> = store
-        .hostiles_in_rect(hitbox, faction)
+        .hostiles_in_rect(hitbox, team)
         .into_iter()
         .filter(|id| *id != attacker_id)
         .filter(|id| store.get(*id).is_some_and(|entity| entity.is_actor()))
@@ -111,13 +115,13 @@ pub fn update(store: &mut EntityStore, attacker_id: EntityId, events: &mut Vec<G
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::EntitySpec;
+    use crate::entities::EntitySpec;
     use crate::math::Vec2;
 
     fn setup() -> (EntityStore, EntityId, EntityId) {
         let mut store = EntityStore::new();
         let player = store.spawn(EntitySpec::player(0, Vec2::new(0.0, 0.0)));
-        let enemy = store.spawn(EntitySpec::enemy(Vec2::new(30.0, 0.0)));
+        let enemy = store.spawn(EntitySpec::slime(Vec2::new(30.0, 0.0)));
         (store, player, enemy)
     }
 

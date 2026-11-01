@@ -4,7 +4,7 @@
 //! atravessáveis por baixo e por cima: só param o corpo quando ele está caindo
 //! e vinha acima da superfície.
 
-use crate::entity::Body;
+use crate::entities::Body;
 use crate::map::{Level, TILE_SIZE};
 use crate::math::{approach, Rect};
 

@@ -18,7 +18,7 @@ pub use fly::Fly;
 pub use jump::Jump;
 pub use walk::Walk;
 
-use crate::entity::{Body, Stats};
+use crate::entities::{Body, Stats};
 use crate::input::PlayerCommand;
 use crate::map::Level;
 use crate::moves::{AbilityContext, AssignError, MoveCategory, MoveId, MoveSet};
@@ -163,7 +163,7 @@ impl Movement {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::{Attributes, EntitySpec};
+    use crate::entities::{Attributes, EntityId, EntitySpec, TeamId};
     use crate::math::Vec2;
     use crate::moves::EntityType;
 
@@ -186,7 +186,7 @@ mod tests {
     }
 
     fn body_at(x: f32, y: f32) -> Body {
-        Body::new(Vec2::new(x, y), crate::entity::PLAYER_SIZE)
+        Body::new(Vec2::new(x, y), crate::entities::PLAYER_SIZE)
     }
 
     fn fly_context() -> AbilityContext {
@@ -216,12 +216,12 @@ mod tests {
         assert!(!movement.has(MoveId::Jump));
         assert!(!movement.has(MoveId::Dash));
         assert!(!movement.has(MoveId::Fly));
-        assert_eq!(EntitySpec::enemy(Vec2::ZERO).movement, movement);
+        assert_eq!(EntitySpec::slime(Vec2::ZERO).movement, movement);
     }
 
     #[test]
     fn projectile_has_no_movement_components() {
-        let spec = EntitySpec::mogar(crate::entity::EntityId(0), Vec2::ZERO, 1, 20.0);
+        let spec = EntitySpec::mogar(EntityId(0), Vec2::ZERO, 1, 20.0, TeamId::PLAYERS);
         assert_eq!(spec.movement, Movement::none());
         assert!(spec.movement.moves.is_empty());
     }

@@ -5,21 +5,25 @@
 //! [`MoveSet`] com apenas os movimentos que ela pode usar.
 //!
 //! A validação é feita no core: o cliente não decide se o Enzo pode voar ou se
-//! um inimigo pode dar Mogar. Novos movimentos entram como uma variante de
-//! [`MoveId`], um componente no diretório correspondente (`movements/` ou
-//! `attacks/`) e uma entrada em [`MoveId::requirements`].
+//! um inimigo pode dar Mogar. Requisitos combinam tipo de entidade, nível,
+//! atributos (personagem + equipamento) e tags de equipamento.
+//!
+//! Novos movimentos entram como uma variante de [`MoveId`], um componente no
+//! diretório correspondente (`movements/` ou `attacks/`) e uma entrada em
+//! [`MoveId::requirements`].
 
 use crate::attacks::{melee, mogar};
-use crate::entity::Attributes;
+use crate::entities::{AttributeSet, Attributes, EquipmentTags};
 use crate::movements::{dash, fly, jump, walk};
 
 /// Tipo de entidade usado para validar requisitos de atribuição.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EntityType {
-    Player,
+    Playable,
     Enemy,
     Projectile,
+    Item,
 }
 
 /// Identidade estável de um movimento. A ordem é usada pelo [`MoveSet`].
@@ -79,35 +83,61 @@ pub enum MoveCategory {
     Attack,
 }
 
-/// Contexto da entidade no momento da atribuição. Nível e atributos contam;
-/// posição, vida e input não.
+/// Contexto da entidade no momento da atribuição. Nível, atributos efetivos
+/// (personagem + equipamento) e tags contam; posição, vida e input não.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AbilityContext {
     pub entity_type: EntityType,
     pub level: u32,
-    pub attributes: Attributes,
+    pub attributes: AttributeSet,
+    pub equipment: EquipmentTags,
 }
 
 impl AbilityContext {
-    pub const fn new(entity_type: EntityType, level: u32, attributes: Attributes) -> Self {
+    pub const fn new(
+        entity_type: EntityType,
+        level: u32,
+        attributes: AttributeSet,
+        equipment: EquipmentTags,
+    ) -> Self {
         Self {
             entity_type,
             level,
             attributes,
+            equipment,
         }
     }
 
     pub fn player(level: u32, attributes: Attributes) -> Self {
-        Self::new(EntityType::Player, level, attributes)
+        Self::new(
+            EntityType::Playable,
+            level,
+            attributes.to_set(),
+            EquipmentTags::NONE,
+        )
     }
 
     pub fn enemy() -> Self {
-        Self::new(EntityType::Enemy, 1, Attributes::ZERO)
+        Self::new(
+            EntityType::Enemy,
+            1,
+            AttributeSet::ZERO,
+            EquipmentTags::NONE,
+        )
     }
 
     pub fn projectile() -> Self {
-        Self::new(EntityType::Projectile, 1, Attributes::ZERO)
+        Self::new(
+            EntityType::Projectile,
+            1,
+            AttributeSet::ZERO,
+            EquipmentTags::NONE,
+        )
+    }
+
+    pub fn item() -> Self {
+        Self::new(EntityType::Item, 1, AttributeSet::ZERO, EquipmentTags::NONE)
     }
 }
 
@@ -116,19 +146,22 @@ impl AbilityContext {
 pub struct Requirements {
     pub entity_types: &'static [EntityType],
     pub min_level: u32,
-    pub min_attributes: Attributes,
+    pub min_attributes: AttributeSet,
+    pub required_equipment: EquipmentTags,
 }
 
 impl Requirements {
     pub const fn new(
         entity_types: &'static [EntityType],
         min_level: u32,
-        min_attributes: Attributes,
+        min_attributes: AttributeSet,
+        required_equipment: EquipmentTags,
     ) -> Self {
         Self {
             entity_types,
             min_level,
             min_attributes,
+            required_equipment,
         }
     }
 
@@ -146,10 +179,16 @@ impl Requirements {
                 current: context.level,
             });
         }
-        if !context.attributes.meets(self.min_attributes) {
+        if !context.attributes.meets_requirements(self.min_attributes) {
             return Err(AssignError::AttributesTooLow {
                 required: self.min_attributes,
                 current: context.attributes,
+            });
+        }
+        if !context.equipment.contains(self.required_equipment) {
+            return Err(AssignError::EquipmentTooLow {
+                required: self.required_equipment,
+                current: context.equipment,
             });
         }
         Ok(())
@@ -168,8 +207,12 @@ pub enum AssignError {
         current: u32,
     },
     AttributesTooLow {
-        required: Attributes,
-        current: Attributes,
+        required: AttributeSet,
+        current: AttributeSet,
+    },
+    EquipmentTooLow {
+        required: EquipmentTags,
+        current: EquipmentTags,
     },
 }
 
@@ -236,6 +279,7 @@ impl MoveSet {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entities::AttributeId;
 
     fn player_at(level: u32, attributes: Attributes) -> AbilityContext {
         AbilityContext::player(level, attributes)
@@ -276,6 +320,13 @@ mod tests {
                 current: EntityType::Projectile,
             })
         );
+        assert_eq!(
+            walk.allows(AbilityContext::item()),
+            Err(AssignError::WrongEntityType {
+                required: walk.entity_types,
+                current: EntityType::Item,
+            })
+        );
     }
 
     #[test]
@@ -291,11 +342,8 @@ mod tests {
         assert_eq!(
             fly.allows(player_at(5, Attributes::ZERO)),
             Err(AssignError::AttributesTooLow {
-                required: Attributes {
-                    aura: 5,
-                    ..Attributes::ZERO
-                },
-                current: Attributes::ZERO,
+                required: AttributeSet::ZERO.with(AttributeId::AURA, 5),
+                current: AttributeSet::ZERO,
             })
         );
         let attrs = Attributes {
@@ -303,6 +351,37 @@ mod tests {
             ..Attributes::ZERO
         };
         assert!(fly.allows(player_at(5, attrs)).is_ok());
+    }
+
+    #[test]
+    fn requirements_can_demand_equipment_tags() {
+        let needs_sword: Requirements = Requirements::new(
+            &[EntityType::Playable],
+            1,
+            AttributeSet::ZERO,
+            EquipmentTags::SWORD,
+        );
+        let without = AbilityContext::new(
+            EntityType::Playable,
+            1,
+            AttributeSet::ZERO,
+            EquipmentTags::NONE,
+        );
+        assert_eq!(
+            needs_sword.allows(without),
+            Err(AssignError::EquipmentTooLow {
+                required: EquipmentTags::SWORD,
+                current: EquipmentTags::NONE,
+            })
+        );
+
+        let with = AbilityContext::new(
+            EntityType::Playable,
+            1,
+            AttributeSet::ZERO,
+            EquipmentTags::SWORD,
+        );
+        assert!(needs_sword.allows(with).is_ok());
     }
 
     #[test]

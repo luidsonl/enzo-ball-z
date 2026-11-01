@@ -4,7 +4,7 @@
 //! Enquanto o combo está ativo o jogador fica lento, então farmar é uma
 //! decisão de risco.
 
-use crate::entity::PlayerData;
+use crate::entities::PlayerData;
 use crate::input::FarmKey;
 
 pub const AURA_PER_HIT: f32 = 2.0;
@@ -78,7 +78,7 @@ pub fn spend(player: &mut PlayerData, amount: f32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::Stats;
+    use crate::entities::Stats;
     use crate::math::Vec2;
 
     fn player() -> PlayerData {

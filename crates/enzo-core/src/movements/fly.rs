@@ -3,7 +3,7 @@
 //! O componente existe para inimigos voadores e itens futuros. No MVP o jogador
 //! não nasce com `Fly`; ele só é atribuído quando os requisitos são cumpridos.
 
-use crate::entity::{Attributes, Body};
+use crate::entities::{AttributeId, AttributeSet, Body, EquipmentTags};
 use crate::math::approach;
 use crate::moves::{EntityType, Requirements};
 
@@ -12,14 +12,10 @@ pub const FLY_ACCEL: f32 = 900.0;
 
 /// Voo exige nível 5 e 5 pontos em Aura.
 pub const REQUIREMENTS: Requirements = Requirements::new(
-    &[EntityType::Player],
+    &[EntityType::Playable],
     5,
-    Attributes {
-        speed: 0,
-        strength: 0,
-        health: 0,
-        aura: 5,
-    },
+    AttributeSet::ZERO.with(AttributeId::AURA, 5),
+    EquipmentTags::NONE,
 );
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

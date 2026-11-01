@@ -3,18 +3,19 @@
 //! O componente guarda apenas a intenção e o estado da corrida. Aceleração,
 //! desaceleração e colisão continuam em [`crate::physics`].
 
-use crate::entity::{Attributes, Body, Stats};
+use crate::entities::{AttributeSet, Body, EquipmentTags, Stats};
 use crate::input::PlayerCommand;
 use crate::moves::{EntityType, Requirements};
 use crate::physics;
 
 pub const RUN_TAP_WINDOW: f32 = 0.25;
 
-/// Andar é inerente a jogadores e inimigos.
+/// Andar é inerente a jogáveis e inimigos.
 pub const REQUIREMENTS: Requirements = Requirements::new(
-    &[EntityType::Player, EntityType::Enemy],
+    &[EntityType::Playable, EntityType::Enemy],
     1,
-    Attributes::ZERO,
+    AttributeSet::ZERO,
+    EquipmentTags::NONE,
 );
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -89,11 +90,11 @@ mod tests {
     use crate::math::Vec2;
 
     fn body() -> Body {
-        Body::new(Vec2::ZERO, crate::entity::PLAYER_SIZE)
+        Body::new(Vec2::ZERO, crate::entities::PLAYER_SIZE)
     }
 
     fn stats() -> Stats {
-        Stats::player(Attributes::ZERO)
+        Stats::player(crate::entities::Attributes::ZERO)
     }
 
     #[test]

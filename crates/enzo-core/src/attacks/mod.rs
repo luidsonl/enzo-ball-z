@@ -13,7 +13,7 @@ pub mod mogar;
 pub use melee::MeleeCombo;
 pub use mogar::MogarAbility;
 
-use crate::entity::{EntityId, EntityStore};
+use crate::entities::{EntityId, EntityStore};
 use crate::events::GameEvent;
 use crate::moves::{AbilityContext, AssignError, MoveCategory, MoveId, MoveSet};
 
@@ -87,26 +87,25 @@ impl Combat {
     }
 }
 
-/// Dano de contato dos inimigos, respeitando i-frames do jogador.
+/// Dano de contato dos inimigos, respeitando i-frames do jogador e o time.
 pub fn contact_damage(store: &mut EntityStore, events: &mut Vec<GameEvent>) {
-    let enemies: Vec<EntityId> = store.enemies().map(|entity| entity.id).collect();
     let players: Vec<EntityId> = store.players().map(|entity| entity.id).collect();
 
     for player_id in players {
-        let Some(player) = store.get(player_id) else {
+        let Some((player_rect, player_center, player_team)) = store
+            .get(player_id)
+            .filter(|player| player.health.is_alive() && player.health.iframes <= 0.0)
+            .map(|player| (player.rect(), player.center(), player.team))
+        else {
             continue;
         };
-        if !player.health.is_alive() || player.health.iframes > 0.0 {
-            continue;
-        }
-        let player_rect = player.rect();
-        let player_center = player.center();
 
-        for enemy_id in &enemies {
-            let Some(enemy) = store.get(*enemy_id) else {
+        let hostiles = store.hostiles_in_rect(player_rect, player_team);
+        for enemy_id in hostiles {
+            let Some(enemy) = store.get(enemy_id) else {
                 continue;
             };
-            if !enemy.health.is_alive() || !enemy.rect().overlaps(player_rect) {
+            if !enemy.is_enemy() || !enemy.health.is_alive() {
                 continue;
             }
             let damage = enemy.enemy().map(|data| data.contact_damage).unwrap_or(0.0);
@@ -130,7 +129,7 @@ pub fn contact_damage(store: &mut EntityStore, events: &mut Vec<GameEvent>) {
             if applied > 0.0 {
                 events.push(GameEvent::PlayerDamaged {
                     player: player_id,
-                    source: *enemy_id,
+                    source: enemy_id,
                     damage: applied,
                 });
             }
@@ -153,7 +152,7 @@ pub fn tick_timers(store: &mut EntityStore, dt: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::{EntitySpec, Stats, PLAYER_SIZE};
+    use crate::entities::{EntitySpec, Stats, PLAYER_SIZE};
     use crate::map::TILE_SIZE;
     use crate::math::Vec2;
     use crate::moves::EntityType;
@@ -161,7 +160,7 @@ mod tests {
     fn setup() -> (EntityStore, EntityId, EntityId) {
         let mut store = EntityStore::new();
         let player = store.spawn(EntitySpec::player(0, Vec2::new(0.0, 0.0)));
-        let enemy = store.spawn(EntitySpec::enemy(Vec2::new(0.0, 0.0)));
+        let enemy = store.spawn(EntitySpec::slime(Vec2::new(0.0, 0.0)));
         (store, player, enemy)
     }
 
@@ -235,7 +234,7 @@ mod tests {
         let enemy_entity = store.get(enemy).unwrap();
         assert_eq!(player_entity.body.size, PLAYER_SIZE);
         assert_eq!(player_entity.stats, Stats::player(Default::default()));
-        assert_eq!(enemy_entity.stats, Stats::enemy());
+        assert_eq!(enemy_entity.stats, Stats::slime());
         assert_eq!(player_entity.health.current, 100.0);
         assert_eq!(enemy_entity.health.current, 30.0);
         assert_eq!(TILE_SIZE, 32.0);

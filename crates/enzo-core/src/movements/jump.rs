@@ -1,15 +1,19 @@
 //! Pulo com coyote time, buffer e altura variável.
 
-use crate::entity::{Attributes, Body, Stats};
+use crate::entities::{AttributeSet, Body, EquipmentTags, Stats};
 use crate::input::PlayerCommand;
 use crate::moves::{EntityType, Requirements};
 
 pub const COYOTE_TIME: f32 = 0.10;
 pub const JUMP_BUFFER_TIME: f32 = 0.12;
 
-/// Pular é exclusivo de jogadores no MVP.
-pub const REQUIREMENTS: Requirements =
-    Requirements::new(&[EntityType::Player], 1, Attributes::ZERO);
+/// Pular é exclusivo de jogáveis no MVP.
+pub const REQUIREMENTS: Requirements = Requirements::new(
+    &[EntityType::Playable],
+    1,
+    AttributeSet::ZERO,
+    EquipmentTags::NONE,
+);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Jump {
@@ -73,7 +77,7 @@ mod tests {
     }
 
     fn body_at(x: f32, y: f32) -> Body {
-        Body::new(Vec2::new(x, y), crate::entity::PLAYER_SIZE)
+        Body::new(Vec2::new(x, y), crate::entities::PLAYER_SIZE)
     }
 
     #[test]
@@ -81,7 +85,7 @@ mod tests {
         let level = level("P...\n####\n");
         let mut body = body_at(0.0, 2.0);
         let mut jump = Jump::default();
-        let stats = Stats::player(Attributes::ZERO);
+        let stats = Stats::player(crate::entities::Attributes::ZERO);
 
         // Primeiro tick pousa no chão.
         jump.tick(&body, crate::DT);
@@ -105,7 +109,7 @@ mod tests {
         let level = level("P...\n####\n");
         let mut body = body_at(0.0, 2.0);
         let mut jump = Jump::default();
-        let stats = Stats::player(Attributes::ZERO);
+        let stats = Stats::player(crate::entities::Attributes::ZERO);
 
         jump.tick(&body, crate::DT);
         crate::physics::apply_gravity(&mut body, crate::DT);

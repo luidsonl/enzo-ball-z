@@ -1,7 +1,9 @@
 //! Mogar: projétil que gasta aura e atravessa inimigos.
 
 use crate::aura;
-use crate::entity::{Attributes, EntityId, EntitySpec, EntityStore, Faction, PlayerId, MOGAR_SIZE};
+use crate::entities::{
+    AttributeSet, EntityId, EntitySpec, EntityStore, EquipmentTags, PlayerId, MOGAR_SIZE,
+};
 use crate::events::GameEvent;
 use crate::map::Level;
 use crate::math::{Rect, Vec2};
@@ -10,9 +12,13 @@ use crate::moves::{EntityType, MoveId, Requirements};
 pub const MOGAR_COST: f32 = 25.0;
 pub const MOGAR_COOLDOWN: f32 = 0.35;
 
-/// Mogar é exclusivo de jogadores no MVP.
-pub const REQUIREMENTS: Requirements =
-    Requirements::new(&[EntityType::Player], 1, Attributes::ZERO);
+/// Mogar é exclusivo de jogáveis no MVP.
+pub const REQUIREMENTS: Requirements = Requirements::new(
+    &[EntityType::Playable],
+    1,
+    AttributeSet::ZERO,
+    EquipmentTags::NONE,
+);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct MogarAbility {
@@ -63,14 +69,14 @@ pub fn fire(store: &mut EntityStore, player_id: PlayerId, events: &mut Vec<GameE
             },
             player.body.pos.y + (player.body.size.y - MOGAR_SIZE.y) * 0.5,
         );
-        Some((pos, facing, player.stats.mogar_damage))
+        Some((pos, facing, player.stats.mogar_damage, player.team))
     };
 
-    let Some((pos, facing, damage)) = fired else {
+    let Some((pos, facing, damage, team)) = fired else {
         return;
     };
 
-    let projectile = store.spawn(EntitySpec::mogar(entity_id, pos, facing, damage));
+    let projectile = store.spawn(EntitySpec::mogar(entity_id, pos, facing, damage, team));
     events.push(GameEvent::MogarFired {
         owner: entity_id,
         projectile,
@@ -101,6 +107,7 @@ pub fn update_projectiles(
         let damage = data.damage;
         let hits = data.hits.clone();
         let lifetime = data.lifetime;
+        let team = entity.team;
         let pos = entity.body.pos;
         let vel = entity.body.vel;
         let size = entity.body.size;
@@ -122,13 +129,11 @@ pub fn update_projectiles(
         }
 
         let targets: Vec<EntityId> = store
-            .iter()
-            .filter(|entity| entity.id != id)
-            .filter(|entity| entity.is_actor())
-            .filter(|entity| entity.faction.hostile_to(Faction::Players))
-            .filter(|entity| entity.rect().overlaps(rect))
-            .filter(|entity| !hits.contains(&entity.id))
-            .map(|entity| entity.id)
+            .hostiles_in_rect(rect, team)
+            .into_iter()
+            .filter(|target| *target != id)
+            .filter(|target| store.get(*target).is_some_and(|entity| entity.is_actor()))
+            .filter(|target| !hits.contains(target))
             .collect();
 
         for target_id in targets {
@@ -162,7 +167,7 @@ pub fn update_projectiles(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entity::EntitySpec;
+    use crate::entities::EntitySpec;
     use crate::math::Vec2;
 
     fn level(source: &str) -> Level {
@@ -242,8 +247,8 @@ mod tests {
         let level = level("P.......\n########\n");
         let mut store = EntityStore::new();
         let player = store.spawn(EntitySpec::player(0, Vec2::new(0.0, 0.0)));
-        let first = store.spawn(EntitySpec::enemy(Vec2::new(60.0, 0.0)));
-        let second = store.spawn(EntitySpec::enemy(Vec2::new(120.0, 0.0)));
+        let first = store.spawn(EntitySpec::slime(Vec2::new(60.0, 0.0)));
+        let second = store.spawn(EntitySpec::slime(Vec2::new(120.0, 0.0)));
         let mut events = Vec::new();
         press_mogar(&mut store, player);
         fire(&mut store, 0, &mut events);

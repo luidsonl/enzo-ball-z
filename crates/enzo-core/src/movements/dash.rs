@@ -1,15 +1,19 @@
 //! Impulso horizontal curto com cooldown.
 
-use crate::entity::{Attributes, Body};
+use crate::entities::{AttributeSet, Body, EquipmentTags};
 use crate::moves::{EntityType, Requirements};
 
 pub const DASH_SPEED: f32 = 520.0;
 pub const DASH_DURATION: f32 = 0.14;
 pub const DASH_COOLDOWN: f32 = 0.70;
 
-/// Dash é exclusivo de jogadores no MVP.
-pub const REQUIREMENTS: Requirements =
-    Requirements::new(&[EntityType::Player], 1, Attributes::ZERO);
+/// Dash é exclusivo de jogáveis no MVP.
+pub const REQUIREMENTS: Requirements = Requirements::new(
+    &[EntityType::Playable],
+    1,
+    AttributeSet::ZERO,
+    EquipmentTags::NONE,
+);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Dash {

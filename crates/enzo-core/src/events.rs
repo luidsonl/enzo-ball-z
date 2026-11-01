@@ -1,6 +1,6 @@
 //! Eventos do tick. São dados, não estado persistente.
 
-use crate::entity::{EntityId, PlayerId};
+use crate::entities::{EntityId, PlayerId};
 use crate::input::Attribute;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -52,6 +52,7 @@ pub enum GameEvent {
     PhaseRestarted {
         player: PlayerId,
     },
+    SaveRequested,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
