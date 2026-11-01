@@ -88,12 +88,14 @@ Explorar e enfrentar inimigos
 - **Dash:** impulso de `520 px/s` por `0,14 s`, cooldown de `0,7 s`, sem custo
   de aura. Usa a direção segurada ou o facing atual; pode ser usado no chão e no
   ar.
-- **Voo:** componente `Fly` existe para inimigos/itens futuros, mas fica
-  desabilitado no jogador do MVP.
+- **Voo:** componente `Fly` existe para inimigos/itens futuros. Não nasce
+  atribuído ao jogador: exige nível 5 e 5 pontos em Aura.
 - Colisão AABB contra tiles; resolução em X e depois em Y.
 
 Cada movimento é um componente próprio (`Walk`, `Jump`, `Dash`, `Fly`) dentro de
-`Movement`; o controlador só define intenção.
+`Movement`; o controlador só define intenção. Todo movimento declara requisitos
+(tipos de entidade, nível e atributos mínimos) e só entra no `MoveSet` da
+entidade quando eles são cumpridos.
 
 ## 7. Aura e farming
 
@@ -153,11 +155,13 @@ mesmos componentes de base:
 | `Stats` (velocidade, força, vida máx., aura máx.) | derivado dos atributos | fixo | zerado |
 | `Faction` | `Players` | `Enemies` | `Players` |
 | `Movement` (`Walk`/`Jump`/`Dash`/`Fly`) | andar, pular, dash | andar | nenhum |
-| `Combat` (combo, cooldowns) | sim | padrão | padrão |
+| `Combat` (`Melee`/`Mogar`) | combo e Mogar | nenhum | nenhum |
+| `MoveSet` | movimentos atribuídos e validados | idem | vazio |
 | Dados específicos | nível, XP, pontos, farming | patrulha, XP | dono, dano |
 
 A criação é centralizada em `EntityStore::spawn(EntitySpec)`. Nenhum sistema
-monta uma entidade à mão nem duplica atributos.
+monta uma entidade à mão nem duplica atributos. Movimentos e ataques só são
+atribuídos se cumprirem os requisitos declarados por eles.
 
 ## 10. Progressão
 

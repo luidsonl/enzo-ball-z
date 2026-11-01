@@ -48,7 +48,7 @@ esconder o erro.
 ## 4. Estrutura
 
 ```text
-crates/enzo-core/   simulação pura (física, mapa, entidades, aura, combate, progressão)
+crates/enzo-core/   simulação pura (física, mapa, entidades, movimentos, ataques, aura, progressão)
 crates/enzo-wasm/   cliente: macroquad, input, render, HUD, save
 crates/enzo-sim/    harness headless para replays e CI
 assets/             sprites originais e mapas
@@ -83,9 +83,11 @@ e justificar no commit.
     com `Body`, `Health`, `Stats`, `Faction`, `Movement` e `Combat`. Crie sempre
     via `EntityStore::spawn(EntitySpec)`; não crie structs paralelas com
     atributos duplicados nem monte `Entity` à mão nos sistemas.
-11. **Movimentos são componentes.** Andar, pular, dash e voar ficam em
-    `Movement`; combo, Mogar e futuros especiais ficam em `Combat`. O `World`
-    orquestra sistemas, não implementa movimento nem ataque inline.
+11. **Movimentos são componentes e têm requisitos.** Andar, pular, dash e voar
+    ficam em `movements/`; combo, Mogar e futuros especiais ficam em `attacks/`.
+    Cada movimento declara `REQUIREMENTS` (tipo de entidade, nível e atributos) e
+    só entra no `MoveSet` via `try_assign`. O `World` orquestra sistemas, não
+    implementa movimento nem ataque inline.
 
 ## 6. Convenções de código
 
@@ -109,7 +111,8 @@ e justificar no commit.
 
 Toda mudança de regra de jogo precisa de teste. O mínimo:
 
-- **Unitário:** funções de `math`, `map`, `aura`, `progression`, `combat`.
+- **Unitário:** funções de `math`, `map`, `aura`, `progression`, `moves`,
+  `movements` e `attacks`.
 - **Cenário:** pulo, colisão, double-tap, combo de 3, Mogar, morte, bandeira.
 - **Determinismo:** mesma semente + mesmos comandos = mesmo snapshot.
 - **Regressão:** bug corrigido ganha um teste que falharia antes.

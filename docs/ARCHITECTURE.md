@@ -38,10 +38,19 @@ enzoballz/
 │   │   │   ├── input.rs
 │   │   │   ├── map.rs
 │   │   │   ├── entity.rs
-│   │   │   ├── movement.rs
+│   │   │   ├── moves.rs           # MoveId, MoveSet, Requirements, AbilityContext
+│   │   │   ├── movements/         # movimentos inerentes
+│   │   │   │   ├── mod.rs         # Movement + orquestração
+│   │   │   │   ├── walk.rs
+│   │   │   │   ├── jump.rs
+│   │   │   │   ├── dash.rs
+│   │   │   │   └── fly.rs
 │   │   │   ├── physics.rs
 │   │   │   ├── aura.rs
-│   │   │   ├── combat.rs
+│   │   │   ├── attacks/           # movimentos de ataque
+│   │   │   │   ├── mod.rs         # Combat + dano de contato
+│   │   │   │   ├── melee.rs
+│   │   │   │   └── mogar.rs
 │   │   │   ├── ai.rs
 │   │   │   ├── progression.rs
 │   │   │   ├── world.rs
@@ -92,10 +101,11 @@ enzoballz/
 | `input`       | `PlayerCommand`, `FarmKey`, intenção por tick | ler teclado |
 | `map`         | `TileMap`, `Tile`, parse de mapa ASCII, spawn, bandeira | carregar arquivo |
 | `entity`      | `EntityId`, `Entity`, `EntityStore`, `EntitySpec`, componentes comuns | desenhar |
-| `movement`    | componentes `Walk`, `Jump`, `Dash`, `Fly`; intenção vira velocidade | decidir dano |
+| `moves`       | `MoveId`, `MoveSet`, `Requirements`, `AbilityContext`, validação de atribuição | decidir dano |
+| `movements`   | componentes `Walk`, `Jump`, `Dash`, `Fly`; intenção vira velocidade | decidir dano |
 | `physics`     | gravidade, integração, colisão AABB com tiles | decidir dano |
 | `aura`        | máquina de estados do farming `6`/`7`, combo, ganho e lentidão | desenhar barra |
-| `combat`      | combo físico de 3 golpes, Mogar, dano, i-frames, knockback | input direto |
+| `attacks`     | `MeleeCombo`, `MogarAbility`, dano, i-frames, knockback | input direto |
 | `ai`          | patrulha de inimigos | colisão |
 | `progression` | XP, nível, pontos, atributos e stats derivados | salvar em disco |
 | `world`       | orquestra o passo fixo e mantém o estado | render/IO |
@@ -116,8 +126,8 @@ pub struct Entity {
     pub health: Health,        // vida atual + i-frames
     pub stats: Stats,          // velocidade, força, vida máx., aura máx., dano do Mogar
     pub faction: Faction,      // Players | Enemies | Neutral
-    pub movement: Movement,    // Walk | Jump | Dash | Fly
-    pub combat: Combat,        // MeleeCombo | Mogar | futuros especiais
+    pub movement: Movement,    // MoveSet + Walk | Jump | Dash | Fly
+    pub combat: Combat,        // MoveSet + MeleeCombo | MogarAbility
 }
 
 pub enum EntityKind {
@@ -141,15 +151,36 @@ pub enum EntityKind {
   componentes comuns. Novos tipos de entidade entram como nova variante de
   `EntityKind` + construtor em `EntitySpec`.
 - `Movement` agrupa movimentos inerentes como componentes independentes
-  (`Walk`, `Jump`, `Dash`, `Fly`). Cada um tem configuração e estado próprios.
-  Jogador habilita andar/pular/dash; inimigo habilita só andar; projétil usa
-  `Movement::none()`.
-- `Combat` agrupa movimentos de ataque (`MeleeCombo`, `Mogar`). Novos golpes
-  entram como um novo componente dentro de `Combat`, nunca como lógica solta no
-  `World`.
-- Para adicionar um movimento: crie o componente em `movement`/`combat`, ligue-o
-  no construtor do `EntitySpec` e adicione a etapa correspondente no sistema. O
-  cliente só ganha uma tecla nova e um comando.
+  (`Walk`, `Jump`, `Dash`, `Fly`) em `movements/`. Cada um tem estado próprio e
+  declara `REQUIREMENTS`.
+- `Combat` agrupa movimentos de ataque (`MeleeCombo`, `MogarAbility`) em
+  `attacks/`. Novos golpes entram como um módulo novo, nunca como lógica solta
+  no `World`.
+- `MoveSet` é o conjunto determinístico de movimentos atribuídos. É um bitset
+  serializável, sem `HashSet`.
+- Todo movimento declara `Requirements` (tipos de entidade, nível mínimo e
+  atributos mínimos). `MoveSet::try_assign` valida o `AbilityContext` da
+  entidade antes de inserir. Jogador nasce com andar/pular/dash/melee/mogar;
+  inimigo nasce só com andar; projétil não tem movimentos.
+- `Fly` exige nível 5 e 5 pontos em Aura; o jogador do MVP não nasce com ele.
+- Para adicionar um movimento: crie o componente no diretório correto, declare
+  `REQUIREMENTS`, adicione a variante em `MoveId`/`MoveId::requirements`, ligue
+  no construtor do `EntitySpec` e adicione a etapa no sistema. O cliente só
+  ganha uma tecla nova e um comando.
+
+```rust
+// Cada movimento declara para quem pode ser atribuído.
+pub const REQUIREMENTS: Requirements = Requirements::new(
+    &[EntityType::Player],
+    5, // nível mínimo
+    Attributes { aura: 5, ..Attributes::ZERO },
+);
+
+// A entidade só recebe o movimento se cumprir os requisitos.
+let spec = EntitySpec::player(0, pos).with_move(MoveId::Fly)?;
+let mut entity = store.spawn(spec);
+entity.try_assign_move(MoveId::Fly)?; // revalida em runtime
+```
 
 ### Ordem dos sistemas em `World::step`
 
@@ -158,10 +189,10 @@ A ordem é parte do contrato: mudá-la muda replay e rede.
 1. `input`: aplica comandos aos jogadores (intenção de movimento, edges de pulo/
    dash/ataque/farm).
 2. `aura`: atualiza combo, janela, ganho de aura e penalidade de movimento.
-3. `movement`: atualiza `Walk`/`Jump`/`Dash`/`Fly` e a intenção vira velocidade.
+3. `movements`: atualiza os componentes atribuídos e a intenção vira velocidade.
 4. `physics`: integra e resolve colisão com tiles (X, depois Y).
-5. `combat::melee`: avança o combo de 3 golpes e aplica hitbox.
-6. `combat::mogar`: dispara projétil se houver aura e input.
+5. `attacks::melee`: avança o combo de 3 golpes e aplica hitbox.
+6. `attacks::mogar`: dispara projétil se houver aura e input.
 7. `projectiles`: move projéteis e resolve colisão com tiles/inimigos.
 8. `ai`: patrulha e dano de contato.
 9. `collisions`: dano em inimigos/jogador, i-frames, knockback.
@@ -420,7 +451,7 @@ Cliente B ──comandos 60 Hz──▶   ├─ step a 60 Hz
 | Build wasm grande/lento | `opt-level = "s"`, `lto = true`, `codegen-units = 1` no perfil release |
 | Sprites gerados ficarem feios | Gerador versionado; trocar PNGs depois sem tocar no core |
 | Save quebrar entre versões | `version` no JSON + migração explícita ou reset seguro |
-| Escopo crescer (mais poderes/fases) | `SPEC.md` lista não-objetivos; novos poderes entram como módulo em `combat` |
+| Escopo crescer (mais poderes/fases) | `SPEC.md` lista não-objetivos; novos poderes entram como módulo em `attacks` ou `movements` |
 
 ## 11. Definition of Done do harness
 

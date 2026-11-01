@@ -8,10 +8,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::combat::Combat;
+use crate::attacks::Combat;
 use crate::input::{Attribute, FarmKey};
 use crate::math::{Rect, Vec2};
-use crate::movement::Movement;
+use crate::movements::Movement;
+use crate::moves::{AbilityContext, AssignError, EntityType, MoveCategory, MoveId};
 
 pub type PlayerId = u32;
 
@@ -54,6 +55,13 @@ pub struct Attributes {
 }
 
 impl Attributes {
+    pub const ZERO: Self = Self {
+        speed: 0,
+        strength: 0,
+        health: 0,
+        aura: 0,
+    };
+
     pub fn get(self, attribute: Attribute) -> u32 {
         match attribute {
             Attribute::Speed => self.speed,
@@ -70,6 +78,14 @@ impl Attributes {
             Attribute::Health => self.health += 1,
             Attribute::Aura => self.aura += 1,
         }
+    }
+
+    /// `true` se todos os atributos atuais alcançam o mínimo exigido.
+    pub fn meets(self, required: Self) -> bool {
+        self.speed >= required.speed
+            && self.strength >= required.strength
+            && self.health >= required.health
+            && self.aura >= required.aura
     }
 }
 
@@ -338,6 +354,23 @@ impl EntityKind {
             _ => None,
         }
     }
+
+    pub fn entity_type(&self) -> EntityType {
+        match self {
+            Self::Player(_) => EntityType::Player,
+            Self::Enemy(_) => EntityType::Enemy,
+            Self::Projectile(_) => EntityType::Projectile,
+        }
+    }
+
+    /// Contexto usado para validar requisitos de movimentos.
+    pub fn ability_context(&self) -> AbilityContext {
+        match self {
+            Self::Player(data) => AbilityContext::player(data.level, data.attributes),
+            Self::Enemy(_) => AbilityContext::enemy(),
+            Self::Projectile(_) => AbilityContext::projectile(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -393,6 +426,30 @@ impl Entity {
         self.kind.projectile_mut()
     }
 
+    pub fn entity_type(&self) -> EntityType {
+        self.kind.entity_type()
+    }
+
+    pub fn ability_context(&self) -> AbilityContext {
+        self.kind.ability_context()
+    }
+
+    pub fn has_move(&self, id: MoveId) -> bool {
+        match id.category() {
+            MoveCategory::Movement => self.movement.has(id),
+            MoveCategory::Attack => self.combat.has(id),
+        }
+    }
+
+    /// Atribui um movimento em runtime, revalidando os requisitos.
+    pub fn try_assign_move(&mut self, id: MoveId) -> Result<(), AssignError> {
+        let context = self.ability_context();
+        match id.category() {
+            MoveCategory::Movement => self.movement.try_assign(id, context),
+            MoveCategory::Attack => self.combat.try_assign(id, context),
+        }
+    }
+
     pub fn max_health(&self) -> f32 {
         self.stats.max_health
     }
@@ -424,6 +481,7 @@ pub struct EntitySpec {
     pub health: Health,
     pub stats: Stats,
     pub movement: Movement,
+    pub combat: Combat,
     pub velocity: Vec2,
 }
 
@@ -438,6 +496,7 @@ impl EntitySpec {
             health: Health::full(stats.max_health),
             stats,
             movement: Movement::player(),
+            combat: Combat::player(),
             velocity: Vec2::ZERO,
         }
     }
@@ -452,6 +511,7 @@ impl EntitySpec {
             health: Health::full(stats.max_health),
             stats,
             movement: Movement::enemy(),
+            combat: Combat::none(),
             velocity: Vec2::new(-stats.walk_speed, 0.0),
         }
     }
@@ -471,6 +531,7 @@ impl EntitySpec {
             health: Health::full(stats.max_health),
             stats,
             movement: Movement::none(),
+            combat: Combat::none(),
             velocity: Vec2::new(if facing >= 0 { 1.0 } else { -1.0 } * MOGAR_SPEED, 0.0),
         }
     }
@@ -488,6 +549,25 @@ impl EntitySpec {
     pub fn with_movement(mut self, movement: Movement) -> Self {
         self.movement = movement;
         self
+    }
+
+    pub fn with_combat(mut self, combat: Combat) -> Self {
+        self.combat = combat;
+        self
+    }
+
+    pub fn ability_context(&self) -> AbilityContext {
+        self.kind.ability_context()
+    }
+
+    /// Atribui um movimento ao spec se a entidade cumprir os requisitos.
+    pub fn with_move(mut self, id: MoveId) -> Result<Self, AssignError> {
+        let context = self.ability_context();
+        match id.category() {
+            MoveCategory::Movement => self.movement.try_assign(id, context)?,
+            MoveCategory::Attack => self.combat.try_assign(id, context)?,
+        }
+        Ok(self)
     }
 }
 
@@ -520,7 +600,7 @@ impl EntityStore {
             stats: spec.stats,
             faction: spec.faction,
             movement: spec.movement,
-            combat: Combat::default(),
+            combat: spec.combat,
         };
         self.entities.insert(id, entity);
         id
@@ -706,6 +786,60 @@ mod tests {
         assert!(!health.is_alive());
         health.heal(50.0, 30.0);
         assert_eq!(health.current, 30.0);
+    }
+
+    #[test]
+    fn player_and_enemy_receive_only_their_default_moves() {
+        let player = EntitySpec::player(0, Vec2::ZERO);
+        assert!(player.movement.has(MoveId::Walk));
+        assert!(player.movement.has(MoveId::Jump));
+        assert!(player.movement.has(MoveId::Dash));
+        assert!(player.combat.has(MoveId::Melee));
+        assert!(player.combat.has(MoveId::Mogar));
+        assert!(!player.movement.has(MoveId::Fly));
+
+        let enemy = EntitySpec::enemy(Vec2::ZERO);
+        assert!(enemy.movement.has(MoveId::Walk));
+        assert!(!enemy.movement.has(MoveId::Jump));
+        assert!(!enemy.combat.has(MoveId::Melee));
+        assert!(!enemy.combat.has(MoveId::Mogar));
+    }
+
+    #[test]
+    fn spec_rejects_move_without_requirements() {
+        let player = EntitySpec::player(0, Vec2::ZERO);
+        assert!(matches!(
+            player.with_move(MoveId::Fly),
+            Err(AssignError::LevelTooLow {
+                required: 5,
+                current: 1,
+            })
+        ));
+
+        let enemy = EntitySpec::enemy(Vec2::ZERO);
+        assert!(matches!(
+            enemy.with_move(MoveId::Jump),
+            Err(AssignError::WrongEntityType { .. })
+        ));
+    }
+
+    #[test]
+    fn runtime_assignment_revalidates_requirements() {
+        let mut store = EntityStore::new();
+        let player_id = store.spawn(EntitySpec::player(0, Vec2::ZERO));
+        let player = store.get_mut(player_id).unwrap();
+
+        assert!(player.try_assign_move(MoveId::Fly).is_err());
+
+        let data = player.player_mut().unwrap();
+        data.level = 5;
+        data.attributes = Attributes {
+            aura: 5,
+            ..Attributes::ZERO
+        };
+
+        assert!(player.try_assign_move(MoveId::Fly).is_ok());
+        assert!(player.has_move(MoveId::Fly));
     }
 
     #[test]
