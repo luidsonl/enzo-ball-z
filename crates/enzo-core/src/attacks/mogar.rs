@@ -47,7 +47,11 @@ pub fn fire(store: &mut EntityStore, player_id: PlayerId, events: &mut Vec<GameE
         {
             return;
         }
-        if !player.player().is_some_and(|data| data.input.mogar_pressed) {
+        if !player
+            .controller
+            .player_controller()
+            .is_some_and(|controller| controller.input.mogar_pressed)
+        {
             return;
         }
 
@@ -181,8 +185,11 @@ mod tests {
     }
 
     fn press_mogar(store: &mut EntityStore, player: EntityId) {
-        if let Some(data) = store.get_mut(player).unwrap().player_mut() {
-            data.input.mogar_pressed = true;
+        if let Some(controller) = store
+            .get_mut(player)
+            .and_then(|entity| entity.controller.player_controller_mut())
+        {
+            controller.input.mogar_pressed = true;
         }
     }
 
@@ -210,7 +217,14 @@ mod tests {
         let mut events = Vec::new();
         if let Some(data) = store.get_mut(player).unwrap().player_mut() {
             data.aura = 10.0;
-            data.input.mogar_pressed = true;
+        }
+        if let Some(controller) = store
+            .get_mut(player)
+            .unwrap()
+            .controller
+            .player_controller_mut()
+        {
+            controller.input.mogar_pressed = true;
         }
 
         fire(&mut store, 0, &mut events);

@@ -14,7 +14,8 @@ use crate::movements::Movement;
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Health, TeamId};
-use super::entity::{Controller, EntityKind};
+use super::controller::Controller;
+use super::entity::EntityKind;
 use super::equipment::{EquipSlot, Equipment};
 use super::player::{PlayerData, PlayerId};
 use super::spec::EntitySpec;
@@ -29,7 +30,7 @@ impl EntitySpec {
         let stats = Stats::player(attributes);
         Self {
             kind: EntityKind::Player(PlayerData::new(player_id, pos, stats)),
-            controller: Controller::Player,
+            controller: Controller::player(),
             team: TeamId::PLAYERS,
             pos,
             size: ENZO_SIZE,
@@ -40,7 +41,6 @@ impl EntitySpec {
             equipped: [None; EquipSlot::COUNT],
             movement: Movement::player(),
             combat: Combat::player(),
-            ai: None,
             velocity: Vec2::ZERO,
         }
     }
@@ -54,7 +54,7 @@ mod tests {
     #[test]
     fn enzo_spec_is_playable_with_default_moves() {
         let spec = EntitySpec::player(0, Vec2::ZERO);
-        assert_eq!(spec.controller, Controller::Player);
+        assert!(spec.controller.is_playable());
         assert_eq!(spec.team, TeamId::PLAYERS);
         assert_eq!(spec.size, ENZO_SIZE);
         assert!(spec.movement.has(MoveId::Walk));
@@ -62,6 +62,6 @@ mod tests {
         assert!(spec.movement.has(MoveId::Dash));
         assert!(spec.combat.has(MoveId::Melee));
         assert!(spec.combat.has(MoveId::Mogar));
-        assert!(spec.ai.is_none());
+        assert!(spec.controller.ai().is_none());
     }
 }

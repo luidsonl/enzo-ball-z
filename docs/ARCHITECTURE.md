@@ -37,21 +37,36 @@ enzoballz/
 │   │   │   ├── rng.rs
 │   │   │   ├── input.rs
 │   │   │   ├── map.rs
-│   │   │   ├── entity.rs
-│   │   │   ├── moves.rs           # MoveId, MoveSet, Requirements, AbilityContext
-│   │   │   ├── movements/         # movimentos inerentes
-│   │   │   │   ├── mod.rs         # Movement + orquestração
+│   │   │   ├── entities/         # Entity + componentes + entidades concretas
+│   │   │   │   ├── mod.rs
+│   │   │   │   ├── entity.rs     # Entity, EntityKind, EntityId
+│   │   │   │   ├── controller.rs # Controller, PlayerController, PlayerInput
+│   │   │   │   ├── spec.rs       # EntitySpec + builders genéricos
+│   │   │   │   ├── store.rs      # EntityStore
+│   │   │   │   ├── enzo.rs       # entidade jogável do MVP
+│   │   │   │   ├── slime.rs      # inimigo do MVP
+│   │   │   │   ├── mogar.rs      # projétil do especial
+│   │   │   │   ├── player.rs     # PlayerData (progressão/aura)
+│   │   │   │   ├── enemy.rs      # EnemyData
+│   │   │   │   ├── projectile.rs # ProjectileData
+│   │   │   │   └── item/         # item.rs + um arquivo por item
+│   │   │   ├── moves.rs          # MoveId, MoveSet, Requirements, AbilityContext
+│   │   │   ├── movements/        # movimentos inerentes
+│   │   │   │   ├── mod.rs        # Movement + orquestração
 │   │   │   │   ├── walk.rs
 │   │   │   │   ├── jump.rs
 │   │   │   │   ├── dash.rs
-│   │   │   │   └── fly.rs
+│   │   │   │   ├── fly.rs
+│   │   │   │   └── sixseven.rs   # farming de aura (6/7)
 │   │   │   ├── physics.rs
-│   │   │   ├── aura.rs
-│   │   │   ├── attacks/           # movimentos de ataque
-│   │   │   │   ├── mod.rs         # Combat + dano de contato
+│   │   │   ├── aura.rs           # saldo e gasto de aura
+│   │   │   ├── attacks/          # movimentos de ataque
+│   │   │   │   ├── mod.rs        # Combat + dano de contato
 │   │   │   │   ├── melee.rs
 │   │   │   │   └── mogar.rs
-│   │   │   ├── ai.rs
+│   │   │   ├── ai/               # comportamentos de IA
+│   │   │   │   ├── mod.rs        # Ai + AiBehavior
+│   │   │   │   └── slime.rs
 │   │   │   ├── progression.rs
 │   │   │   ├── world.rs
 │   │   │   ├── snapshot.rs
@@ -98,15 +113,16 @@ enzoballz/
 | ------------- | ---------------- | ------- |
 | `math`        | `Vec2`, `Rect`, clamp, aproximação, AABB | conhecer entidades |
 | `rng`         | PRNG determinístico com semente explícita | usar `rand::thread_rng` |
-| `input`       | `PlayerCommand`, `FarmKey`, intenção por tick | ler teclado |
+| `input`       | `PlayerCommand`, `SixSevenKey`, intenção por tick | ler teclado |
 | `map`         | `TileMap`, `Tile`, parse de mapa ASCII, spawn, bandeira | carregar arquivo |
-| `entity`      | `EntityId`, `Entity`, `EntityStore`, `EntitySpec`, componentes comuns | desenhar |
+| `entities`    | `EntityId`, `Entity`, `EntityStore`, `EntitySpec`, componentes comuns e entidades concretas | desenhar |
+| `entities::controller` | `Controller`, `PlayerController`/`PlayerInput`, `Ai`; quem decide a intenção | executar movimento |
 | `moves`       | `MoveId`, `MoveSet`, `Requirements`, `AbilityContext`, validação de atribuição | decidir dano |
-| `movements`   | componentes `Walk`, `Jump`, `Dash`, `Fly`; intenção vira velocidade | decidir dano |
+| `movements`   | componentes `Walk`, `Jump`, `Dash`, `Fly`, `SixSeven`; intenção vira velocidade | decidir dano |
 | `physics`     | gravidade, integração, colisão AABB com tiles | decidir dano |
-| `aura`        | máquina de estados do farming `6`/`7`, combo, ganho e lentidão | desenhar barra |
+| `aura`        | saldo de aura: aplica o ganho do SixSeven e gasta no Mogar | desenhar barra |
 | `attacks`     | `MeleeCombo`, `MogarAbility`, dano, i-frames, knockback | input direto |
-| `ai`          | patrulha de inimigos | colisão |
+| `ai`          | comportamentos de inimigos (patrulha etc.) | colisão |
 | `progression` | XP, nível, pontos, atributos e stats derivados | salvar em disco |
 | `world`       | orquestra o passo fixo e mantém o estado | render/IO |
 | `snapshot`    | estado serializável para render/rede/save | conter lógica |
@@ -121,19 +137,23 @@ nos mesmos componentes.
 ```rust
 pub struct Entity {
     pub id: EntityId,
-    pub kind: EntityKind,      // Player | Enemy | Projectile
+    pub kind: EntityKind,      // Player | Enemy | Projectile | Item
+    pub controller: Controller,// Player(PlayerController) | Ai(Ai) | None
+    pub team: TeamId,          // PLAYERS | ENEMIES | NEUTRAL
     pub body: Body,            // posição, velocidade, tamanho, facing, on_ground
     pub health: Health,        // vida atual + i-frames
     pub stats: Stats,          // velocidade, força, vida máx., aura máx., dano do Mogar
-    pub faction: Faction,      // Players | Enemies | Neutral
-    pub movement: Movement,    // MoveSet + Walk | Jump | Dash | Fly
+    pub attributes: Attributes,// pontos do personagem
+    pub equipment: Equipment,  // soma dos itens equipados
+    pub movement: Movement,    // MoveSet + Walk | Jump | Dash | Fly | SixSeven
     pub combat: Combat,        // MoveSet + MeleeCombo | MogarAbility
 }
 
 pub enum EntityKind {
-    Player(PlayerData),        // player_id, nível, XP, pontos, atributos, farming
-    Enemy(EnemyData),          // direção de patrulha, XP concedido
+    Player(PlayerData),        // player_id, nível, XP, pontos, aura
+    Enemy(EnemyData),          // espécie, XP, dano de contato
     Projectile(ProjectileData),// dono, dano, inimigos já atingidos
+    Item(ItemData),            // categoria, requisitos, modificadores
 }
 ```
 
@@ -143,16 +163,21 @@ pub enum EntityKind {
   `spawn(EntitySpec)`, `despawn(id)`, `get`, `get_mut`, `iter`, `players`,
   `enemies`, `in_rect`.
 - `EntitySpec` tem construtores explícitos: `EntitySpec::player`,
-  `EntitySpec::enemy`, `EntitySpec::mogar`. Nada de montar `Entity` à mão em
-  sistemas.
+  `EntitySpec::slime`, `EntitySpec::mogar` e `EntitySpec::item`. Cada construtor
+  vive no módulo da entidade concreta. Nada de montar `Entity` à mão em sistemas.
 - O store usa `BTreeMap<EntityId, Entity>` para iteração determinística e IDs
   estáveis. IDs não são reutilizados no MVP.
-- Sistemas nunca duplicam atributos: dano, vida, velocidade e facção vêm dos
+- Sistemas nunca duplicam atributos: dano, vida, velocidade e time vêm dos
   componentes comuns. Novos tipos de entidade entram como nova variante de
   `EntityKind` + construtor em `EntitySpec`.
+- `Controller` é o componente de controle: `Player(PlayerController)` guarda o
+  `PlayerInput` do tick, `Ai(Ai)` guarda o comportamento e seu estado, e `None`
+  cobre projéteis/itens. Não existe campo `ai` paralelo no `Entity`.
 - `Movement` agrupa movimentos inerentes como componentes independentes
-  (`Walk`, `Jump`, `Dash`, `Fly`) em `movements/`. Cada um tem estado próprio e
-  declara `REQUIREMENTS`.
+  (`Walk`, `Jump`, `Dash`, `Fly`, `SixSeven`) em `movements/`. Cada um tem estado
+  próprio e declara `REQUIREMENTS`.
+- `SixSeven` é o movimento que farma aura alternando `6`/`7`. O componente guarda
+  combo, janela e lentidão; o sistema de aura consome o pedido e aplica o saldo.
 - `Combat` agrupa movimentos de ataque (`MeleeCombo`, `MogarAbility`) em
   `attacks/`. Novos golpes entram como um módulo novo, nunca como lógica solta
   no `World`.
@@ -160,8 +185,8 @@ pub enum EntityKind {
   serializável, sem `HashSet`.
 - Todo movimento declara `Requirements` (tipos de entidade, nível mínimo e
   atributos mínimos). `MoveSet::try_assign` valida o `AbilityContext` da
-  entidade antes de inserir. Jogador nasce com andar/pular/dash/melee/mogar;
-  inimigo nasce só com andar; projétil não tem movimentos.
+  entidade antes de inserir. Jogador nasce com andar/pular/dash/SixSeven, além
+  de melee/mogar; inimigo nasce só com andar; projétil não tem movimentos.
 - `Fly` exige nível 5 e 5 pontos em Aura; o jogador do MVP não nasce com ele.
 - Para adicionar um movimento: crie o componente no diretório correto, declare
   `REQUIREMENTS`, adicione a variante em `MoveId`/`MoveId::requirements`, ligue
@@ -186,10 +211,11 @@ entity.try_assign_move(MoveId::Fly)?; // revalida em runtime
 
 A ordem é parte do contrato: mudá-la muda replay e rede.
 
-1. `input`: aplica comandos aos jogadores (intenção de movimento, edges de pulo/
-   dash/ataque/farm).
-2. `aura`: atualiza combo, janela, ganho de aura e penalidade de movimento.
-3. `movements`: atualiza os componentes atribuídos e a intenção vira velocidade.
+1. `input`: aplica comandos aos controladores dos jogadores (intenção de
+   movimento, edges de pulo/dash/ataque/SixSeven).
+2. `aura`: consome o pedido do SixSeven e aplica o ganho no saldo.
+3. `movements`: atualiza os componentes atribuídos (incluindo a janela do
+   SixSeven) e a intenção vira velocidade.
 4. `physics`: integra e resolve colisão com tiles (X, depois Y).
 5. `attacks::melee`: avança o combo de 3 golpes e aplica hitbox.
 6. `attacks::mogar`: dispara projétil se houver aura e input.
@@ -215,7 +241,7 @@ pub struct PlayerCommand {
     pub dash: bool,          // pressionado neste tick (edge)
     pub melee: bool,         // pressionado neste tick (edge)
     pub mogar: bool,         // pressionado neste tick (edge)
-    pub farm: Option<FarmKey>, // Six | Seven, pressionado neste tick
+    pub sixseven: Option<SixSevenKey>, // Six | Seven, pressionado neste tick
     pub allocate: Option<Attribute>, // 1..4 na tela de level-up
 }
 
@@ -232,8 +258,8 @@ pub struct TickOutput {
   avanço do tempo.
 - `World::snapshot() -> WorldSnapshot` é puro e barato o suficiente para 20 Hz.
 - `PlayerId` é estável e indexa `commands`; jogadores ausentes são `None`.
-- Inputs são **edge-triggered** para pulo/ataque/farm. O cliente calcula o edge;
-  o core não conhece key repeat do navegador.
+- Inputs são **edge-triggered** para pulo/ataque/SixSeven. O cliente calcula o
+  edge; o core não conhece key repeat do navegador.
 - O core guarda `tick: u64` e um `Rng` com semente. Nada lê o relógio.
 
 ### Determinismo
@@ -315,7 +341,7 @@ render(world.snapshot(), alpha)
 | Dash             | `Shift` (esquerdo ou direito)   |
 | Combo físico     | `J`                             |
 | Mogar            | `K`                             |
-| Farmar aura      | `6` e `7`, alternando           |
+| SixSeven (aura)  | `6` e `7`, alternando           |
 | Distribuir ponto | `1` Velocidade, `2` Força, `3` Vida, `4` Aura |
 | Confirmar level  | `Enter`                         |
 

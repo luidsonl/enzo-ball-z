@@ -46,8 +46,9 @@ pub fn update(store: &mut EntityStore, attacker_id: EntityId, events: &mut Vec<G
         return;
     }
     if !attacker
-        .player()
-        .is_some_and(|player| player.input.melee_pressed)
+        .controller
+        .player_controller()
+        .is_some_and(|controller| controller.input.melee_pressed)
     {
         return;
     }
@@ -126,16 +127,18 @@ mod tests {
     }
 
     fn press_melee(store: &mut EntityStore, player: EntityId, events: &mut Vec<GameEvent>) {
-        if let Some(entity) = store.get_mut(player) {
-            if let Some(data) = entity.player_mut() {
-                data.input.melee_pressed = true;
-            }
+        if let Some(controller) = store
+            .get_mut(player)
+            .and_then(|entity| entity.controller.player_controller_mut())
+        {
+            controller.input.melee_pressed = true;
         }
         update(store, player, events);
-        if let Some(entity) = store.get_mut(player) {
-            if let Some(data) = entity.player_mut() {
-                data.input.melee_pressed = false;
-            }
+        if let Some(controller) = store
+            .get_mut(player)
+            .and_then(|entity| entity.controller.player_controller_mut())
+        {
+            controller.input.melee_pressed = false;
         }
     }
 

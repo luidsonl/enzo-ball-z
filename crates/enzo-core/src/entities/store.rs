@@ -49,7 +49,6 @@ impl EntityStore {
             equipped: spec.equipped,
             movement: spec.movement,
             combat: spec.combat,
-            ai: spec.ai,
         };
         self.entities.insert(id, entity);
         id

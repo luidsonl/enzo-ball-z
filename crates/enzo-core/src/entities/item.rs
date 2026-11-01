@@ -25,7 +25,8 @@ use crate::moves::EntityType;
 
 use super::attributes::{AttributeSet, Attributes, Stats};
 use super::components::{Health, TeamId};
-use super::entity::{Controller, EntityKind};
+use super::controller::Controller;
+use super::entity::EntityKind;
 use super::equipment::{EquipSlot, Equipment};
 use super::spec::EntitySpec;
 
@@ -202,7 +203,6 @@ impl EntitySpec {
             equipped: [None; EquipSlot::COUNT],
             movement: Movement::none(),
             combat: Combat::none(),
-            ai: None,
             velocity: Vec2::ZERO,
         }
     }

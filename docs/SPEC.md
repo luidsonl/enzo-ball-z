@@ -92,21 +92,22 @@ Explorar e enfrentar inimigos
   atribuído ao jogador: exige nível 5 e 5 pontos em Aura.
 - Colisão AABB contra tiles; resolução em X e depois em Y.
 
-Cada movimento é um componente próprio (`Walk`, `Jump`, `Dash`, `Fly`) dentro de
-`Movement`; o controlador só define intenção. Todo movimento declara requisitos
-(tipos de entidade, nível e atributos mínimos) e só entra no `MoveSet` da
-entidade quando eles são cumpridos.
+Cada movimento é um componente próprio (`Walk`, `Jump`, `Dash`, `Fly`,
+`SixSeven`) dentro de `Movement`; o controlador só define intenção. Todo
+movimento declara requisitos (tipos de entidade, nível e atributos mínimos) e só
+entra no `MoveSet` da entidade quando eles são cumpridos.
 
-## 7. Aura e farming
+## 7. Aura e SixSeven
 
 - Barra de aura base: `100`.
-- Alternar `6 → 7 → 6 → 7` conta como acerto.
+- **SixSeven** é o movimento de farming: alternar `6 → 7 → 6 → 7` conta como
+  acerto. O componente vive em `movements/sixseven.rs`.
 - Repetir a mesma tecla (ex.: `6, 6`) zera o combo e não gera aura.
 - Cada acerto gera `2` de aura × multiplicador.
 - Multiplicador: `1 + 0,15 × combo`, limitado a `3,0`.
 - Janela do combo: `0,9 s` sem acerto → combo volta a zero.
 - Enquanto o combo está ativo, a velocidade do Enzo cai para `45%`.
-- A aura não regenera sozinha. Só farming recompõe.
+- A aura não regenera sozinha. Só o SixSeven recompõe.
 - A aura é gasta apenas no Mogar.
 
 ## 8. Combate
@@ -153,15 +154,21 @@ mesmos componentes de base:
 | `Body` (posição, velocidade, tamanho) | sim | sim | sim |
 | `Health` (vida atual, i-frames) | sim | sim | 1 de vida |
 | `Stats` (velocidade, força, vida máx., aura máx.) | derivado dos atributos | fixo | zerado |
-| `Faction` | `Players` | `Enemies` | `Players` |
-| `Movement` (`Walk`/`Jump`/`Dash`/`Fly`) | andar, pular, dash | andar | nenhum |
+| `TeamId` | `PLAYERS` | `ENEMIES` | `PLAYERS` |
+| `Controller` | `Player(PlayerController)` | `Ai(SlimeAi)` | `None` |
+| `Movement` (`Walk`/`Jump`/`Dash`/`Fly`/`SixSeven`) | andar, pular, dash, SixSeven | andar | nenhum |
 | `Combat` (`Melee`/`Mogar`) | combo e Mogar | nenhum | nenhum |
 | `MoveSet` | movimentos atribuídos e validados | idem | vazio |
-| Dados específicos | nível, XP, pontos, farming | patrulha, XP | dono, dano |
+| Dados específicos | nível, XP, pontos, aura | patrulha, XP | dono, dano |
+
+Cada entidade concreta tem seu arquivo (`entities/enzo.rs`, `slime.rs`,
+`mogar.rs` e `item/`). Os módulos genéricos guardam só componentes e contratos.
 
 A criação é centralizada em `EntityStore::spawn(EntitySpec)`. Nenhum sistema
 monta uma entidade à mão nem duplica atributos. Movimentos e ataques só são
-atribuídos se cumprirem os requisitos declarados por eles.
+atribuídos se cumprirem os requisitos declarados por eles. O controlador é um
+componente: o jogador guarda o `PlayerInput` do tick; a IA guarda o próprio
+estado, sem campos paralelos no `Entity`.
 
 ## 10. Progressão
 

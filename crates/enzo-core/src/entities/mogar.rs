@@ -8,7 +8,8 @@ use crate::math::Vec2;
 
 use super::attributes::Stats;
 use super::components::{Health, TeamId};
-use super::entity::{Controller, EntityId, EntityKind};
+use super::controller::Controller;
+use super::entity::{EntityId, EntityKind};
 use super::equipment::{EquipSlot, Equipment};
 use super::projectile::ProjectileData;
 use super::spec::EntitySpec;
@@ -54,7 +55,6 @@ impl EntitySpec {
             equipped: [None; EquipSlot::COUNT],
             movement: crate::movements::Movement::none(),
             combat: crate::attacks::Combat::none(),
-            ai: None,
             velocity: Vec2::new(if facing >= 0 { 1.0 } else { -1.0 } * MOGAR_SPEED, 0.0),
         }
     }
@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(spec.velocity.x, MOGAR_SPEED);
         assert!(spec.movement.moves.is_empty());
         assert!(spec.combat.moves.is_empty());
-        assert!(spec.ai.is_none());
+        assert!(spec.controller.ai().is_none());
         match spec.kind {
             EntityKind::Projectile(data) => {
                 assert_eq!(data.owner, EntityId(0));

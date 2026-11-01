@@ -16,7 +16,8 @@ use crate::moves::{AbilityContext, AssignError, MoveCategory, MoveId};
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Health, TeamId};
-use super::entity::{Controller, EntityKind};
+use super::controller::Controller;
+use super::entity::EntityKind;
 use super::equipment::{EquipSlot, Equipment, EquippedItem};
 use super::item::{EquipError, ItemData};
 
@@ -35,7 +36,6 @@ pub struct EntitySpec {
     pub equipped: [Option<EquippedItem>; EquipSlot::COUNT],
     pub movement: Movement,
     pub combat: Combat,
-    pub ai: Option<Ai>,
     pub velocity: Vec2,
 }
 
@@ -65,8 +65,9 @@ impl EntitySpec {
         self
     }
 
+    /// Anexa um controlador de IA, substituindo o controlador atual.
     pub fn with_ai(mut self, ai: Ai) -> Self {
-        self.ai = Some(ai);
+        self.controller = Controller::from_ai(ai);
         self
     }
 

@@ -5,7 +5,7 @@
 //!
 //! Componentes comuns: [`Body`], [`Health`], [`Stats`], [`Attributes`],
 //! [`TeamId`], [`Controller`], [`Movement`], [`Combat`], [`Equipment`].
-//! Componentes opcionais: [`crate::ai::Ai`] (inimigos) e os itens equipados.
+//! Componentes opcionais: os itens equipados.
 //!
 //! Cada entidade concreta tem seu arquivo: `enzo.rs` (jogável), `slime.rs`
 //! (inimigo), `mogar.rs` (projétil) e `item/` (itens). Os módulos genéricos
@@ -16,6 +16,7 @@
 
 pub mod attributes;
 pub mod components;
+pub mod controller;
 pub mod enemy;
 pub mod entity;
 pub mod enzo;
@@ -30,15 +31,16 @@ pub mod store;
 
 pub use attributes::{AttributeId, AttributeSet, Attributes, Stats};
 pub use components::{Body, Health, TeamId, TeamRelations, MAX_TEAMS};
+pub use controller::{Controller, PlayerController, PlayerInput};
 pub use enemy::{EnemyData, EnemySpecies};
-pub use entity::{Controller, Entity, EntityId, EntityKind};
+pub use entity::{Entity, EntityId, EntityKind};
 pub use enzo::ENZO_SIZE;
 pub use equipment::{EquipSlot, Equipment, EquipmentTags, EquippedItem};
 pub use item::{
     EquipError, ItemCategory, ItemData, ItemKind, ItemRequirements, ItemUsage, ITEM_SIZE,
 };
 pub use mogar::{MOGAR_LIFETIME, MOGAR_SIZE, MOGAR_SPEED};
-pub use player::{PlayerData, PlayerId, PlayerInput};
+pub use player::{PlayerData, PlayerId};
 pub use projectile::ProjectileData;
 pub use slime::{SLIME_CONTACT_DAMAGE, SLIME_SIZE, SLIME_XP_REWARD};
 pub use spec::EntitySpec;

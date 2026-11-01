@@ -80,14 +80,14 @@ mod tests {
     fn slime_at(store: &mut EntityStore, x: f32, y: f32, dir: i8) -> EntityId {
         let id = store.spawn(EntitySpec::slime(Vec2::new(x, y)));
         let entity = store.get_mut(id).unwrap();
-        entity.ai = Some(Ai::slime_with_dir(dir));
+        *entity.ai_mut().unwrap() = Ai::slime_with_dir(dir);
         id
     }
 
     fn patrol_dir(store: &EntityStore, id: EntityId) -> i8 {
         store
             .get(id)
-            .and_then(|entity| entity.ai)
+            .and_then(|entity| entity.ai().copied())
             .map(Ai::patrol_dir)
             .unwrap_or(0)
     }

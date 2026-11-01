@@ -3,8 +3,8 @@
 //! Jogável, inimigo e projétil são o mesmo [`Entity`]. O que muda é o
 //! [`EntityKind`] (payload específico) e o [`Controller`] (quem decide a
 //! intenção). Componentes comuns (`Body`, `Health`, `Stats`, `Attributes`,
-//! `TeamId`, `Movement`, `Combat`) existem em todas as entidades; `Ai` e
-//! `Equipment` são opcionais.
+//! `TeamId`, `Movement`, `Combat`) existem em todas as entidades; `Equipment` e
+//! os itens equipados são opcionais.
 //!
 //! Toda criação passa por [`crate::entities::EntityStore::spawn`] com um
 //! [`crate::entities::EntitySpec`].
@@ -17,6 +17,7 @@ use crate::moves::{AbilityContext, AssignError, EntityType, MoveCategory, MoveId
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Body, Health, TeamId};
+use super::controller::Controller;
 use super::enemy::EnemyData;
 use super::equipment::{EquipSlot, Equipment, EquippedItem};
 use super::item::{EquipError, ItemData};
@@ -26,21 +27,6 @@ use super::projectile::ProjectileData;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EntityId(pub u32);
-
-/// Quem controla a entidade. `Player` é jogável; `Ai` e `None` não são.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Controller {
-    Player,
-    Ai,
-    None,
-}
-
-impl Controller {
-    pub fn is_playable(self) -> bool {
-        matches!(self, Self::Player)
-    }
-}
 
 /// Payload específico de cada tipo de entidade. Os componentes comuns ficam no
 /// [`Entity`], nunca duplicados aqui.
@@ -159,7 +145,6 @@ pub struct Entity {
     pub equipped: [Option<EquippedItem>; EquipSlot::COUNT],
     pub movement: Movement,
     pub combat: Combat,
-    pub ai: Option<Ai>,
 }
 
 impl Entity {
@@ -185,6 +170,14 @@ impl Entity {
 
     pub fn is_playable(&self) -> bool {
         self.controller.is_playable()
+    }
+
+    pub fn ai(&self) -> Option<&Ai> {
+        self.controller.ai()
+    }
+
+    pub fn ai_mut(&mut self) -> Option<&mut Ai> {
+        self.controller.ai_mut()
     }
 
     pub fn player(&self) -> Option<&PlayerData> {

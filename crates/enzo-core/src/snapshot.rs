@@ -124,7 +124,7 @@ impl EntitySnapshot {
             }),
             EntityKind::Enemy(data) => SnapshotKind::Enemy(EnemySnapshot {
                 species: data.species,
-                patrol_dir: entity.ai.map(|ai| ai.patrol_dir()).unwrap_or(0),
+                patrol_dir: entity.ai().map(|ai| ai.patrol_dir()).unwrap_or(0),
                 stun: data.stun,
                 xp_reward: data.xp_reward,
             }),

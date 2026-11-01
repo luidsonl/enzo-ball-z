@@ -65,7 +65,7 @@ impl Ai {
 pub fn update(store: &mut EntityStore, level: &Level) {
     let ids: Vec<EntityId> = store
         .iter()
-        .filter(|entity| entity.ai.is_some())
+        .filter(|entity| entity.controller.is_ai())
         .map(|entity| entity.id)
         .collect();
 
@@ -73,7 +73,7 @@ pub fn update(store: &mut EntityStore, level: &Level) {
         let Some(entity) = store.get_mut(id) else {
             continue;
         };
-        let Some(mut ai) = entity.ai else {
+        let Some(mut ai) = entity.ai().copied() else {
             continue;
         };
 
@@ -85,7 +85,9 @@ pub fn update(store: &mut EntityStore, level: &Level) {
         ai.behavior = match ai.behavior {
             AiBehavior::Slime(state) => AiBehavior::Slime(slime::update(entity, level, state)),
         };
-        entity.ai = Some(ai);
+        if let Some(slot) = entity.ai_mut() {
+            *slot = ai;
+        }
     }
 }
 
@@ -102,7 +104,7 @@ mod tests {
     #[test]
     fn slime_behavior_is_attached_by_spec() {
         let spec = EntitySpec::slime(Vec2::ZERO);
-        let ai = spec.ai.expect("slime deve ter IA");
+        let ai = spec.controller.ai().copied().expect("slime deve ter IA");
         assert!(ai.enabled);
         assert_eq!(ai.behavior, AiBehavior::Slime(SlimeAi::new(-1)));
     }
@@ -115,7 +117,7 @@ mod tests {
         {
             let entity = store.get_mut(enemy).unwrap();
             entity.movement.walk.intent_x = 1;
-            if let Some(ai) = entity.ai.as_mut() {
+            if let Some(ai) = entity.ai_mut() {
                 ai.enabled = false;
             }
         }

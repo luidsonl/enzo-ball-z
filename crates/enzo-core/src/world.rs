@@ -8,8 +8,8 @@ use crate::ai;
 use crate::attacks::{self, melee, mogar};
 use crate::aura;
 use crate::entities::{
-    Entity, EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, PlayerInput,
-    ENZO_SIZE, SLIME_SIZE,
+    Entity, EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, ENZO_SIZE,
+    SLIME_SIZE,
 };
 use crate::events::{GameEvent, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
@@ -162,15 +162,8 @@ impl World {
             return;
         }
 
-        if let Some(player) = entity.player_mut() {
-            player.input = PlayerInput {
-                move_x: command.move_x.clamp(-1, 1),
-                jump_pressed: command.jump,
-                jump_held: command.jump_held,
-                dash_pressed: command.dash,
-                melee_pressed: command.melee,
-                mogar_pressed: command.mogar,
-            };
+        if let Some(controller) = entity.controller.player_controller_mut() {
+            controller.apply(command);
         }
 
         entity.movement.apply_command(command);
@@ -311,11 +304,8 @@ impl World {
 
     fn clear_input_edges(&mut self) {
         for entity in self.store.players_mut() {
-            if let Some(player) = entity.player_mut() {
-                player.input.jump_pressed = false;
-                player.input.dash_pressed = false;
-                player.input.melee_pressed = false;
-                player.input.mogar_pressed = false;
+            if let Some(controller) = entity.controller.player_controller_mut() {
+                controller.clear_edges();
             }
         }
     }
@@ -337,8 +327,10 @@ impl World {
             let max_aura = entity.stats.max_aura;
             if let Some(player) = entity.player_mut() {
                 player.aura = max_aura;
-                player.input = PlayerInput::default();
                 player.pending_level_up = false;
+            }
+            if let Some(controller) = entity.controller.player_controller_mut() {
+                *controller = Default::default();
             }
         }
 

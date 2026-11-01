@@ -11,8 +11,9 @@ use crate::movements::Movement;
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Health, TeamId};
+use super::controller::Controller;
 use super::enemy::{EnemyData, EnemySpecies};
-use super::entity::{Controller, EntityKind};
+use super::entity::EntityKind;
 use super::equipment::{EquipSlot, Equipment};
 use super::spec::EntitySpec;
 
@@ -59,7 +60,7 @@ impl EntitySpec {
         let stats = Stats::slime();
         Self {
             kind: EntityKind::Enemy(EnemyData::slime()),
-            controller: Controller::Ai,
+            controller: Controller::from_ai(Ai::slime()),
             team: TeamId::ENEMIES,
             pos,
             size: SLIME_SIZE,
@@ -70,7 +71,6 @@ impl EntitySpec {
             equipped: [None; EquipSlot::COUNT],
             movement: Movement::enemy(),
             combat: Combat::none(),
-            ai: Some(Ai::slime()),
             velocity: Vec2::new(-stats.walk_speed, 0.0),
         }
     }
@@ -84,10 +84,10 @@ mod tests {
     #[test]
     fn slime_spec_has_ai_and_no_player_moves() {
         let spec = EntitySpec::slime(Vec2::ZERO);
-        assert_eq!(spec.controller, Controller::Ai);
+        assert!(spec.controller.is_ai());
         assert_eq!(spec.team, TeamId::ENEMIES);
         assert_eq!(spec.size, SLIME_SIZE);
-        assert!(spec.ai.is_some());
+        assert!(spec.controller.ai().is_some());
         assert!(spec.movement.has(MoveId::Walk));
         assert!(!spec.movement.has(MoveId::Jump));
         assert!(!spec.combat.has(MoveId::Melee));
