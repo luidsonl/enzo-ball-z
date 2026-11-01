@@ -4,7 +4,7 @@ use crate::MAX_PLAYERS;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum FarmKey {
+pub enum SixSevenKey {
     Six,
     Seven,
 }
@@ -29,7 +29,7 @@ impl Attribute {
 
 /// Intenção de um jogador em um único tick.
 ///
-/// `jump`, `melee`, `mogar`, `farm`, `allocate`, `confirm` e `restart` são
+/// `jump`, `melee`, `mogar`, `sixseven`, `allocate`, `confirm` e `restart` são
 /// edge-triggered: o cliente envia `true` apenas no tick em que a tecla foi
 /// pressionada. `jump_held` e `move_x` são estados contínuos.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -41,7 +41,7 @@ pub struct PlayerCommand {
     pub dash: bool,
     pub melee: bool,
     pub mogar: bool,
-    pub farm: Option<FarmKey>,
+    pub sixseven: Option<SixSevenKey>,
     pub allocate: Option<Attribute>,
     pub confirm: bool,
     pub restart: bool,
@@ -59,7 +59,7 @@ impl PlayerCommand {
         self.dash = false;
         self.melee = false;
         self.mogar = false;
-        self.farm = None;
+        self.sixseven = None;
         self.allocate = None;
         self.confirm = false;
         self.restart = false;
@@ -123,7 +123,7 @@ mod tests {
             dash: true,
             melee: true,
             mogar: true,
-            farm: Some(FarmKey::Six),
+            sixseven: Some(SixSevenKey::Six),
             allocate: Some(Attribute::Aura),
             confirm: true,
             restart: true,
@@ -136,7 +136,7 @@ mod tests {
         assert!(!command.dash);
         assert!(!command.melee);
         assert!(!command.mogar);
-        assert!(command.farm.is_none());
+        assert!(command.sixseven.is_none());
         assert!(command.allocate.is_none());
         assert!(!command.confirm);
         assert!(!command.restart);

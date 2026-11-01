@@ -152,7 +152,7 @@ pub fn tick_timers(store: &mut EntityStore, dt: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entities::{EntitySpec, Stats, PLAYER_SIZE};
+    use crate::entities::{EntitySpec, Stats, ENZO_SIZE};
     use crate::map::TILE_SIZE;
     use crate::math::Vec2;
     use crate::moves::EntityType;
@@ -232,7 +232,7 @@ mod tests {
         let (store, player, enemy) = setup();
         let player_entity = store.get(player).unwrap();
         let enemy_entity = store.get(enemy).unwrap();
-        assert_eq!(player_entity.body.size, PLAYER_SIZE);
+        assert_eq!(player_entity.body.size, ENZO_SIZE);
         assert_eq!(player_entity.stats, Stats::player(Default::default()));
         assert_eq!(enemy_entity.stats, Stats::slime());
         assert_eq!(player_entity.health.current, 100.0);

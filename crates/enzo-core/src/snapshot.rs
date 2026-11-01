@@ -4,7 +4,6 @@
 //! estado derivado; nenhuma regra de jogo vive aqui. Os tiles estáticos do mapa
 //! ficam em [`crate::map::Level`] e são lidos pelo render via `World::level()`.
 
-use crate::aura;
 use crate::entities::{
     Attributes, EnemySpecies, Entity, EntityId, EntityKind, Equipment, ItemCategory, ItemKind,
     ItemUsage, PlayerId,
@@ -116,8 +115,8 @@ impl EntitySnapshot {
                 attributes: entity.attributes,
                 equipment: entity.equipment,
                 pending_level_up: data.pending_level_up,
-                farming: aura::is_farming(data),
-                combo_window: data.farm.window,
+                farming: entity.movement.sixseven.is_active(),
+                combo_window: entity.movement.sixseven.window,
                 melee_step: entity.combat.melee.step,
                 melee_timer: entity.combat.melee.anim_timer,
                 mogar_cooldown: entity.combat.mogar.cooldown,
@@ -142,7 +141,11 @@ impl EntitySnapshot {
         };
 
         let (aura, max_aura, combo) = match &entity.kind {
-            EntityKind::Player(data) => (data.aura, entity.stats.max_aura, data.farm.combo),
+            EntityKind::Player(data) => (
+                data.aura,
+                entity.stats.max_aura,
+                entity.movement.sixseven.combo,
+            ),
             _ => (0.0, entity.stats.max_aura, 0),
         };
 

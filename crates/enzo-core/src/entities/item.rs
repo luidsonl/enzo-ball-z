@@ -8,12 +8,26 @@
 //!   consumidas e não ocupam slot.
 //! - **Passivos:** armaduras e acessórios. Ficam equipados e contribuem com
 //!   tags/modificadores enquanto durar o equipamento.
+//!
+//! Cada item concreto tem seu próprio arquivo em `item/`. Este módulo guarda só
+//! o componente genérico e a construção da entidade-item no mundo.
 
+pub mod amulet;
+pub mod armor;
+pub mod bow;
+pub mod potion;
+pub mod sword;
+
+use crate::attacks::Combat;
 use crate::math::Vec2;
+use crate::movements::Movement;
 use crate::moves::EntityType;
 
-use super::attributes::{AttributeId, AttributeSet};
-use super::equipment::{EquipSlot, Equipment, EquipmentTags};
+use super::attributes::{AttributeSet, Attributes, Stats};
+use super::components::{Health, TeamId};
+use super::entity::{Controller, EntityKind};
+use super::equipment::{EquipSlot, Equipment};
+use super::spec::EntitySpec;
 
 pub const ITEM_SIZE: Vec2 = Vec2::new(20.0, 20.0);
 
@@ -131,73 +145,6 @@ pub struct ItemData {
 }
 
 impl ItemData {
-    pub const SWORD: Self = Self {
-        kind: ItemKind::Sword,
-        category: ItemCategory::Weapon,
-        equipment: Equipment {
-            tags: EquipmentTags::SWORD,
-            modifiers: AttributeSet::ZERO.with(AttributeId::MELEE, 1),
-        },
-        requirements: ItemRequirements::new(
-            &[EntityType::Playable],
-            AttributeSet::ZERO.with(AttributeId::STRENGTH, 2),
-        ),
-        heal: 0.0,
-    };
-
-    pub const BOW: Self = Self {
-        kind: ItemKind::Bow,
-        category: ItemCategory::Weapon,
-        equipment: Equipment {
-            tags: EquipmentTags::BOW,
-            modifiers: AttributeSet::ZERO.with(AttributeId::RANGED, 1),
-        },
-        requirements: ItemRequirements::new(
-            &[EntityType::Playable],
-            AttributeSet::ZERO.with(AttributeId::SPEED, 2),
-        ),
-        heal: 0.0,
-    };
-
-    pub const ARMOR: Self = Self {
-        kind: ItemKind::Armor,
-        category: ItemCategory::Armor,
-        equipment: Equipment {
-            tags: EquipmentTags::NONE,
-            modifiers: AttributeSet::ZERO.with(AttributeId::HEALTH, 1),
-        },
-        requirements: ItemRequirements::new(
-            &[EntityType::Playable],
-            AttributeSet::ZERO.with(AttributeId::HEALTH, 2),
-        ),
-        heal: 0.0,
-    };
-
-    pub const AMULET: Self = Self {
-        kind: ItemKind::Amulet,
-        category: ItemCategory::Accessory,
-        equipment: Equipment {
-            tags: EquipmentTags::NONE,
-            modifiers: AttributeSet::ZERO.with(AttributeId::AURA, 1),
-        },
-        requirements: ItemRequirements::new(
-            &[EntityType::Playable],
-            AttributeSet::ZERO.with(AttributeId::AURA, 2),
-        ),
-        heal: 0.0,
-    };
-
-    pub const POTION: Self = Self {
-        kind: ItemKind::Potion,
-        category: ItemCategory::Potion,
-        equipment: Equipment::NONE,
-        requirements: ItemRequirements::new(
-            &[EntityType::Playable],
-            AttributeSet::ZERO.with(AttributeId::AURA, 1),
-        ),
-        heal: 30.0,
-    };
-
     pub fn usage(self) -> ItemUsage {
         self.category.usage()
     }
@@ -223,9 +170,48 @@ impl ItemData {
     }
 }
 
+impl Stats {
+    /// Item não é ator: vida simbólica para reutilizar `Health`, sem movimento.
+    pub fn item() -> Self {
+        Self {
+            walk_speed: 0.0,
+            run_speed: 0.0,
+            jump_speed: 0.0,
+            strength: 0.0,
+            max_health: 1.0,
+            max_aura: 0.0,
+            mogar_damage: 0.0,
+        }
+    }
+}
+
+impl EntitySpec {
+    /// Item no mundo. Não é ator: sem movimento, combate ou IA.
+    pub fn item(item: ItemData, pos: Vec2) -> Self {
+        let stats = Stats::item();
+        Self {
+            kind: EntityKind::Item(item),
+            controller: Controller::None,
+            team: TeamId::NEUTRAL,
+            pos,
+            size: ITEM_SIZE,
+            health: Health::full(stats.max_health),
+            stats,
+            attributes: Attributes::ZERO,
+            equipment: Equipment::NONE,
+            equipped: [None; EquipSlot::COUNT],
+            movement: Movement::none(),
+            combat: Combat::none(),
+            ai: None,
+            velocity: Vec2::ZERO,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entities::AttributeId;
 
     fn strong() -> AttributeSet {
         AttributeSet::ZERO.with(AttributeId::STRENGTH, 2)

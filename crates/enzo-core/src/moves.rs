@@ -1,8 +1,8 @@
 //! Catálogo e atribuição de movimentos.
 //!
-//! Todo movimento — inerente (`Walk`, `Jump`, `Dash`, `Fly`) ou de ataque
-//! (`Melee`, `Mogar`) — declara seus [`Requirements`]. Uma entidade recebe um
-//! [`MoveSet`] com apenas os movimentos que ela pode usar.
+//! Todo movimento — inerente (`Walk`, `Jump`, `Dash`, `Fly`, `SixSeven`) ou de
+//! ataque (`Melee`, `Mogar`) — declara seus [`Requirements`]. Uma entidade
+//! recebe um [`MoveSet`] com apenas os movimentos que ela pode usar.
 //!
 //! A validação é feita no core: o cliente não decide se o Enzo pode voar ou se
 //! um inimigo pode dar Mogar. Requisitos combinam tipo de entidade, nível,
@@ -14,7 +14,7 @@
 
 use crate::attacks::{melee, mogar};
 use crate::entities::{AttributeSet, Attributes, EquipmentTags};
-use crate::movements::{dash, fly, jump, walk};
+use crate::movements::{dash, fly, jump, sixseven, walk};
 
 /// Tipo de entidade usado para validar requisitos de atribuição.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,27 +34,37 @@ pub enum MoveId {
     Jump,
     Dash,
     Fly,
+    SixSeven,
     Melee,
     Mogar,
 }
 
 impl MoveId {
-    pub const ALL: [MoveId; 6] = [
+    pub const ALL: [MoveId; 7] = [
         MoveId::Walk,
         MoveId::Jump,
         MoveId::Dash,
         MoveId::Fly,
+        MoveId::SixSeven,
         MoveId::Melee,
         MoveId::Mogar,
     ];
 
-    pub const MOVEMENTS: [MoveId; 4] = [MoveId::Walk, MoveId::Jump, MoveId::Dash, MoveId::Fly];
+    pub const MOVEMENTS: [MoveId; 5] = [
+        MoveId::Walk,
+        MoveId::Jump,
+        MoveId::Dash,
+        MoveId::Fly,
+        MoveId::SixSeven,
+    ];
 
     pub const ATTACKS: [MoveId; 2] = [MoveId::Melee, MoveId::Mogar];
 
     pub fn category(self) -> MoveCategory {
         match self {
-            MoveId::Walk | MoveId::Jump | MoveId::Dash | MoveId::Fly => MoveCategory::Movement,
+            MoveId::Walk | MoveId::Jump | MoveId::Dash | MoveId::Fly | MoveId::SixSeven => {
+                MoveCategory::Movement
+            }
             MoveId::Melee | MoveId::Mogar => MoveCategory::Attack,
         }
     }
@@ -66,6 +76,7 @@ impl MoveId {
             MoveId::Jump => jump::REQUIREMENTS,
             MoveId::Dash => dash::REQUIREMENTS,
             MoveId::Fly => fly::REQUIREMENTS,
+            MoveId::SixSeven => sixseven::REQUIREMENTS,
             MoveId::Melee => melee::REQUIREMENTS,
             MoveId::Mogar => mogar::REQUIREMENTS,
         }
@@ -289,6 +300,7 @@ mod tests {
     fn move_ids_are_split_by_category() {
         assert_eq!(MoveId::Walk.category(), MoveCategory::Movement);
         assert_eq!(MoveId::Fly.category(), MoveCategory::Movement);
+        assert_eq!(MoveId::SixSeven.category(), MoveCategory::Movement);
         assert_eq!(MoveId::Melee.category(), MoveCategory::Attack);
         assert_eq!(MoveId::Mogar.category(), MoveCategory::Attack);
     }
@@ -300,12 +312,26 @@ mod tests {
             MoveId::Walk,
             MoveId::Jump,
             MoveId::Dash,
+            MoveId::SixSeven,
             MoveId::Melee,
             MoveId::Mogar,
         ] {
             assert!(id.requirements().allows(context).is_ok(), "{id:?}");
         }
         assert!(MoveId::Fly.requirements().allows(context).is_err());
+    }
+
+    #[test]
+    fn sixseven_accepts_player_and_rejects_enemy() {
+        let sixseven = MoveId::SixSeven.requirements();
+        assert!(sixseven.allows(player_at(1, Attributes::ZERO)).is_ok());
+        assert_eq!(
+            sixseven.allows(AbilityContext::enemy()),
+            Err(AssignError::WrongEntityType {
+                required: sixseven.entity_types,
+                current: EntityType::Enemy,
+            })
+        );
     }
 
     #[test]

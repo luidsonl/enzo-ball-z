@@ -1,69 +1,32 @@
-//! Máquina de estados do farming de aura (`6`/`7`).
+//! Recurso de aura.
 //!
-//! Alternar as teclas preenche a aura; repetir a mesma tecla zera o combo.
-//! Enquanto o combo está ativo o jogador fica lento, então farmar é uma
-//! decisão de risco.
+//! O ganho por `6`/`7` é decidido pelo movimento
+//! [`crate::movements::SixSeven`]; aqui ficam só as operações sobre o saldo do
+//! jogador: aplicar o ganho do movimento e gastar no Mogar.
 
 use crate::entities::PlayerData;
-use crate::input::FarmKey;
+use crate::input::SixSevenKey;
+use crate::movements::{sixseven, SixSeven};
 
-pub const AURA_PER_HIT: f32 = 2.0;
-pub const COMBO_MULTIPLIER_STEP: f32 = 0.15;
-pub const MAX_MULTIPLIER: f32 = 3.0;
-pub const COMBO_WINDOW: f32 = 0.9;
-pub const FARM_SLOW_FACTOR: f32 = 0.45;
-
-/// Aplica uma tecla de farming. Retorna a aura efetivamente ganha.
-pub fn apply_farm(player: &mut PlayerData, key: FarmKey, max_aura: f32) -> f32 {
-    if player.farm.last_key == Some(key) {
-        // Repetir a tecla quebra a sequência e não gera aura.
-        player.farm.combo = 0;
-        player.farm.window = 0.0;
-        player.farm.last_key = Some(key);
+/// Aplica a tecla de SixSeven ao saldo de aura do jogador. Retorna a aura
+/// efetivamente ganha.
+pub fn apply_sixseven(
+    player: &mut PlayerData,
+    sixseven: &mut SixSeven,
+    key: SixSevenKey,
+    max_aura: f32,
+) -> f32 {
+    let multiplier = sixseven.press(key);
+    if multiplier <= 0.0 {
         return 0.0;
     }
 
-    player.farm.combo += 1;
-    player.farm.last_key = Some(key);
-    player.farm.window = COMBO_WINDOW;
-
-    let multiplier = combo_multiplier(player.farm.combo);
-    let gain = (AURA_PER_HIT * multiplier)
+    let gain = (sixseven::AURA_PER_HIT * multiplier)
         .min(max_aura - player.aura)
         .max(0.0);
     player.aura = (player.aura + gain).min(max_aura);
-    player.farm.total += gain;
+    sixseven.record_gain(gain);
     gain
-}
-
-/// Expira o combo quando a janela termina.
-pub fn update(player: &mut PlayerData, dt: f32) {
-    if player.farm.window <= 0.0 {
-        return;
-    }
-
-    player.farm.window = (player.farm.window - dt).max(0.0);
-    if player.farm.window <= 0.0 {
-        player.farm.combo = 0;
-        player.farm.last_key = None;
-    }
-}
-
-pub fn combo_multiplier(combo: u32) -> f32 {
-    (1.0 + COMBO_MULTIPLIER_STEP * combo as f32).min(MAX_MULTIPLIER)
-}
-
-/// Combo ativo deixa o jogador lento.
-pub fn is_farming(player: &PlayerData) -> bool {
-    player.farm.combo > 0 && player.farm.window > 0.0
-}
-
-pub fn speed_factor(player: &PlayerData) -> f32 {
-    if is_farming(player) {
-        FARM_SLOW_FACTOR
-    } else {
-        1.0
-    }
 }
 
 /// Gasta aura se houver saldo suficiente. Sem saldo, não gasta nada.
@@ -85,18 +48,19 @@ mod tests {
         PlayerData::new(0, Vec2::ZERO, Stats::player(Default::default()))
     }
 
-    fn press(player: &mut PlayerData, key: FarmKey) -> f32 {
-        apply_farm(player, key, 100.0)
+    fn press(player: &mut PlayerData, sixseven: &mut SixSeven, key: SixSevenKey) -> f32 {
+        apply_sixseven(player, sixseven, key, 100.0)
     }
 
     #[test]
     fn alternation_increases_combo_and_aura() {
         let mut player = player();
+        let mut sixseven = SixSeven::default();
         player.aura = 0.0;
-        let first = press(&mut player, FarmKey::Six);
-        let second = press(&mut player, FarmKey::Seven);
-        let third = press(&mut player, FarmKey::Six);
-        assert_eq!(player.farm.combo, 3);
+        let first = press(&mut player, &mut sixseven, SixSevenKey::Six);
+        let second = press(&mut player, &mut sixseven, SixSevenKey::Seven);
+        let third = press(&mut player, &mut sixseven, SixSevenKey::Six);
+        assert_eq!(sixseven.combo, 3);
         assert!(first > 0.0);
         assert!(second > first);
         assert!(third > second);
@@ -108,55 +72,43 @@ mod tests {
     #[test]
     fn repeated_key_breaks_combo_and_gives_nothing() {
         let mut player = player();
+        let mut sixseven = SixSeven::default();
         player.aura = 0.0;
-        press(&mut player, FarmKey::Six);
-        let gain = press(&mut player, FarmKey::Six);
+        press(&mut player, &mut sixseven, SixSevenKey::Six);
+        let gain = press(&mut player, &mut sixseven, SixSevenKey::Six);
         assert_eq!(gain, 0.0);
-        assert_eq!(player.farm.combo, 0);
-        assert_eq!(player.farm.window, 0.0);
+        assert_eq!(sixseven.combo, 0);
+        assert_eq!(sixseven.window, 0.0);
         // Depois da quebra, a próxima tecla reinicia o combo.
-        press(&mut player, FarmKey::Seven);
-        assert_eq!(player.farm.combo, 1);
-    }
-
-    #[test]
-    fn multiplier_is_capped() {
-        assert_eq!(combo_multiplier(0), 1.0);
-        assert_eq!(combo_multiplier(10), 2.5);
-        assert_eq!(combo_multiplier(100), MAX_MULTIPLIER);
+        press(&mut player, &mut sixseven, SixSevenKey::Seven);
+        assert_eq!(sixseven.combo, 1);
     }
 
     #[test]
     fn aura_never_exceeds_max() {
         let mut player = player();
+        let mut sixseven = SixSeven::default();
         player.aura = 99.0;
-        press(&mut player, FarmKey::Six);
+        press(&mut player, &mut sixseven, SixSevenKey::Six);
         assert_eq!(player.aura, 100.0);
     }
 
     #[test]
     fn combo_expires_and_clears_last_key() {
         let mut player = player();
+        let mut sixseven = SixSeven::default();
         player.aura = 0.0;
-        press(&mut player, FarmKey::Six);
-        assert!(is_farming(&player));
+        press(&mut player, &mut sixseven, SixSevenKey::Six);
+        assert!(sixseven.is_active());
         for _ in 0..60 {
-            update(&mut player, crate::DT);
+            sixseven.tick(crate::DT);
         }
-        assert!(!is_farming(&player));
-        assert_eq!(player.farm.combo, 0);
-        assert_eq!(player.farm.last_key, None);
+        assert!(!sixseven.is_active());
+        assert_eq!(sixseven.combo, 0);
+        assert_eq!(sixseven.last_key, None);
         // Após expirar, a mesma tecla conta como novo começo.
-        let gain = press(&mut player, FarmKey::Six);
+        let gain = press(&mut player, &mut sixseven, SixSevenKey::Six);
         assert!(gain > 0.0);
-    }
-
-    #[test]
-    fn farming_slows_movement() {
-        let mut player = player();
-        assert_eq!(speed_factor(&player), 1.0);
-        press(&mut player, FarmKey::Six);
-        assert_eq!(speed_factor(&player), FARM_SLOW_FACTOR);
     }
 
     #[test]

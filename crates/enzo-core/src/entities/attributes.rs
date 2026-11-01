@@ -166,35 +166,6 @@ impl Stats {
         }
     }
 
-    pub fn slime() -> Self {
-        Self {
-            walk_speed: 60.0,
-            run_speed: 60.0,
-            jump_speed: 0.0,
-            strength: 0.0,
-            max_health: 30.0,
-            max_aura: 0.0,
-            mogar_damage: 0.0,
-        }
-    }
-
-    pub fn projectile() -> Self {
-        Self {
-            walk_speed: 0.0,
-            run_speed: 0.0,
-            jump_speed: 0.0,
-            strength: 0.0,
-            max_health: 1.0,
-            max_aura: 0.0,
-            mogar_damage: 0.0,
-        }
-    }
-
-    /// Item não é ator: vida simbólica para reutilizar `Health`, sem movimento.
-    pub fn item() -> Self {
-        Self::projectile()
-    }
-
     /// `hit_index` é 0, 1 ou 2 (primeiro, segundo e terceiro golpe).
     pub fn melee_damage(&self, hit_index: usize) -> f32 {
         let base = if hit_index >= 2 { 12.0 } else { 6.0 };

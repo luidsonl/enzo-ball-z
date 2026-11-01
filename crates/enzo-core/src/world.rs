@@ -8,8 +8,8 @@ use crate::ai;
 use crate::attacks::{self, melee, mogar};
 use crate::aura;
 use crate::entities::{
-    EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, PlayerInput, ENEMY_SIZE,
-    PLAYER_SIZE,
+    Entity, EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, PlayerInput,
+    ENZO_SIZE, SLIME_SIZE,
 };
 use crate::events::{GameEvent, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
@@ -46,12 +46,12 @@ impl World {
         let mut store = EntityStore::new();
 
         let spawn = level
-            .spawn_points(PLAYER_SIZE)
+            .spawn_points(ENZO_SIZE)
             .first()
             .copied()
             .unwrap_or(Vec2::ZERO);
         store.spawn(EntitySpec::player(0, spawn));
-        for pos in level.enemy_points(ENEMY_SIZE) {
+        for pos in level.enemy_points(SLIME_SIZE) {
             store.spawn(EntitySpec::slime(pos));
         }
 
@@ -162,11 +162,7 @@ impl World {
             return;
         }
 
-        let max_aura = entity.stats.max_aura;
-        {
-            let Some(player) = entity.player_mut() else {
-                return;
-            };
+        if let Some(player) = entity.player_mut() {
             player.input = PlayerInput {
                 move_x: command.move_x.clamp(-1, 1),
                 jump_pressed: command.jump,
@@ -175,9 +171,6 @@ impl World {
                 melee_pressed: command.melee,
                 mogar_pressed: command.mogar,
             };
-            if let Some(key) = command.farm {
-                aura::apply_farm(player, key, max_aura);
-            }
         }
 
         entity.movement.apply_command(command);
@@ -213,24 +206,35 @@ impl World {
     }
 
     fn step_playing(&mut self, events: &mut Vec<GameEvent>) {
-        // 2. Aura: janela do combo expira e a lentidão acompanha.
+        // 2. Aura: consome o pedido do movimento SixSeven e aplica o ganho.
+        // O componente SixSeven avança o tempo junto do movimento (etapa 3).
         for entity in self.store.players_mut() {
-            if let Some(player) = entity.player_mut() {
-                aura::update(player, DT);
+            let Entity {
+                kind,
+                movement,
+                stats,
+                ..
+            } = entity;
+            let Some(player) = kind.player_mut() else {
+                continue;
+            };
+            let max_aura = stats.max_aura;
+            if let Some(key) = movement.sixseven.take_request() {
+                aura::apply_sixseven(player, &mut movement.sixseven, key, max_aura);
             }
         }
 
         // 3. Movimentos + 4. física: a intenção vira velocidade e o corpo é
-        // integrado contra o tilemap.
+        // integrado contra o tilemap. A lentidão do SixSeven é calculada pelo
+        // próprio componente.
         let level = &self.level;
         for entity in self.store.iter_mut() {
             if !entity.is_actor() || !entity.health.is_alive() {
                 continue;
             }
-            let speed_factor = entity.player().map(aura::speed_factor).unwrap_or(1.0);
             entity
                 .movement
-                .update(&mut entity.body, &entity.stats, level, speed_factor, DT);
+                .update(&mut entity.body, &entity.stats, level, DT);
         }
 
         // 5. Combo físico e 6. disparo do Mogar.
@@ -319,7 +323,7 @@ impl World {
     fn respawn(&mut self, events: &mut Vec<GameEvent>) {
         let spawn = self
             .level
-            .spawn_points(PLAYER_SIZE)
+            .spawn_points(ENZO_SIZE)
             .first()
             .copied()
             .unwrap_or(Vec2::ZERO);
@@ -347,7 +351,7 @@ impl World {
         for id in removable {
             self.store.despawn(id);
         }
-        for pos in self.level.enemy_points(ENEMY_SIZE) {
+        for pos in self.level.enemy_points(SLIME_SIZE) {
             self.store.spawn(EntitySpec::slime(pos));
         }
 

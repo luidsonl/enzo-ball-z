@@ -90,7 +90,7 @@ mod tests {
     use crate::math::Vec2;
 
     fn body() -> Body {
-        Body::new(Vec2::ZERO, crate::entities::PLAYER_SIZE)
+        Body::new(Vec2::ZERO, crate::entities::ENZO_SIZE)
     }
 
     fn stats() -> Stats {
@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn farming_speed_factor_slows_walk() {
+    fn sixseven_speed_factor_slows_walk() {
         let mut body = body();
         let mut walk = Walk::default();
         let stats = stats();

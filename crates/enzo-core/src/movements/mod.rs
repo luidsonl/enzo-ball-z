@@ -1,21 +1,23 @@
 //! Componentes de movimento.
 //!
 //! Cada movimento inerente vive em seu próprio módulo (`walk`, `jump`, `dash`,
-//! `fly`) e declara seus `REQUIREMENTS`. [`Movement`] reúne os componentes e o
-//! [`MoveSet`] atribuído à entidade.
+//! `fly`, `sixseven`) e declara seus `REQUIREMENTS`. [`Movement`] reúne os
+//! componentes e o [`MoveSet`] atribuído à entidade.
 //!
-//! O controlador (teclado ou IA) só define intenção. Aceleração, pulo, dash e
-//! colisão são regras do core. Novos movimentos entram como um módulo novo,
-//! uma variante de `MoveId` e uma etapa em [`Movement::update`].
+//! O controlador (teclado ou IA) só define intenção. Aceleração, pulo, dash,
+//! SixSeven e colisão são regras do core. Novos movimentos entram como um
+//! módulo novo, uma variante de `MoveId` e uma etapa em [`Movement::update`].
 
 pub mod dash;
 pub mod fly;
 pub mod jump;
+pub mod sixseven;
 pub mod walk;
 
 pub use dash::Dash;
 pub use fly::Fly;
 pub use jump::Jump;
+pub use sixseven::SixSeven;
 pub use walk::Walk;
 
 use crate::entities::{Body, Stats};
@@ -27,8 +29,8 @@ use crate::physics;
 /// Componente de movimento presente em toda entidade.
 ///
 /// Os componentes existem sempre; o [`MoveSet`] diz quais estão atribuídos.
-/// Jogador nasce com andar, pular e dash; inimigo nasce só com andar; projétil
-/// não tem movimentos.
+/// Jogador nasce com andar, pular, dash e SixSeven; inimigo nasce só com andar;
+/// projétil não tem movimentos.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Movement {
     pub moves: MoveSet,
@@ -36,6 +38,7 @@ pub struct Movement {
     pub jump: Jump,
     pub dash: Dash,
     pub fly: Fly,
+    pub sixseven: SixSeven,
 }
 
 impl Default for Movement {
@@ -52,11 +55,12 @@ impl Movement {
             jump: Jump::default(),
             dash: Dash::default(),
             fly: Fly::default(),
+            sixseven: SixSeven::default(),
         }
     }
 
     pub fn player() -> Self {
-        Self::from_moves(&[MoveId::Walk, MoveId::Jump, MoveId::Dash])
+        Self::from_moves(&[MoveId::Walk, MoveId::Jump, MoveId::Dash, MoveId::SixSeven])
     }
 
     pub fn enemy() -> Self {
@@ -91,8 +95,8 @@ impl Movement {
         self.has(MoveId::Dash) && self.dash.is_active()
     }
 
-    /// Traduz o comando do jogador em intenção. O edge de pulo/dash vira
-    /// buffer/pedido; a execução acontece em [`Self::update`].
+    /// Traduz o comando do jogador em intenção. O edge de pulo/dash/SixSeven
+    /// vira buffer/pedido; a execução acontece em [`Self::update`].
     pub fn apply_command(&mut self, command: PlayerCommand) {
         self.walk.apply(command);
         if self.has(MoveId::Jump) {
@@ -101,20 +105,22 @@ impl Movement {
         if self.has(MoveId::Dash) && command.dash {
             self.dash.request();
         }
+        if self.has(MoveId::SixSeven) {
+            if let Some(key) = command.sixseven {
+                self.sixseven.request(key);
+            }
+        }
     }
 
     /// Avança os componentes atribuídos e integra o corpo no mapa.
-    pub fn update(
-        &mut self,
-        body: &mut Body,
-        stats: &Stats,
-        level: &Level,
-        speed_factor: f32,
-        dt: f32,
-    ) {
+    ///
+    /// A lentidão do SixSeven é calculada aqui, a partir do próprio componente,
+    /// para o movimento não depender de estado externo.
+    pub fn update(&mut self, body: &mut Body, stats: &Stats, level: &Level, dt: f32) {
         self.walk.tick(dt);
         self.jump.tick(body, dt);
         self.dash.tick(dt);
+        self.sixseven.tick(dt);
 
         if self.has(MoveId::Dash) {
             self.dash.try_start(body, self.walk.intent_x);
@@ -123,6 +129,7 @@ impl Movement {
             self.jump.update(body, stats);
         }
 
+        let speed_factor = self.sixseven.speed_factor();
         self.update_horizontal(body, stats, speed_factor, dt);
         self.update_vertical(body, dt);
         physics::integrate(body, level, dt);
@@ -186,7 +193,7 @@ mod tests {
     }
 
     fn body_at(x: f32, y: f32) -> Body {
-        Body::new(Vec2::new(x, y), crate::entities::PLAYER_SIZE)
+        Body::new(Vec2::new(x, y), crate::entities::ENZO_SIZE)
     }
 
     fn fly_context() -> AbilityContext {
@@ -205,6 +212,7 @@ mod tests {
         assert!(movement.has(MoveId::Walk));
         assert!(movement.has(MoveId::Jump));
         assert!(movement.has(MoveId::Dash));
+        assert!(movement.has(MoveId::SixSeven));
         assert!(!movement.has(MoveId::Fly));
         assert!(!movement.has(MoveId::Melee));
     }
@@ -216,6 +224,7 @@ mod tests {
         assert!(!movement.has(MoveId::Jump));
         assert!(!movement.has(MoveId::Dash));
         assert!(!movement.has(MoveId::Fly));
+        assert!(!movement.has(MoveId::SixSeven));
         assert_eq!(EntitySpec::slime(Vec2::ZERO).movement, movement);
     }
 
@@ -271,25 +280,28 @@ mod tests {
 
         for _ in 0..120 {
             movement.apply_command(command(1, false, false, false));
-            movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+            movement.update(&mut body, &stats, &level, crate::DT);
         }
 
         assert_eq!(body.vel.x, stats.walk_speed);
     }
 
     #[test]
-    fn farming_speed_factor_slows_walk() {
+    fn sixseven_slows_walk() {
+        use crate::input::SixSevenKey;
+
         let level = level("P...\n####\n");
         let mut body = body_at(0.0, 0.0);
         let mut movement = Movement::player();
         let stats = stats();
+        movement.sixseven.press(SixSevenKey::Six);
 
-        for _ in 0..120 {
+        for _ in 0..30 {
             movement.apply_command(command(1, false, false, false));
-            movement.update(&mut body, &stats, &level, 0.45, crate::DT);
+            movement.update(&mut body, &stats, &level, crate::DT);
         }
 
-        assert!((body.vel.x - stats.walk_speed * 0.45).abs() < 0.01);
+        assert!((body.vel.x - stats.walk_speed * sixseven::SLOW_FACTOR).abs() < 0.01);
     }
 
     #[test]
@@ -300,16 +312,16 @@ mod tests {
         let stats = stats();
 
         // Primeiro tick pousa no chão.
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
         assert!(body.on_ground);
 
         movement.apply_command(command(0, true, true, false));
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
         assert!(body.vel.y < 0.0);
         let rising = body.vel.y;
 
         movement.apply_command(command(0, false, false, false));
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
         assert!(body.vel.y > rising);
     }
 
@@ -319,12 +331,12 @@ mod tests {
         let mut body = body_at(0.0, 2.0);
         let mut movement = Movement::player();
         let stats = stats();
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
 
         // Sai da borda: fica sem chão, mas ainda dentro do coyote.
         body.pos.x = 200.0;
         movement.apply_command(command(0, true, true, false));
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
         assert!(body.vel.y < 0.0);
     }
 
@@ -334,21 +346,21 @@ mod tests {
         let mut body = body_at(0.0, 0.0);
         let mut movement = Movement::player();
         let stats = stats();
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
 
         movement.apply_command(command(1, false, false, true));
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
         assert!(movement.is_dashing());
         assert_eq!(body.vel.x, dash::DASH_SPEED);
 
         for _ in 0..10 {
-            movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+            movement.update(&mut body, &stats, &level, crate::DT);
         }
         assert!(!movement.is_dashing());
         assert!(movement.dash.cooldown > 0.0);
 
         movement.apply_command(command(1, false, false, true));
-        movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+        movement.update(&mut body, &stats, &level, crate::DT);
         assert!(!movement.is_dashing());
     }
 
@@ -364,7 +376,7 @@ mod tests {
 
         let start_y = body.pos.y;
         for _ in 0..30 {
-            movement.update(&mut body, &stats, &level, 1.0, crate::DT);
+            movement.update(&mut body, &stats, &level, crate::DT);
         }
         assert!(body.pos.y < start_y);
         assert!(body.vel.y < 0.0);

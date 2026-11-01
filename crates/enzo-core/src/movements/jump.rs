@@ -77,7 +77,7 @@ mod tests {
     }
 
     fn body_at(x: f32, y: f32) -> Body {
-        Body::new(Vec2::new(x, y), crate::entities::PLAYER_SIZE)
+        Body::new(Vec2::new(x, y), crate::entities::ENZO_SIZE)
     }
 
     #[test]

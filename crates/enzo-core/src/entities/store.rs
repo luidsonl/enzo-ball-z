@@ -185,8 +185,8 @@ impl EntityStore {
 mod tests {
     use super::*;
     use crate::entities::{
-        AttributeId, Attributes, Controller, EquipSlot, EquipmentTags, ItemData, ENEMY_SIZE,
-        MOGAR_SPEED, PLAYER_SIZE,
+        AttributeId, Attributes, Controller, EquipSlot, EquipmentTags, ItemData, ENZO_SIZE,
+        MOGAR_SPEED, SLIME_SIZE,
     };
     use crate::math::Vec2;
 
@@ -214,8 +214,8 @@ mod tests {
         assert_eq!(enemy.team, TeamId::ENEMIES);
         assert_eq!(player.stats.max_health, 100.0);
         assert_eq!(enemy.stats.max_health, 30.0);
-        assert_eq!(player.body.size, PLAYER_SIZE);
-        assert_eq!(enemy.body.size, ENEMY_SIZE);
+        assert_eq!(player.body.size, ENZO_SIZE);
+        assert_eq!(enemy.body.size, SLIME_SIZE);
         assert_eq!(player.health.current, 100.0);
         assert_eq!(enemy.health.current, 30.0);
         assert!(player.is_actor());
