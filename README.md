@@ -38,11 +38,11 @@ assets. Ele usa caminhos relativos, então funciona tanto na raiz de um domínio
 quanto em um subdiretório como `https://usuario.github.io/enzoballz/`.
 
 O workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) compila
-e publica esse bundle a cada push em `master`. Para ativar:
+e publica esse bundle a cada push em `main` (ou `master`). Para ativar:
 
 1. No GitHub, abra **Settings → Pages**.
 2. Em **Build and deployment → Source**, escolha **GitHub Actions**.
-3. Faça push em `master` ou rode o workflow manualmente em **Actions**.
+3. Faça push na branch principal ou rode o workflow manualmente em **Actions**.
 
 O `dist/.nojekyll` é criado pelo build para impedir o processamento do Jekyll.
 
