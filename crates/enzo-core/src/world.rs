@@ -22,6 +22,10 @@ use crate::DT;
 /// Tempo entre a morte e o respawn automático.
 pub const RESPAWN_DELAY: f32 = 1.2;
 
+/// Distância abaixo do mapa em que a queda vira morte. Evita que o jogador
+/// fique caindo para sempre ao atravessar um buraco.
+pub const FALL_DEATH_MARGIN: f32 = 64.0;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GamePhase {
@@ -221,6 +225,7 @@ impl World {
         // integrado contra o tilemap. A lentidão do SixSeven é calculada pelo
         // próprio componente.
         let level = &self.level;
+        let fall_limit = level.height_px() + FALL_DEATH_MARGIN;
         for entity in self.store.iter_mut() {
             if !entity.is_actor() || !entity.health.is_alive() {
                 continue;
@@ -228,6 +233,10 @@ impl World {
             entity
                 .movement
                 .update(&mut entity.body, &entity.stats, level, DT);
+            // Cair fora do mapa conta como morte (SPEC §11).
+            if entity.is_player() && entity.body.pos.y > fall_limit {
+                entity.health.current = 0.0;
+            }
         }
 
         // 5. Combo físico e 6. disparo do Mogar.
