@@ -100,6 +100,11 @@ impl Sprites {
         draw_sheet(&self.tiles, TILE_CELL, index, dest, false, tint);
     }
 
+    /// Textura usada pelo cache de chunks de tiles.
+    pub fn tiles_texture(&self) -> &Texture2D {
+        &self.tiles
+    }
+
     pub fn draw_enzo(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {
         draw_sheet(&self.enzo, ACTOR_CELL, frame, dest, flip_x, tint);
     }

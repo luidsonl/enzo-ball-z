@@ -14,6 +14,17 @@ const FOLLOW_SPEED: f32 = 8.0;
 const LOOKAHEAD: f32 = 38.0;
 const LOOKAHEAD_VELOCITY: f32 = 20.0;
 const MAX_SHAKE: f32 = 14.0;
+/// Acima disso o jogador teleportou (respawn, troca de fase) e a câmera não
+/// deve deslizar pela tela.
+const TELEPORT_DISTANCE: f32 = 220.0;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Focus {
+    pos: Vec2,
+    size: Vec2,
+    facing: i8,
+    velocity: Vec2,
+}
 
 pub struct GameCamera {
     pub center: Vec2,
@@ -40,12 +51,21 @@ impl GameCamera {
         self.view = screen / scale;
     }
 
-    pub fn update(&mut self, dt: f32, snapshot: &WorldSnapshot) {
-        let target = self.target(snapshot);
+    pub fn update(
+        &mut self,
+        dt: f32,
+        previous: &WorldSnapshot,
+        current: &WorldSnapshot,
+        alpha: f32,
+    ) {
+        let Some(focus) = interpolated_focus(focus(previous), focus(current), alpha) else {
+            self.tick_shake(dt);
+            return;
+        };
         let target = clamp_center(
-            target,
-            snapshot.level_width,
-            snapshot.level_height,
+            self.target(focus),
+            current.level_width,
+            current.level_height,
             self.view,
         );
 
@@ -57,6 +77,10 @@ impl GameCamera {
             self.initialized = true;
         }
 
+        self.tick_shake(dt);
+    }
+
+    fn tick_shake(&mut self, dt: f32) {
         self.shake = (self.shake - dt * 22.0).max(0.0);
         self.shake_clock += dt;
     }
@@ -98,13 +122,10 @@ impl GameCamera {
         ))
     }
 
-    fn target(&self, snapshot: &WorldSnapshot) -> Vec2 {
-        let Some((pos, size, facing, velocity)) = player_focus(snapshot) else {
-            return self.center;
-        };
-        let center = pos + size * 0.5;
-        let look =
-            facing as f32 * LOOKAHEAD + (velocity.x / 340.0).clamp(-1.0, 1.0) * LOOKAHEAD_VELOCITY;
+    fn target(&self, focus: Focus) -> Vec2 {
+        let center = focus.pos + focus.size * 0.5;
+        let look = focus.facing as f32 * LOOKAHEAD
+            + (focus.velocity.x / 340.0).clamp(-1.0, 1.0) * LOOKAHEAD_VELOCITY;
         vec2(center.x + look, center.y - 24.0)
     }
 }
@@ -128,18 +149,39 @@ fn world_camera(rect: Rect) -> Camera2D {
     }
 }
 
-fn player_focus(snapshot: &WorldSnapshot) -> Option<(Vec2, Vec2, i8, Vec2)> {
+fn focus(snapshot: &WorldSnapshot) -> Option<Focus> {
     snapshot.entities.iter().find_map(|entity| {
         if matches!(entity.kind, SnapshotKind::Player(_)) {
-            Some((
-                to_vec2(entity.pos),
-                to_vec2(entity.size),
-                entity.facing,
-                to_vec2(entity.vel),
-            ))
+            Some(Focus {
+                pos: to_vec2(entity.pos),
+                size: to_vec2(entity.size),
+                facing: entity.facing,
+                velocity: to_vec2(entity.vel),
+            })
         } else {
             None
         }
+    })
+}
+
+/// Mistura a posição entre dois snapshots. O resto do estado vem do snapshot
+/// atual, que é quem manda na direção do olhar.
+fn interpolated_focus(
+    previous: Option<Focus>,
+    current: Option<Focus>,
+    alpha: f32,
+) -> Option<Focus> {
+    let current = current?;
+    let Some(previous) = previous else {
+        return Some(current);
+    };
+    let delta = current.pos - previous.pos;
+    if delta.length() > TELEPORT_DISTANCE {
+        return Some(current);
+    }
+    Some(Focus {
+        pos: previous.pos + delta * alpha.clamp(0.0, 1.0),
+        ..current
     })
 }
 
@@ -198,5 +240,38 @@ mod tests {
         assert_eq!(camera.target, vec2(330.0, 200.0));
         assert!(camera.zoom.y > 0.0);
         assert_eq!(camera.zoom, vec2(2.0 / 640.0, 2.0 / 360.0));
+    }
+
+    fn focus_at(x: f32) -> Focus {
+        Focus {
+            pos: vec2(x, 100.0),
+            size: vec2(24.0, 32.0),
+            facing: 1,
+            velocity: vec2(120.0, 0.0),
+        }
+    }
+
+    #[test]
+    fn interpolated_focus_blends_between_snapshots() {
+        let focus = interpolated_focus(Some(focus_at(100.0)), Some(focus_at(160.0)), 0.5)
+            .expect("foco atual deve existir");
+        assert!((focus.pos.x - 130.0).abs() < 0.001);
+        assert_eq!(focus.facing, 1);
+        assert_eq!(focus.velocity, vec2(120.0, 0.0));
+    }
+
+    #[test]
+    fn interpolated_focus_snaps_on_teleport() {
+        let focus = interpolated_focus(Some(focus_at(100.0)), Some(focus_at(500.0)), 0.5)
+            .expect("foco atual deve existir");
+        assert_eq!(focus.pos, vec2(500.0, 100.0));
+    }
+
+    #[test]
+    fn interpolated_focus_handles_missing_snapshots() {
+        let focus =
+            interpolated_focus(None, Some(focus_at(42.0)), 0.5).expect("foco atual deve existir");
+        assert_eq!(focus.pos, vec2(42.0, 100.0));
+        assert_eq!(interpolated_focus(None, None, 0.5), None);
     }
 }

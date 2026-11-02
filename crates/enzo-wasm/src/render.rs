@@ -6,14 +6,15 @@
 
 use enzo_core::attacks::melee::MELEE_ANIM_TIME;
 use enzo_core::entities::ItemKind;
-use enzo_core::map::{Level, Tile, TILE_SIZE};
+use enzo_core::map::Level;
 use enzo_core::snapshot::{EntitySnapshot, PlayerSnapshot, SnapshotKind, WorldSnapshot};
 use macroquad::prelude::*;
 
 use crate::camera::GameCamera;
 use crate::convert::{to_rect, to_vec2};
 use crate::effects::Effects;
-use crate::sprites::{enzo, fx, item, slime, tile, Sprites};
+use crate::sprites::{enzo, fx, item, slime, Sprites};
+use crate::tiles::TileRenderer;
 
 const CLOUDS: &[(f32, f32, f32, f32)] = &[
     (0.05, 0.15, 0.10, 1.1),
@@ -99,24 +100,54 @@ pub fn item_frame(kind: ItemKind) -> usize {
 }
 
 /// Fundo em screen space: gradiente, sol, nuvens e montanhas com parallax.
-pub fn draw_background(camera: &GameCamera, time: f32) {
+pub struct Background {
+    gradient: Texture2D,
+}
+
+impl Background {
+    pub fn new() -> Self {
+        // O gradiente é constante: gera uma tira 1x64 uma vez e estica na tela.
+        // Desenhar 48 retângulos por frame custava 48 fill-rates de tela cheia.
+        const ROWS: u16 = 64;
+        let top = rgba(34, 46, 86, 255);
+        let bottom = rgba(132, 176, 198, 255);
+        let mut bytes = Vec::with_capacity(ROWS as usize * 4);
+        for index in 0..ROWS {
+            let t = index as f32 / (ROWS - 1) as f32;
+            let color = mix(top, bottom, t);
+            bytes.extend_from_slice(&[
+                (color.r * 255.0) as u8,
+                (color.g * 255.0) as u8,
+                (color.b * 255.0) as u8,
+                (color.a * 255.0) as u8,
+            ]);
+        }
+        let gradient = Texture2D::from_rgba8(1, ROWS, &bytes);
+        gradient.set_filter(FilterMode::Linear);
+        Self { gradient }
+    }
+}
+
+impl Default for Background {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub fn draw_background(background: &Background, camera: &GameCamera, time: f32) {
     let width = screen_width();
     let height = screen_height();
 
-    let top = rgba(34, 46, 86, 255);
-    let bottom = rgba(132, 176, 198, 255);
-    let bands = 48;
-    for index in 0..bands {
-        let t = index as f32 / (bands - 1) as f32;
-        let color = mix(top, bottom, t);
-        draw_rectangle(
-            0.0,
-            index as f32 * height / bands as f32,
-            width,
-            height / bands as f32 + 1.0,
-            color,
-        );
-    }
+    draw_texture_ex(
+        &background.gradient,
+        0.0,
+        0.0,
+        WHITE,
+        DrawTextureParams {
+            dest_size: Some(vec2(width, height)),
+            ..Default::default()
+        },
+    );
 
     // Sol com halo.
     let sun = vec2(width * 0.78, height * 0.17);
@@ -174,6 +205,7 @@ pub fn draw_background(camera: &GameCamera, time: f32) {
 /// Tudo que o render do mundo precisa em um frame.
 pub struct RenderContext<'a> {
     pub sprites: &'a Sprites,
+    pub tiles: &'a mut TileRenderer,
     pub level: &'a Level,
     pub previous: &'a WorldSnapshot,
     pub current: &'a WorldSnapshot,
@@ -184,7 +216,7 @@ pub struct RenderContext<'a> {
 }
 
 /// Desenha o mundo inteiro. Deve ser chamado depois de `draw_background`.
-pub fn draw_world(ctx: &RenderContext) {
+pub fn draw_world(ctx: &mut RenderContext) {
     let sprites = ctx.sprites;
     let previous = ctx.previous;
     let current = ctx.current;
@@ -194,7 +226,8 @@ pub fn draw_world(ctx: &RenderContext) {
 
     set_camera(&camera.camera());
 
-    draw_tiles(sprites, ctx.level, camera.view_rect());
+    let view = camera.view_rect();
+    ctx.tiles.draw(ctx.level, view);
     draw_flag(sprites, current, time);
     draw_items(sprites, previous, current, alpha, time);
     draw_enemies(sprites, previous, current, alpha, time);
@@ -203,42 +236,6 @@ pub fn draw_world(ctx: &RenderContext) {
     draw_effects_world(ctx.effects);
 
     set_default_camera();
-}
-
-fn draw_tiles(sprites: &Sprites, level: &Level, view: Rect) {
-    let min_x = ((view.x / TILE_SIZE).floor() as i32 - 1).max(0);
-    let max_x = (((view.x + view.w) / TILE_SIZE).ceil() as i32 + 1).min(level.width() as i32);
-    let min_y = ((view.y / TILE_SIZE).floor() as i32 - 1).max(0);
-    let max_y = (((view.y + view.h) / TILE_SIZE).ceil() as i32 + 1).min(level.height() as i32);
-
-    for ty in min_y..max_y {
-        for tx in min_x..max_x {
-            let tile = level.tile_at(tx, ty);
-            let index = match tile {
-                Tile::Empty => continue,
-                Tile::Ground => {
-                    let above = level.tile_at(tx, ty - 1);
-                    if above.is_solid() {
-                        tile::GROUND_FILL
-                    } else {
-                        tile::GROUND_TOP
-                    }
-                }
-                Tile::Block => tile::BLOCK,
-                Tile::Platform => tile::PLATFORM,
-            };
-            sprites.draw_tile(
-                index,
-                Rect::new(
-                    tx as f32 * TILE_SIZE,
-                    ty as f32 * TILE_SIZE,
-                    TILE_SIZE,
-                    TILE_SIZE,
-                ),
-                WHITE,
-            );
-        }
-    }
 }
 
 fn draw_flag(sprites: &Sprites, snapshot: &WorldSnapshot, time: f32) {

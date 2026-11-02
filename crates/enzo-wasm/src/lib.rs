@@ -13,6 +13,7 @@ pub mod input;
 pub mod render;
 pub mod save;
 pub mod sprites;
+pub mod tiles;
 
 use macroquad::prelude::Conf;
 

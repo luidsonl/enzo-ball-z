@@ -19,13 +19,17 @@ use crate::convert::to_vec2;
 use crate::effects::Effects;
 use crate::hud;
 use crate::input::InputState;
-use crate::render;
+use crate::render::{self, Background};
 use crate::save;
 use crate::sprites::Sprites;
+use crate::tiles::TileRenderer;
 
 /// Limite de tempo de frame aceito de uma vez. Evita "espiral da morte" quando
 /// a aba fica em segundo plano e o navegador entrega um delta enorme.
 const MAX_FRAME_TIME: f32 = 0.2;
+/// Ticks simulados no máximo por frame. Se o frame atrasou, o resto do tempo é
+/// descartado em vez de tentar recuperar tudo de uma vez e travar ainda mais.
+const MAX_TICKS_PER_FRAME: u32 = 5;
 const HINT_TIME: f32 = 14.0;
 const SAVE_TOAST_TIME: f32 = 1.8;
 
@@ -38,6 +42,8 @@ const STEEL: Color = Color::new(0.82, 0.86, 0.94, 1.0);
 pub struct App {
     world: World,
     sprites: Sprites,
+    tiles: TileRenderer,
+    background: Background,
     camera: GameCamera,
     effects: Effects,
     input: InputState,
@@ -58,14 +64,18 @@ impl App {
             world.load_save(&data);
         }
 
+        let sprites = Sprites::load();
+        let tiles = TileRenderer::new(world.level(), sprites.tiles_texture().clone());
         let current = world.snapshot();
         let mut camera = GameCamera::new();
         camera.resize(vec2(screen_width(), screen_height()));
-        camera.update(0.0, &current);
+        camera.update(0.0, &current, &current, 0.0);
 
         Ok(Self {
             world,
-            sprites: Sprites::load(),
+            sprites,
+            tiles,
+            background: Background::new(),
             camera,
             effects: Effects::new(),
             input: InputState::default(),
@@ -92,16 +102,18 @@ impl App {
 
             self.advance(frame_dt);
 
+            let alpha = (self.accumulator / DT).clamp(0.0, 1.0);
             self.effects.update(frame_dt);
-            self.camera.update(frame_dt, &self.current);
+            self.camera
+                .update(frame_dt, &self.previous, &self.current, alpha);
 
             self.hint_timer = (self.hint_timer - frame_dt).max(0.0);
             self.tick_toast(frame_dt);
 
-            let alpha = (self.accumulator / DT).clamp(0.0, 1.0);
-            render::draw_background(&self.camera, self.time);
-            render::draw_world(&render::RenderContext {
+            render::draw_background(&self.background, &self.camera, self.time);
+            render::draw_world(&mut render::RenderContext {
                 sprites: &self.sprites,
+                tiles: &mut self.tiles,
                 level: self.world.level(),
                 previous: &self.previous,
                 current: &self.current,
@@ -130,10 +142,11 @@ impl App {
     /// Consome o tempo acumulado em ticks fixos. O primeiro tick do frame pode
     /// usar edges; os extras só repetem estados contínuos.
     fn advance(&mut self, frame_dt: f32) {
-        self.accumulator = (self.accumulator + frame_dt).min(MAX_FRAME_TIME);
+        self.accumulator += frame_dt;
 
+        let ticks = tick_budget(self.accumulator);
         let mut first_tick = true;
-        while self.accumulator >= DT {
+        for _ in 0..ticks {
             let command = if first_tick {
                 self.input.take_command()
             } else {
@@ -142,12 +155,20 @@ impl App {
             self.last_command = command;
             first_tick = false;
 
-            self.previous = self.current.clone();
+            // Alterna os buffers: `previous` recebe o snapshot antigo e
+            // `current` é reescrito no mesmo vetor, sem alocar por tick.
+            std::mem::swap(&mut self.previous, &mut self.current);
             let output = self.world.step(TickInput::single(command));
-            self.current = self.world.snapshot();
+            self.world.write_snapshot(&mut self.current);
             self.handle_events(&output.events);
 
             self.accumulator -= DT;
+        }
+
+        // Frame lento: descarta o backlog restante para não emendar uma fila
+        // de ticks e transformar um atraso em travamento.
+        if self.accumulator >= DT {
+            self.accumulator = 0.0;
         }
     }
 
@@ -275,6 +296,15 @@ impl App {
     }
 }
 
+/// Quantos ticks de simulação cabem no tempo acumulado, respeitando o teto por
+/// frame. Fora do laço para poder testar sem navegador.
+fn tick_budget(accumulator: f32) -> u32 {
+    if accumulator < DT {
+        return 0;
+    }
+    (accumulator / DT).floor().min(MAX_TICKS_PER_FRAME as f32) as u32
+}
+
 /// Centro visual de uma entidade no snapshot atual.
 fn entity_center(snapshot: &WorldSnapshot, id: EntityId) -> Option<Vec2> {
     snapshot
@@ -282,4 +312,23 @@ fn entity_center(snapshot: &WorldSnapshot, id: EntityId) -> Option<Vec2> {
         .iter()
         .find(|entity| entity.id == id)
         .map(|entity| to_vec2(entity.pos + entity.size * 0.5))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tick_budget_waits_for_a_full_step() {
+        assert_eq!(tick_budget(0.0), 0);
+        assert_eq!(tick_budget(DT * 0.99), 0);
+        assert_eq!(tick_budget(DT), 1);
+    }
+
+    #[test]
+    fn tick_budget_caps_catch_up_ticks() {
+        assert_eq!(tick_budget(DT * 3.0), 3);
+        assert_eq!(tick_budget(DT * 12.0), MAX_TICKS_PER_FRAME);
+        assert_eq!(tick_budget(MAX_FRAME_TIME), MAX_TICKS_PER_FRAME);
+    }
 }

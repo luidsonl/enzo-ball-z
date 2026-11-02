@@ -78,6 +78,7 @@ enzoballz/
 │   │   │   ├── app.rs         # loop + acumulador de tick fixo
 │   │   │   ├── input.rs       # teclado -> PlayerCommand
 │   │   │   ├── render.rs      # desenha a partir do snapshot
+│   │   │   ├── tiles.rs       # malhas de tiles em chunks sob demanda
 │   │   │   ├── camera.rs
 │   │   │   ├── hud.rs
 │   │   │   ├── sprites.rs
@@ -257,6 +258,8 @@ pub struct TickOutput {
 - `World::step(&mut self, input: TickInput) -> TickOutput` é a única porta de
   avanço do tempo.
 - `World::snapshot() -> WorldSnapshot` é puro e barato o suficiente para 20 Hz.
+- `World::write_snapshot(&mut WorldSnapshot)` preenche um buffer existente e
+  reaproveita `entities`, para o cliente não alocar a cada tick.
 - `PlayerId` é estável e indexa `commands`; jogadores ausentes são `None`.
 - Inputs são **edge-triggered** para pulo/ataque/SixSeven. O cliente calcula o
   edge; o core não conhece key repeat do navegador.
@@ -320,15 +323,22 @@ pub struct EntitySnapshot {
 
 ```text
 acumulador += frame_dt
-enquanto acumulador >= DT e ticks < 5:
+ticks = min(floor(acumulador / DT), 5)
+enquanto ticks > 0:
+    swap(previous, current)
     world.step(input_do_tick())
+    world.write_snapshot(&mut current)   # reutiliza o vetor de entidades
     acumulador -= DT
+se acumulador >= DT: acumulador = 0      # descarta backlog de frame lento
 alpha = acumulador / DT
-render(world.snapshot(), alpha)
+render(previous, current, alpha)
 ```
 
-- `frame_dt` é limitado (ex.: 0,25 s) para evitar espiral da morte.
-- Render interpola posição entre o snapshot anterior e o atual usando `alpha`.
+- `frame_dt` é limitado (ex.: 0,2 s) para evitar espiral da morte.
+- No máximo 5 ticks por frame; o resto do tempo é descartado em vez de virar
+  uma fila que trava ainda mais o próximo frame.
+- Render interpola posição entre o snapshot anterior e o atual usando `alpha`;
+  a câmera usa o mesmo foco interpolado.
 - A simulação nunca depende do framerate.
 
 ### Input (mapeamento inicial)
@@ -347,7 +357,11 @@ render(world.snapshot(), alpha)
 
 ### Render, câmera e HUD
 
-- `render.rs` desenha tiles, entidades e projéteis a partir do snapshot.
+- `render.rs` desenha o mundo a partir do snapshot; o fundo é um gradiente em
+  textura cacheada e as entidades são interpoladas.
+- `tiles.rs` agrupa o mapa em chunks de 16×16 tiles (512×512 px). Cada chunk
+  visível vira uma malha estática uma única vez; chunks fora da câmera nunca são
+  construídos. Isso evita percorrer e emitir todos os tiles do mapa por frame.
 - `camera.rs` segue o jogador com suavização e limita ao tamanho do mapa.
 - `hud.rs` desenha barras de vida/aura/XP, nível, pontos e combo.
 - `sprites.rs` carrega o atlas PNG e escolhe frames por estado/animacão.
