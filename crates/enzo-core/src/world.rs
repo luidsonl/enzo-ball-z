@@ -362,26 +362,49 @@ impl World {
     }
 
     pub fn snapshot(&self) -> WorldSnapshot {
-        let entities = self
-            .store
-            .iter()
-            .map(crate::snapshot::EntitySnapshot::from_entity);
-        let camera_hint = self
-            .store
-            .player(0)
-            .map(|entity| entity.body.pos)
-            .unwrap_or(Vec2::ZERO);
-
-        WorldSnapshot {
+        let mut snapshot = WorldSnapshot {
             version: crate::snapshot::SNAPSHOT_VERSION,
             tick: self.tick,
             phase: self.phase,
             phase_timer: self.phase_timer,
-            entities: entities.collect(),
+            entities: Vec::new(),
             level_width: self.level.width_px(),
             level_height: self.level.height_px(),
             flag: self.level.flag_rect(),
-            camera_hint,
-        }
+            camera_hint: self.camera_hint(),
+        };
+        snapshot.entities.extend(
+            self.store
+                .iter()
+                .map(crate::snapshot::EntitySnapshot::from_entity),
+        );
+        snapshot
+    }
+
+    /// Preenche um snapshot já existente, reaproveitando a capacidade do vetor
+    /// de entidades. O cliente usa dois buffers alternados para não alocar a
+    /// cada tick.
+    pub fn write_snapshot(&self, out: &mut WorldSnapshot) {
+        out.version = crate::snapshot::SNAPSHOT_VERSION;
+        out.tick = self.tick;
+        out.phase = self.phase;
+        out.phase_timer = self.phase_timer;
+        out.level_width = self.level.width_px();
+        out.level_height = self.level.height_px();
+        out.flag = self.level.flag_rect();
+        out.camera_hint = self.camera_hint();
+        out.entities.clear();
+        out.entities.extend(
+            self.store
+                .iter()
+                .map(crate::snapshot::EntitySnapshot::from_entity),
+        );
+    }
+
+    fn camera_hint(&self) -> Vec2 {
+        self.store
+            .player(0)
+            .map(|entity| entity.body.pos)
+            .unwrap_or(Vec2::ZERO)
     }
 }

@@ -27,3 +27,16 @@ fn falling_below_map_counts_as_death() {
         .iter()
         .any(|event| matches!(event, GameEvent::PlayerDied { .. })));
 }
+
+#[test]
+fn write_snapshot_reuses_the_entity_buffer() {
+    let world = World::new(LEVEL_1).expect("fase 1 deve carregar");
+    let expected = world.snapshot();
+    let mut buffer = expected.clone();
+    let capacity = buffer.entities.capacity();
+
+    world.write_snapshot(&mut buffer);
+
+    assert_eq!(buffer, expected);
+    assert_eq!(buffer.entities.capacity(), capacity);
+}
