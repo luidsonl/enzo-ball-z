@@ -26,7 +26,9 @@ const mime = {
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", "http://localhost");
-    const requested = url.pathname === "/" ? "/index.html" : url.pathname;
+    const requested = url.pathname.endsWith("/")
+      ? `${url.pathname}index.html`
+      : url.pathname;
     const file = normalize(join(root, requested));
 
     if (!file.startsWith(root)) {

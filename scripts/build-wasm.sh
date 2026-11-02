@@ -17,6 +17,10 @@ fi
 rm -rf dist
 mkdir -p dist/assets
 
+# GitHub Pages usa Jekyll por padrão; o arquivo vazio desliga o processamento
+# e evita que o wasm/assets sejam ignorados ou reescritos.
+touch dist/.nojekyll
+
 cp "$WASM" dist/
 cp web/index.html web/mq_js_bundle.js web/sapp_jsutils.js web/quad-storage.js dist/
 cp -r assets/. dist/assets/

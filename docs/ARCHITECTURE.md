@@ -364,21 +364,19 @@ ela pertence ao `enzo-core`. O cliente só traduz input e pixels.
 
 ```bash
 rustup target add wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --version <versão compatível com Cargo.lock>
 ```
 
 - `rust-toolchain.toml` fixa o canal (1.92.0) e o target `wasm32-unknown-unknown`.
-- A versão do `wasm-bindgen-cli` deve casar com a do crate `wasm-bindgen`.
-  O build falha com mensagem clara se não casar.
+- O cliente usa o bundle JS do macroquad; o build não precisa de
+  `wasm-bindgen-cli`.
 
 ### Pipeline (`scripts/build-wasm.sh`)
 
 ```text
 1. cargo build -p enzo-wasm --release --target wasm32-unknown-unknown
-2. wasm-bindgen --target web --out-dir dist \
-     target/wasm32-unknown-unknown/release/enzo_wasm.wasm
-3. copiar index.html e assets/ para dist/
-4. gerar dist/version.json (hash do wasm) para cache busting
+2. criar dist/.nojekyll (GitHub Pages não deve processar o bundle com Jekyll)
+3. copiar wasm, index.html, plugins JS e assets/ para dist/
+4. o resultado é um site estático autocontido
 ```
 
 ### Servidor local (`scripts/serve.mjs`)
@@ -388,10 +386,23 @@ cargo install wasm-bindgen-cli --version <versão compatível com Cargo.lock>
 - Porta padrão `8080`, `--port` configurável.
 - `npm run dev` = build + serve; `npm run build` = só build.
 
+### Hospedagem estática (GitHub Pages)
+
+- `.github/workflows/pages.yml` compila e publica `dist/` via GitHub Actions.
+- O bundle usa caminhos relativos, então funciona na raiz ou em
+  `https://usuario.github.io/repositorio/`.
+- Pages não executa lógica de servidor nem WebSocket. O cliente estático é
+  compatível com o futuro servidor autoritativo porque só envia comandos e
+  desenha snapshots.
+- Quando o multiplayer existir, a URL do servidor deve ser lida em runtime
+  (arquivo de configuração), não fixada no wasm, para o mesmo artefato apontar
+  para servidores diferentes.
+- Adicionar rede exige atualizar o escopo em `docs/SPEC.md` antes.
+
 ### Alternativa
 
-`trunk` pode substituir os passos 1–3 se o time preferir, mas o pipeline acima é
-o caminho suportado e testado no MVP.
+`trunk` pode substituir o pipeline se o time preferir, mas o caminho acima é o
+suportado e testado no MVP.
 
 ### Critérios de aceite do build
 
