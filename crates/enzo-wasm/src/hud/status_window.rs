@@ -134,29 +134,6 @@ pub(super) fn draw(
         y += row_h + gap;
     }
 
-    let button_h = 38.0 * ui;
-    let button = Rect::new(
-        content.x,
-        content.y + content.h - button_h,
-        content.w,
-        button_h,
-    );
-    let button_pointer = if interactive {
-        pointer
-    } else {
-        Pointer::at(Vec2::new(-10_000.0, -10_000.0))
-    };
-    if ui::button(
-        button_pointer,
-        button,
-        i18n.t(Text::BackToGame),
-        ui,
-        true,
-        ui::GOLD,
-    ) {
-        action = Some(HudAction::ConfirmLevelUp);
-    }
-
     action
 }
 
