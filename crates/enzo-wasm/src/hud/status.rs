@@ -173,7 +173,7 @@ pub(super) fn draw_fixed(
     for (index, id) in WindowId::ALL.iter().enumerate() {
         let center = Vec2::new(dot_x, y + 27.0 * ui + index as f32 * 24.0 * ui);
         let open = windows[id.index()].open;
-        let pulse = if *id == WindowId::Status && player.pending_level_up {
+        let pulse = if *id == WindowId::Status && (player.pending_level_up || player.points > 0) {
             time
         } else {
             0.0
