@@ -64,7 +64,7 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     }
 
     ui::center_text(
-        i18n.t(Text::FontSize),
+        i18n.t(Text::InterfaceSize),
         x + width * 0.5,
         y + 236.0 * ui,
         (15.0 * ui).max(11.0),
@@ -80,17 +80,17 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     );
 
     if ui::button(pointer, minus, "-", ui, true, ui::STEEL) {
-        let new_scale = (ui::font_scale() - 0.25).clamp(0.75, 2.0);
-        ui::set_font_scale(new_scale);
-        let _ = save::store_font_scale(new_scale);
+        let new_scale = (ui::interface_scale() - 0.25).clamp(0.75, 2.0);
+        ui::set_interface_scale(new_scale);
+        let _ = save::store_interface_scale(new_scale);
     }
     if ui::button(pointer, plus, "+", ui, true, ui::STEEL) {
-        let new_scale = (ui::font_scale() + 0.25).clamp(0.75, 2.0);
-        ui::set_font_scale(new_scale);
-        let _ = save::store_font_scale(new_scale);
+        let new_scale = (ui::interface_scale() + 0.25).clamp(0.75, 2.0);
+        ui::set_interface_scale(new_scale);
+        let _ = save::store_interface_scale(new_scale);
     }
 
-    let size_text = format!("{:.0}%", ui::font_scale() * 100.0);
+    let size_text = format!("{:.0}%", ui::interface_scale() * 100.0);
     ui::center_text(
         &size_text,
         x + width * 0.5,

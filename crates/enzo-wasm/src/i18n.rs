@@ -64,7 +64,7 @@ pub enum Text {
     Confirm,
     Cancel,
     Language,
-    FontSize,
+    InterfaceSize,
     SlotLabel,
     SlotDeleted,
     LevelLoadFailed,
@@ -168,37 +168,14 @@ pub enum Text {
 }
 
 /// Traduções ativas. É `Copy` e barato de passar para o HUD.
-/// Tamanho de fonte base. O padrão é 16 px (em escala 1×).
-const DEFAULT_FONT_SIZE: f32 = 16.0;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct I18n {
     language: Language,
-    font_size: f32,
-}
-
-impl Default for I18n {
-    fn default() -> Self {
-        Self {
-            language: Language::default(),
-            font_size: DEFAULT_FONT_SIZE,
-        }
-    }
 }
 
 impl I18n {
     pub fn new(language: Language) -> Self {
-        Self {
-            language,
-            font_size: DEFAULT_FONT_SIZE,
-        }
-    }
-
-    pub fn with_font_size(language: Language, font_size: f32) -> Self {
-        Self {
-            language,
-            font_size: font_size.clamp(10.0, 28.0),
-        }
+        Self { language }
     }
 
     pub fn language(self) -> Language {
@@ -207,14 +184,6 @@ impl I18n {
 
     pub fn set_language(&mut self, language: Language) {
         self.language = language;
-    }
-
-    pub fn font_size(self) -> f32 {
-        self.font_size
-    }
-
-    pub fn set_font_size(&mut self, font_size: f32) {
-        self.font_size = font_size.clamp(10.0, 28.0);
     }
 
     pub fn t(self, text: Text) -> &'static str {
@@ -248,8 +217,8 @@ impl I18n {
             (Language::English, Text::Cancel) => "Cancel",
             (Language::PtBr, Text::Language) => "Idioma",
             (Language::English, Text::Language) => "Language",
-            (Language::PtBr, Text::FontSize) => "Tamanho da fonte",
-            (Language::English, Text::FontSize) => "Font size",
+            (Language::PtBr, Text::InterfaceSize) => "Tamanho da interface",
+            (Language::English, Text::InterfaceSize) => "Interface size",
             (Language::PtBr, Text::SlotLabel) => "Slot",
             (Language::English, Text::SlotLabel) => "Slot",
             (Language::PtBr, Text::SlotDeleted) => "Slot apagado",
@@ -504,7 +473,7 @@ mod tests {
         Text::Confirm,
         Text::Cancel,
         Text::Language,
-        Text::FontSize,
+        Text::InterfaceSize,
         Text::SlotLabel,
         Text::SlotDeleted,
         Text::LevelLoadFailed,

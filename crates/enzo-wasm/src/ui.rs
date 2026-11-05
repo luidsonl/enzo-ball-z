@@ -16,20 +16,20 @@ pub const GREEN: Color = Color::new(0.561, 0.878, 0.478, 1.0);
 
 /// Escala da UI a partir de uma altura de referência de 720 px.
 /// O multiplicador de fonte permite aumentar/reduzir o tamanho do texto.
-static mut FONT_SCALE: f32 = 1.25;
+static mut INTERFACE_SCALE: f32 = 1.25;
 
-pub fn set_font_scale(scale: f32) {
+pub fn set_interface_scale(scale: f32) {
     unsafe {
-        FONT_SCALE = scale.clamp(0.75, 2.0);
+        INTERFACE_SCALE = scale.clamp(0.75, 2.0);
     }
 }
 
-pub fn font_scale() -> f32 {
-    unsafe { FONT_SCALE }
+pub fn interface_scale() -> f32 {
+    unsafe { INTERFACE_SCALE }
 }
 
 pub fn ui_scale() -> f32 {
-    ((screen_height() / 720.0) * font_scale()).clamp(0.8, 2.0)
+    ((screen_height() / 720.0) * interface_scale()).clamp(0.8, 2.0)
 }
 
 pub fn screen_size() -> Vec2 {
@@ -107,7 +107,7 @@ pub fn button(
         if hovered { 2.0 } else { 1.0 },
         border,
     );
-    let size = ((15.0 * ui) * font_scale()).max(11.0);
+    let size = ((15.0 * ui) * interface_scale()).max(11.0);
     center_text(
         label,
         rect.x + rect.w * 0.5,

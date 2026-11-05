@@ -68,11 +68,11 @@ impl App {
         let app = Self {
             scene: Scene::Menu(Menu::new()),
             sprites: Sprites::load(),
-            i18n: I18n::with_font_size(save::load_language(), save::load_font_size()),
+            i18n: I18n::new(save::load_language()),
             pointer: Pointer::default(),
         };
 
-        ui::set_font_scale(save::load_font_scale());
+        ui::set_interface_scale(save::load_interface_scale());
 
         app
     }
