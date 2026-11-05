@@ -113,7 +113,9 @@ impl Menu {
         }
 
         let ui = ui::ui_scale();
-        draw_menu_background(self.time, ui);
+        if !self.has_background_game {
+            draw_menu_background(self.time, ui);
+        }
 
         let event = if self.pending_delete.is_some() {
             None

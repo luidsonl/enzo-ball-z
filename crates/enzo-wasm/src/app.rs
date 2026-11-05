@@ -138,9 +138,10 @@ impl App {
                     }
                 }
                 Transition::Resume => {
-                    if let Scene::MenuOverGame { game, .. } =
+                    if let Scene::MenuOverGame { mut game, .. } =
                         std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
                     {
+                        game.paused = false;
                         self.scene = Scene::Game(game);
                     }
                 }
