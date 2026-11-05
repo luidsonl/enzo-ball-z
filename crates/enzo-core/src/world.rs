@@ -295,15 +295,6 @@ impl World {
             return;
         }
 
-        if self.store.players().any(|entity| {
-            entity
-                .player()
-                .is_some_and(|player| player.pending_level_up)
-        }) {
-            self.phase = GamePhase::LevelUp;
-            return;
-        }
-
         if let Some(flag) = self.level.flag_rect() {
             let reached = self
                 .store

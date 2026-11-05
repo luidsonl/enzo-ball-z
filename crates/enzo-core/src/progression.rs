@@ -111,6 +111,12 @@ pub fn allocate_point(entity: &mut Entity, attribute: Attribute) -> bool {
     entity.stats = stats;
     entity.health.current =
         (entity.health.current + (stats.max_health - old_max_health)).min(stats.max_health);
+
+    if let Some(player) = entity.player_mut() {
+        if player.points == 0 {
+            player.pending_level_up = false;
+        }
+    }
     true
 }
 
