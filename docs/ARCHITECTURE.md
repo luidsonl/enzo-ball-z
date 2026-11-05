@@ -76,14 +76,18 @@ enzoballz/
 │   ├── enzo-wasm/             # cliente: macroquad + wasm-bindgen
 │   │   ├── src/
 │   │   │   ├── lib.rs         # start()
-│   │   │   ├── app.rs         # loop + acumulador de tick fixo
+│   │   │   ├── app.rs         # cenas (menu/jogo) + acumulador de tick fixo
 │   │   │   ├── input.rs       # teclado -> PlayerCommand
+│   │   │   ├── pointer.rs     # mouse por frame + hit-testing
+│   │   │   ├── ui.rs          # primitivas visuais compartilhadas
+│   │   │   ├── i18n.rs        # chaves Text + traduções pt-BR/en
+│   │   │   ├── menu/          # menu inicial, saves e opções
 │   │   │   ├── render/        # mundo, fundo e escolha de frames
 │   │   │   ├── tiles.rs       # malhas de tiles em chunks sob demanda
 │   │   │   ├── camera.rs
-│   │   │   ├── hud/           # status, overlays e widgets
+│   │   │   ├── hud/           # barra fixa + janelas arrastáveis + overlays
 │   │   │   ├── sprites.rs
-│   │   │   └── save.rs        # localStorage
+│   │   │   └── save.rs        # localStorage (3 slots + idioma)
 │   │   └── assets/
 │   │       ├── sprites/       # PNGs gerados
 │   │       └── levels/        # mapas ASCII
@@ -285,9 +289,10 @@ pub struct TickOutput {
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct WorldSnapshot {
-    pub version: u16,
+    pub version: u16,              // SNAPSHOT_VERSION = 2
     pub tick: u64,
     pub phase: GamePhase,          // Playing | LevelUp | Dead | Victory
+    pub phase_timer: f32,
     pub entities: Vec<EntitySnapshot>,
     pub level_width: f32,
     pub level_height: f32,
@@ -311,9 +316,20 @@ pub struct EntitySnapshot {
     pub combo: u32,
     pub running: bool,
 }
+
+pub struct PlayerSnapshot {
+    // ... level, xp, points, attributes, equipment ...
+    pub equipped: [Option<ItemKind>; EquipSlot::COUNT],
+    pub inventory: Vec<ItemKind>,
+    pub moves: Vec<MoveId>,
+    pub pending_level_up: bool,
+    // ...
+}
 ```
 
 - `WorldSnapshot` não contém lógica; é o contrato entre core e render/rede.
+- `equipped`, `inventory` e `moves` são somente leitura: o HUD desenha as
+  janelas a partir deles, mas quem altera o estado é sempre o `World`.
 - `serde` fica atrás da feature `serde` no `enzo-core` para manter o core leve.
 - JSON para debug, save e testes; `postcard`/`bincode` para rede no futuro.
 - `version` sobe a cada mudança incompatível; save e rede recusam versão antiga.
@@ -356,6 +372,13 @@ render(previous, current, alpha)
 | SixSeven (aura)  | `6` e `7`, alternando           |
 | Distribuir ponto | `1` Velocidade, `2` Força, `3` Vida, `4` Aura |
 | Confirmar level  | `Enter`                         |
+| Abrir menu       | `Esc`                           |
+
+O mouse é lido uma vez por frame por [`pointer`], com clique edge-triggered.
+Ele é a via principal do menu e do HUD; o teclado continua valendo para as
+mesmas ações (acessibilidade e jogadores de teclado). O clique só produz uma
+[`HudAction`]/[`MenuAction`]; o `app` é quem a traduz para comando do core ou
+troca de cena, então nenhuma regra de jogo vive na camada de UI.
 
 ### Render, câmera e HUD
 
@@ -366,11 +389,22 @@ render(previous, current, alpha)
   visível vira uma malha estática uma única vez; chunks fora da câmera nunca são
   construídos. Isso evita percorrer e emitir todos os tiles do mapa por frame.
 - `camera.rs` segue o jogador com suavização e limita ao tamanho do mapa.
-- `hud/` desenha barras de vida/aura/XP, nível e pontos; `status.rs` cuida do
-  painel persistente, `overlays.rs` das telas de pausa/fim e `widgets.rs` das
-  primitivas visuais.
+- `ui.rs` concentra as primitivas visuais (painel, botão, dot, texto) usadas por
+  menu e HUD. `pointer.rs` concentra o estado do mouse e o hit-testing.
+- `menu/` é uma pilha de telas (`MenuScreen::Main`, `Saves`, `Options`). Novas
+  telas entram como variantes e não mudam o loop do `app`.
+- `hud/status.rs` desenha a barra fixa (vida/aura/XP/Mogar) e os dots que
+  abrem/fecham as janelas. O dot de status pisca enquanto há level-up pendente.
+- `hud/window.rs` desenha a moldura e trata foco, arraste e fechamento. As
+  janelas (`status_window`, `inventory`, `equipment`, `skills`) são arrastáveis
+  pelo título e ficam empilhadas na ordem de foco.
+- `hud/overlays.rs` desenha dicas, banner de fase, level-up, morte e vitória.
+- `i18n.rs` guarda as chaves `Text` e as traduções pt-BR/en. O idioma é escolhido
+  no menu e persistido no `localStorage`; o core nunca formata texto de UI.
+- `save.rs` grava JSON versionado em `localStorage`, com três slots
+  (`enzoballz.save.slot.{0..2}.v1`). A chave antiga `enzoballz.save.v1` é lida
+  como fallback do slot 0. O idioma fica em `enzoballz.language`.
 - `sprites.rs` carrega o atlas PNG e escolhe frames por estado/animacão.
-- `save.rs` grava JSON versionado em `localStorage` (`enzoballz.save.v1`).
 
 ### Regra de ouro
 

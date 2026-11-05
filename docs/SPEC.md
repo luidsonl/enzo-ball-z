@@ -21,18 +21,21 @@ pontos para distribuir entre Velocidade, Força, Vida e Aura.
 - Um tipo de inimigo patrulhador.
 - XP, level-up, pontos e quatro atributos.
 - Vida, aura, morte com respawn e vitória por bandeira.
-- Auto-save local da progressão.
+- Menu inicial com seleção de três slots de save e opções de idioma.
+- HUD fixa com janelas arrastáveis de status, inventário, equipamento e
+  habilidades, abertas por dots.
+- Interface em pt-BR e inglês, com escolha persistida.
+- Auto-save local da progressão por slot.
 - Sprites pixel-art originais gerados por script.
 
 ## 3. Não-objetivos do MVP
 
 - Multiplayer em rede, servidor, matchmaking, autenticação.
 - Co-op local.
-- Mais de uma fase, chefes, itens, loja.
+- Mais de uma fase, chefes, loja e coleta de itens no mapa.
 - Outros golpes além do Mogar.
 - Áudio.
-- Menu inicial, pausa, opções gráficas.
-- Mobile/touch.
+- Opções gráficas, remapeamento de teclas, mobile/touch.
 - Assets de terceiros (incluindo personagens de Dragon Ball ou Mario).
 
 ## 4. Loop de jogo
@@ -70,9 +73,11 @@ Explorar e enfrentar inimigos
 | Ataque físico | `J` | combo de 3 |
 | Mogar | `K` | custa aura |
 | Farmar aura | `6` e `7` | alternância obrigatória |
-| Distribuir ponto | `1` `2` `3` `4` | na tela de level-up |
-| Confirmar | `Enter` | fecha a tela de level-up |
-| Reiniciar fase | `R` | na tela de vitória |
+| Distribuir ponto | `1` `2` `3` `4` ou clique | na janela de status |
+| Confirmar | `Enter` ou clique | fecha a janela de level-up |
+| Reiniciar fase | `R` ou clique | na tela de morte/vitória |
+| Abrir menu | `Esc` | salva e volta ao menu inicial |
+| Navegar menus/HUD | mouse | clique edge-triggered |
 
 ## 6. Movimento
 
@@ -205,7 +210,10 @@ estado, sem campos paralelos no `Entity`.
 
 ## 12. Save
 
-- Chave: `enzoballz.save.v1` no `localStorage`.
+- Três slots independentes no `localStorage`:
+  `enzoballz.save.slot.0.v1`, `enzoballz.save.slot.1.v1`,
+  `enzoballz.save.slot.2.v1`.
+- A chave antiga `enzoballz.save.v1` é lida como fallback do slot 0.
 - Formato:
 
 ```json
@@ -218,18 +226,29 @@ estado, sem campos paralelos no `Entity`.
 }
 ```
 
-- Gravado ao subir de nível, ao confirmar a distribuição e ao vencer.
+- Gravado ao subir de nível, ao confirmar a distribuição, ao morrer, ao vencer e
+  ao voltar para o menu.
 - Posição, inimigos e projéteis não são salvos.
+- O idioma escolhido fica em `enzoballz.language` e é restaurado ao abrir o jogo.
 - Versão incompatível → save ignorado com aviso no console (sem crash).
+- Apagar um slot remove apenas a chave daquele slot.
 
 ## 13. HUD e UI
 
-- Barra de vida (vermelha), aura (ciano) e XP (amarela).
-- Nível atual e pontos disponíveis.
-- Dica de controles no início da fase.
-- Overlay de level-up com os quatro atributos e teclas `1`–`4`.
-- Overlay de morte e de vitória.
-- Textos em português (pt-BR).
+- Menu inicial com as telas: principal, saves (3 slots) e opções (idioma).
+- A tela de saves permite iniciar um jogo novo, carregar ou apagar um slot; a
+  exclusão pede confirmação em um modal.
+- HUD fixa com barra de vida (vermelha), aura (ciano), XP (amarela), nível,
+  pontos, Mogar e o botão de menu.
+- Quatro dots abrem/fecham janelas arrastáveis: status, inventário, equipamento
+  e habilidades. O dot de status pisca enquanto houver level-up pendente.
+- As janelas são arrastáveis pelo título, têm foco/empilhamento e botão de
+  fechar; a posição é mantida durante a sessão.
+- A janela de status concentra a distribuição de pontos: clique em um atributo
+  ou use `1`–`4`, e confirme com `Enter` ou pelo botão.
+- Dica de controles no início da fase, banners de fase/level-up e overlays de
+  morte e vitória com botões de reiniciar e voltar ao menu.
+- Todos os textos vêm de um sistema de i18n com pt-BR e inglês.
 
 ## 14. Fase
 
@@ -261,16 +280,20 @@ estado, sem campos paralelos no `Entity`.
 7. Capangas patrulham, dão dano de contato e concedem XP ao morrer.
 8. Level-up concede ponto, pausa e permite distribuir nos quatro atributos.
 9. Morrer respawna mantendo progressão; tocar a bandeira vence.
-10. Recarregar a página restaura nível, XP, pontos e atributos.
+10. Recarregar a página restaura nível, XP, pontos e atributos do slot carregado.
 11. `cargo test -p enzo-core` cobre os cenários do harness e passa.
 12. O core não importa render/wasm/IO.
+13. O menu inicial permite iniciar, carregar e apagar três slots, e trocar o
+    idioma entre pt-BR e inglês.
+14. O HUD abre e fecha as quatro janelas pelos dots; elas arrastam, empilham e
+    distribuem pontos por clique.
 
 ## 17. Premissas a confirmar
 
 1. **Teclas de movimento/pulo:** `A`/`D` ou setas + `Espaço`/`W`.
 2. **Mogar atravessa inimigos** (cada um leva dano uma vez) até bater em parede.
 3. **Inimigos renascem apenas quando o jogador morre**, não por tempo.
-4. **Level-up pausa o jogo** e a distribuição usa `1`–`4` + `Enter`.
+4. **Level-up pausa o jogo** e a distribuição aceita `1`–`4`/clique + `Enter`.
 5. **Sem áudio no MVP.**
 6. **Valores de balanceamento** da seção 10 são iniciais e ajustáveis.
-7. **UI em pt-BR.**
+7. **UI em pt-BR e inglês**, escolhida no menu e persistida localmente.
