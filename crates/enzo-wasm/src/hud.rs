@@ -1,11 +1,10 @@
 //! HUD e overlays em screen space.
 //!
-//! Tudo aqui é leitura do snapshot: barras, nível, pontos, combo, dicas e as
+//! Tudo aqui é leitura do snapshot: barras, nível, pontos, dicas e as
 //! telas de level-up, morte e vitória. Nenhuma regra de jogo é decidida aqui.
 
 use enzo_core::entities::EquipmentTags;
 use enzo_core::input::Attribute;
-use enzo_core::movements::sixseven::{combo_multiplier, COMBO_WINDOW};
 use enzo_core::snapshot::{EntitySnapshot, PlayerSnapshot, SnapshotKind, WorldSnapshot};
 use enzo_core::world::GamePhase;
 use macroquad::prelude::*;
@@ -86,7 +85,7 @@ fn draw_status_panel(
     let x = 16.0 * ui;
     let y = 16.0 * ui;
     let w = 370.0 * ui;
-    let h = 186.0 * ui;
+    let h = 166.0 * ui;
     panel(x, y, w, h, rgba(12, 12, 26, 218), rgba(94, 242, 255, 70));
 
     let pad = 14.0 * ui;
@@ -195,35 +194,6 @@ fn draw_status_panel(
         rgba(206, 212, 236, 255),
     );
 
-    // Combo de aura.
-    if entity.combo > 0 {
-        let multiplier = combo_multiplier(entity.combo);
-        let combo = format!("6/7  x{multiplier:.2}   combo {}", entity.combo);
-        draw_text(
-            &combo,
-            x + pad,
-            y + 140.0 * ui,
-            14.0 * ui,
-            rgba(94, 242, 255, 255),
-        );
-        let window_ratio = (player.combo_window / COMBO_WINDOW).clamp(0.0, 1.0);
-        draw_rectangle(
-            x + pad,
-            y + 146.0 * ui,
-            (bar_w * window_ratio).max(1.0),
-            3.0 * ui,
-            rgba(94, 242, 255, 210),
-        );
-    } else {
-        draw_text(
-            "6/7: alterne as teclas para farmar aura",
-            x + pad,
-            y + 140.0 * ui,
-            12.0 * ui,
-            rgba(148, 158, 190, 255),
-        );
-    }
-
     // Mogar e equipamento.
     let mogar = if player.mogar_cooldown <= 0.0 {
         "MOGAR PRONTO (25 aura)".to_string()
@@ -233,7 +203,7 @@ fn draw_status_panel(
     draw_text(
         &mogar,
         x + pad,
-        y + 164.0 * ui,
+        y + 142.0 * ui,
         12.0 * ui,
         if player.mogar_cooldown <= 0.0 {
             rgba(176, 150, 255, 255)
@@ -247,7 +217,7 @@ fn draw_status_panel(
         draw_text(
             &equipment,
             x + w - pad - dims.width,
-            y + 164.0 * ui,
+            y + 142.0 * ui,
             12.0 * ui,
             rgba(246, 196, 69, 210),
         );
@@ -331,7 +301,7 @@ fn draw_hints(hint_timer: f32, ui: f32) {
     );
 
     let line1 = "A/D ou ←/→ mover   ·   ESPAÇO pular   ·   SHIFT dash   ·   J atacar   ·   K Mogar";
-    let line2 = "6/7 farmar aura (alternando)   ·   1-4 distribuir pontos   ·   ENTER confirmar   ·   R reiniciar";
+    let line2 = "1-4 distribuir pontos   ·   ENTER confirmar   ·   R reiniciar";
     center_text(
         line1,
         x + width * 0.5,
