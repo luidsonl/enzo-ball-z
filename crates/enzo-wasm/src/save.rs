@@ -71,7 +71,12 @@ pub fn store_language(language: Language) -> Result<(), String> {
 }
 
 pub fn load_font_size() -> f32 {
-    read_key(FONT_SIZE_KEY).and_then(|raw| raw.parse::<f32>().ok().filter(|&v| (10.0..=28.0).contains(&v)))
+    read_key(FONT_SIZE_KEY)
+        .and_then(|raw| {
+            raw.parse::<f32>()
+                .ok()
+                .filter(|&v| (10.0..=28.0).contains(&v))
+        })
         .unwrap_or(16.0)
 }
 
@@ -83,7 +88,12 @@ pub fn store_font_size(font_size: f32) -> Result<(), String> {
 }
 
 pub fn load_font_scale() -> f32 {
-    read_key(FONT_SCALE_KEY).and_then(|raw| raw.parse::<f32>().ok().filter(|&v| (0.75..=2.0).contains(&v)))
+    read_key(FONT_SCALE_KEY)
+        .and_then(|raw| {
+            raw.parse::<f32>()
+                .ok()
+                .filter(|&v| (0.75..=2.0).contains(&v))
+        })
         .unwrap_or(1.25)
 }
 

@@ -72,7 +72,12 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     );
 
     let minus = Rect::new(button_x, y + 256.0 * ui, 46.0 * ui, button_h);
-    let plus = Rect::new(button_x + button_w - 46.0 * ui, y + 256.0 * ui, 46.0 * ui, button_h);
+    let plus = Rect::new(
+        button_x + button_w - 46.0 * ui,
+        y + 256.0 * ui,
+        46.0 * ui,
+        button_h,
+    );
 
     if ui::button(pointer, minus, "-", ui, true, ui::STEEL) {
         i18n.set_font_size(i18n.font_size() - 2.0);
@@ -99,7 +104,12 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     );
 
     let minus = Rect::new(button_x, y + 256.0 * ui, 46.0 * ui, button_h);
-    let plus = Rect::new(button_x + button_w - 46.0 * ui, y + 256.0 * ui, 46.0 * ui, button_h);
+    let plus = Rect::new(
+        button_x + button_w - 46.0 * ui,
+        y + 256.0 * ui,
+        46.0 * ui,
+        button_h,
+    );
 
     if ui::button(pointer, minus, "-", ui, true, ui::STEEL) {
         let new_scale = (ui::font_scale() - 0.25).clamp(0.75, 2.0);
