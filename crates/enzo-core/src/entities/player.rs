@@ -12,10 +12,11 @@
 use crate::math::Vec2;
 
 use super::attributes::Stats;
+use super::item::ItemKind;
 
 pub type PlayerId = u32;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PlayerData {
     pub player_id: PlayerId,
     pub level: u32,
@@ -24,6 +25,9 @@ pub struct PlayerData {
     pub aura: f32,
     pub pending_level_up: bool,
     pub respawn: Vec2,
+    /// Itens coletados e ainda não equipados. O HUD lê esta lista pelo snapshot;
+    /// o cliente não pode alterá-la diretamente.
+    pub inventory: Vec<ItemKind>,
 }
 
 impl PlayerData {
@@ -36,6 +40,19 @@ impl PlayerData {
             aura: stats.max_aura,
             pending_level_up: false,
             respawn,
+            inventory: Vec::new(),
         }
+    }
+
+    pub fn add_item(&mut self, kind: ItemKind) {
+        self.inventory.push(kind);
+    }
+
+    pub fn remove_item(&mut self, kind: ItemKind) -> bool {
+        let Some(index) = self.inventory.iter().position(|item| *item == kind) else {
+            return false;
+        };
+        self.inventory.remove(index);
+        true
     }
 }

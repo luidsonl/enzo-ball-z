@@ -78,6 +78,7 @@ impl EntitySpec {
             .allows(self.kind.entity_type(), self.attributes.to_set())?;
         self.equipped[slot.index()] = Some(EquippedItem {
             slot,
+            kind: item.kind,
             equipment: item.equipment,
         });
         self.equipment = Equipment::from_equipped(&self.equipped);

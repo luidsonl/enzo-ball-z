@@ -99,6 +99,20 @@ impl World {
         self.store.equip(entity_id, item)
     }
 
+    /// Adiciona um item ao inventário do jogador. A coleta em si (colisão com
+    /// itens do mapa) ainda não faz parte do MVP; a API existe para o HUD e para
+    /// as próximas fases.
+    pub fn add_inventory(&mut self, player_id: PlayerId, kind: crate::entities::ItemKind) -> bool {
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        let Some(player) = entity.player_mut() else {
+            return false;
+        };
+        player.add_item(kind);
+        true
+    }
+
     pub fn save_data(&self) -> Option<SaveData> {
         self.store
             .player(0)

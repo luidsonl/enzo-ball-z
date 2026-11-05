@@ -237,6 +237,7 @@ impl Entity {
             .allows(self.entity_type(), self.character_attribute_set())?;
         self.equipped[slot.index()] = Some(EquippedItem {
             slot,
+            kind: item.kind,
             equipment: item.equipment,
         });
         self.refresh_equipment();

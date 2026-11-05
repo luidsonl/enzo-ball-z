@@ -7,6 +7,7 @@
 //! de tipo de personagem e atributos.
 
 use super::attributes::{AttributeId, AttributeSet};
+use super::item::ItemKind;
 
 /// Bitset determinístico de tags de equipamento. Novas tags entram como novas
 /// constantes; requisitos combinam tags com `contains`.
@@ -113,6 +114,7 @@ impl Equipment {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EquippedItem {
     pub slot: EquipSlot,
+    pub kind: ItemKind,
     pub equipment: Equipment,
 }
 
@@ -144,10 +146,12 @@ mod tests {
         let mut items = [None; EquipSlot::COUNT];
         items[EquipSlot::Weapon.index()] = Some(EquippedItem {
             slot: EquipSlot::Weapon,
+            kind: ItemKind::Sword,
             equipment: Equipment::sword(),
         });
         items[EquipSlot::Armor.index()] = Some(EquippedItem {
             slot: EquipSlot::Armor,
+            kind: ItemKind::Armor,
             equipment: Equipment {
                 tags: EquipmentTags::NONE,
                 modifiers: AttributeSet::ZERO.with(AttributeId::HEALTH, 1),

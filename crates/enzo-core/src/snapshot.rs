@@ -5,14 +5,15 @@
 //! ficam em [`crate::map::Level`] e são lidos pelo render via `World::level()`.
 
 use crate::entities::{
-    Attributes, EnemySpecies, Entity, EntityId, EntityKind, Equipment, ItemCategory, ItemKind,
-    ItemUsage, PlayerId,
+    Attributes, EnemySpecies, Entity, EntityId, EntityKind, EquipSlot, Equipment, ItemCategory,
+    ItemKind, ItemUsage, PlayerId,
 };
 use crate::math::{Rect, Vec2};
+use crate::moves::MoveId;
 use crate::progression;
 use crate::state::GamePhase;
 
-pub const SNAPSHOT_VERSION: u16 = 1;
+pub const SNAPSHOT_VERSION: u16 = 2;
 
 /// Fotografia do mundo em um tick. Não contém lógica.
 #[derive(Clone, Debug, PartialEq)]
@@ -69,6 +70,12 @@ pub struct PlayerSnapshot {
     pub points: u32,
     pub attributes: Attributes,
     pub equipment: Equipment,
+    /// Itens instalados por slot, na ordem de [`EquipSlot`].
+    pub equipped: [Option<ItemKind>; EquipSlot::COUNT],
+    /// Itens coletados e ainda não equipados.
+    pub inventory: Vec<ItemKind>,
+    /// Movimentos atribuídos, na ordem de [`MoveId::ALL`].
+    pub moves: Vec<MoveId>,
     pub pending_level_up: bool,
     pub farming: bool,
     pub combo_window: f32,
@@ -114,6 +121,14 @@ impl EntitySnapshot {
                 points: data.points,
                 attributes: entity.attributes,
                 equipment: entity.equipment,
+                equipped: entity.equipped.map(|item| item.map(|item| item.kind)),
+                inventory: data.inventory.clone(),
+                moves: entity
+                    .movement
+                    .moves
+                    .iter()
+                    .chain(entity.combat.moves.iter())
+                    .collect(),
                 pending_level_up: data.pending_level_up,
                 farming: entity.movement.sixseven.is_active(),
                 combo_window: entity.movement.sixseven.window,
@@ -166,5 +181,34 @@ impl EntitySnapshot {
             dashing: entity.movement.is_dashing(),
             iframes: entity.health.iframes,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::levels::LEVEL_1;
+    use crate::world::World;
+
+    #[test]
+    fn snapshot_exposes_inventory_equipment_and_moves() {
+        let mut world = World::new(LEVEL_1).unwrap();
+        assert!(world.add_inventory(0, ItemKind::Potion));
+
+        let snapshot = world.snapshot();
+        assert_eq!(snapshot.version, SNAPSHOT_VERSION);
+
+        let player = snapshot
+            .entities
+            .iter()
+            .find_map(|entity| match &entity.kind {
+                SnapshotKind::Player(player) => Some(player),
+                _ => None,
+            })
+            .unwrap();
+
+        assert_eq!(player.inventory, vec![ItemKind::Potion]);
+        assert!(player.moves.contains(&MoveId::Walk));
+        assert!(player.equipped.iter().all(Option::is_none));
     }
 }
