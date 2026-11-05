@@ -133,21 +133,40 @@ pub fn dot_button(
     let hit = pointer.pos.distance(center) <= radius + 3.0;
     let hovered = enabled && hit;
     let glow = if pulse > 0.0 {
-        0.5 + 0.5 * (pulse * 7.0).sin()
+        0.5 + 0.5 * (pulse * 9.0).sin()
     } else {
         0.0
     };
 
-    if open || glow > 0.0 {
+    if glow > 0.0 {
+        // Brilho forte e pulsante para chamar atenção.
         draw_circle(
             center.x,
             center.y,
-            radius + 5.0 + glow * 3.0,
+            radius + 9.0 + glow * 6.0,
             rgba(
                 (accent.r * 255.0) as u8,
                 (accent.g * 255.0) as u8,
                 (accent.b * 255.0) as u8,
-                (30.0 + glow * 45.0) as u8,
+                (90.0 + glow * 140.0) as u8,
+            ),
+        );
+        draw_circle(
+            center.x,
+            center.y,
+            radius + 4.0 + glow * 2.0,
+            rgba(255, 255, 255, (60.0 + glow * 120.0) as u8),
+        );
+    } else if open {
+        draw_circle(
+            center.x,
+            center.y,
+            radius + 5.0,
+            rgba(
+                (accent.r * 255.0) as u8,
+                (accent.g * 255.0) as u8,
+                (accent.b * 255.0) as u8,
+                30,
             ),
         );
     }
