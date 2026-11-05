@@ -52,6 +52,7 @@ pub enum Text {
     // Menu inicial
     MenuSubtitle,
     Play,
+    Resume,
     ManageSaves,
     Options,
     Back,
@@ -193,6 +194,8 @@ impl I18n {
             (Language::English, Text::MenuSubtitle) => "Run, fight and farm aura",
             (Language::PtBr, Text::Play) => "Jogar",
             (Language::English, Text::Play) => "Play",
+            (Language::PtBr, Text::Resume) => "Continuar",
+            (Language::English, Text::Resume) => "Resume",
             (Language::PtBr, Text::ManageSaves) => "Gerenciar saves",
             (Language::English, Text::ManageSaves) => "Manage saves",
             (Language::PtBr, Text::Options) => "Opções",
@@ -458,9 +461,10 @@ mod tests {
 
     /// Lista de chaves para o teste de cobertura. Mantenha em sincronia com o
     /// enum: novas chaves devem entrar aqui.
-    const ALL_TEXT: [Text; 97] = [
+    const ALL_TEXT: [Text; 98] = [
         Text::MenuSubtitle,
         Text::Play,
+        Text::Resume,
         Text::ManageSaves,
         Text::Options,
         Text::Back,

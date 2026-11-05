@@ -7,7 +7,13 @@ use crate::i18n::{I18n, Text};
 use crate::pointer::Pointer;
 use crate::ui::{self, rgba, GOLD};
 
-pub(super) fn draw(pointer: Pointer, i18n: I18n, ui: f32, time: f32) -> Option<MenuEvent> {
+pub(super) fn draw(
+    pointer: Pointer,
+    i18n: I18n,
+    ui: f32,
+    time: f32,
+    has_background_game: bool,
+) -> Option<MenuEvent> {
     let width = (screen_width() * 0.62).clamp(380.0 * ui, 560.0 * ui);
     let height = (screen_height() * 0.58).clamp(330.0 * ui, 430.0 * ui);
     let x = (screen_width() - width) * 0.5;
@@ -42,7 +48,15 @@ pub(super) fn draw(pointer: Pointer, i18n: I18n, ui: f32, time: f32) -> Option<M
     let button_w = width - 72.0 * ui;
     let button_h = 56.0 * ui;
     let button_x = x + 36.0 * ui;
-    let play = Rect::new(button_x, y + 84.0 * ui, button_w, button_h);
+    let mut y_cursor = y + 84.0 * ui;
+    if has_background_game {
+        let resume = Rect::new(button_x, y_cursor, button_w, button_h);
+        y_cursor += button_h + 22.0 * ui;
+        if ui::button(pointer, resume, i18n.t(Text::Resume), ui, true, ui::GOLD) {
+            return Some(MenuEvent::Resume);
+        }
+    }
+    let play = Rect::new(button_x, y_cursor, button_w, button_h);
     let options = Rect::new(button_x, play.y + button_h + 22.0 * ui, button_w, button_h);
 
     if ui::button(pointer, play, i18n.t(Text::Play), ui, true, ui::AURA) {

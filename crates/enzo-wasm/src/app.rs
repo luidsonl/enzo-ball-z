@@ -48,12 +48,14 @@ const STEEL: Color = Color::new(0.82, 0.86, 0.94, 1.0);
 enum Scene {
     Menu(Menu),
     Game(Box<GameSession>),
+    MenuOverGame { menu: Menu, game: Box<GameSession> },
 }
 
 enum Transition {
     None,
     Start { slot: usize, save: Option<SaveData> },
     OpenMenu,
+    Resume,
 }
 
 pub struct App {
@@ -85,6 +87,7 @@ impl App {
             let transition = match &mut self.scene {
                 Scene::Menu(menu) => match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                     Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
+                    Some(MenuAction::Resume) => Transition::None,
                     None => Transition::None,
                 },
                 Scene::Game(session) => {
@@ -92,6 +95,16 @@ impl App {
                         Transition::OpenMenu
                     } else {
                         Transition::None
+                    }
+                }
+                Scene::MenuOverGame { menu, game } => {
+                    // Jogo continua rodando em segundo plano (sem input do HUD).
+                    let offscreen = Pointer::at(Vec2::new(-10_000.0, -10_000.0));
+                    let _ = game.frame(frame_dt, offscreen, &self.sprites);
+                    match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
+                        Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
+                        Some(MenuAction::Resume) => Transition::Resume,
+                        None => Transition::None,
                     }
                 }
             };
@@ -113,7 +126,22 @@ impl App {
                     }
                 }
                 Transition::OpenMenu => {
-                    self.scene = Scene::Menu(Menu::new());
+                    if let Scene::Game(game) =
+                        std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
+                    {
+                        let mut menu = Menu::new();
+                        menu.has_background_game = true;
+                        self.scene = Scene::MenuOverGame { menu, game };
+                    } else {
+                        self.scene = Scene::Menu(Menu::new());
+                    }
+                }
+                Transition::Resume => {
+                    if let Scene::MenuOverGame { game, .. } =
+                        std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
+                    {
+                        self.scene = Scene::Game(game);
+                    }
                 }
             }
 

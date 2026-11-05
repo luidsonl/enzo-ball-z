@@ -34,6 +34,8 @@ pub enum MenuScreen {
 pub enum MenuAction {
     /// Inicia a sessão no slot escolhido. `save` é `None` para um jogo novo.
     Start { slot: usize, save: Option<SaveData> },
+    /// Retoma o jogo que está rodando em segundo plano.
+    Resume,
 }
 
 /// Eventos internos produzidos por uma tela. O `Menu` aplica depois de desenhar,
@@ -43,6 +45,7 @@ pub(super) enum MenuEvent {
     Back,
     Start { slot: usize, save: Option<SaveData> },
     RequestDelete(usize),
+    Resume,
     SetLanguage(Language),
 }
 
@@ -50,6 +53,7 @@ pub struct Menu {
     screens: Vec<MenuScreen>,
     pub(super) slots: [Option<SaveData>; save::SLOT_COUNT],
     pub(super) pending_delete: Option<usize>,
+    pub has_background_game: bool,
     pub(super) toast: Option<(String, f32)>,
     time: f32,
 }
@@ -60,6 +64,7 @@ impl Menu {
             screens: vec![MenuScreen::Main],
             slots: save::load_slots(),
             pending_delete: None,
+            has_background_game: false,
             toast: None,
             time: 0.0,
         }
@@ -114,7 +119,9 @@ impl Menu {
             None
         } else {
             match self.current() {
-                MenuScreen::Main => draw_main(pointer, *i18n, ui, self.time),
+                MenuScreen::Main => {
+                    draw_main(pointer, *i18n, ui, self.time, self.has_background_game)
+                }
                 MenuScreen::Saves => draw_saves(pointer, *i18n, ui, self.time, self),
                 MenuScreen::Options => draw_options(pointer, i18n, ui, self.time),
             }
@@ -130,6 +137,7 @@ impl Menu {
                 MenuEvent::Push(screen) => self.push(screen),
                 MenuEvent::Back => self.back(),
                 MenuEvent::Start { slot, save } => action = Some(MenuAction::Start { slot, save }),
+                MenuEvent::Resume => action = Some(MenuAction::Resume),
                 MenuEvent::RequestDelete(slot) => self.pending_delete = Some(slot),
                 MenuEvent::SetLanguage(language) => {
                     i18n.set_language(language);
@@ -286,6 +294,7 @@ mod tests {
             screens: vec![MenuScreen::Main],
             slots: [None; save::SLOT_COUNT],
             pending_delete: None,
+            has_background_game: false,
             toast: None,
             time: 0.0,
         }
