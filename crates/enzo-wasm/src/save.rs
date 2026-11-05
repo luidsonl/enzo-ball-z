@@ -16,6 +16,8 @@ pub const SLOT_COUNT: usize = 3;
 pub const LEGACY_KEY: &str = "enzoballz.save.v1";
 pub const SLOT_KEY_PREFIX: &str = "enzoballz.save.slot";
 pub const LANGUAGE_KEY: &str = "enzoballz.language";
+pub const FONT_SIZE_KEY: &str = "enzoballz.font_size";
+pub const FONT_SCALE_KEY: &str = "enzoballz.font_scale";
 
 pub fn slot_key(slot: usize) -> String {
     format!("{SLOT_KEY_PREFIX}.{slot}.v1")
@@ -66,6 +68,30 @@ pub fn load_language() -> Language {
 
 pub fn store_language(language: Language) -> Result<(), String> {
     write_key(LANGUAGE_KEY, language.code())
+}
+
+pub fn load_font_size() -> f32 {
+    read_key(FONT_SIZE_KEY).and_then(|raw| raw.parse::<f32>().ok().filter(|&v| (10.0..=28.0).contains(&v)))
+        .unwrap_or(16.0)
+}
+
+pub fn store_font_size(font_size: f32) -> Result<(), String> {
+    if !(10.0..=28.0).contains(&font_size) {
+        return Err("tamanho de fonte fora do intervalo válido".to_owned());
+    }
+    write_key(FONT_SIZE_KEY, &font_size.to_string())
+}
+
+pub fn load_font_scale() -> f32 {
+    read_key(FONT_SCALE_KEY).and_then(|raw| raw.parse::<f32>().ok().filter(|&v| (0.75..=2.0).contains(&v)))
+        .unwrap_or(1.25)
+}
+
+pub fn store_font_scale(font_scale: f32) -> Result<(), String> {
+    if !(0.75..=2.0).contains(&font_scale) {
+        return Err("escala de fonte fora do intervalo válido".to_owned());
+    }
+    write_key(FONT_SCALE_KEY, &font_scale.to_string())
 }
 
 fn parse_save(raw: &str) -> Option<SaveData> {

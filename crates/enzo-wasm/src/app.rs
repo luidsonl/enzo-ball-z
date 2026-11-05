@@ -28,6 +28,7 @@ use crate::render::{self, Background};
 use crate::save;
 use crate::sprites::Sprites;
 use crate::tiles::TileRenderer;
+use crate::ui;
 
 /// Limite de tempo de frame aceito de uma vez. Evita "espiral da morte" quando
 /// a aba fica em segundo plano e o navegador entrega um delta enorme.
@@ -64,12 +65,16 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        Self {
+        let app = Self {
             scene: Scene::Menu(Menu::new()),
             sprites: Sprites::load(),
-            i18n: I18n::new(save::load_language()),
+            i18n: I18n::with_font_size(save::load_language(), save::load_font_size()),
             pointer: Pointer::default(),
-        }
+        };
+
+        ui::set_font_scale(save::load_font_scale());
+
+        app
     }
 
     pub async fn run(&mut self) {
