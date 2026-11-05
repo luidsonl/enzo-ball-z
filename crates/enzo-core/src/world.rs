@@ -153,10 +153,7 @@ impl World {
         match self.phase {
             GamePhase::Playing => self.step_playing(&mut events),
             GamePhase::Dead => {
-                self.phase_timer = (self.phase_timer - DT).max(0.0);
-                if self.phase_timer <= 0.0 {
-                    self.respawn(&mut events);
-                }
+                // Sem respawn automático: aguarda o comando de reinício do jogador.
             }
             GamePhase::LevelUp | GamePhase::Victory => {}
         }
