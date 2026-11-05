@@ -113,7 +113,7 @@ impl Menu {
         let event = match self.current() {
             MenuScreen::Main => draw_main(pointer, *i18n, ui, self.time),
             MenuScreen::Saves => draw_saves(pointer, *i18n, ui, self.time, self),
-            MenuScreen::Options => draw_options(pointer, *i18n, ui, self.time),
+            MenuScreen::Options => draw_options(pointer, i18n, ui, self.time),
         };
 
         let mut action = None;
