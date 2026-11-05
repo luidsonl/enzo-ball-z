@@ -9,11 +9,15 @@ pub mod camera;
 pub mod convert;
 pub mod effects;
 pub mod hud;
+pub mod i18n;
 pub mod input;
+pub mod menu;
+pub mod pointer;
 pub mod render;
 pub mod save;
 pub mod sprites;
 pub mod tiles;
+pub mod ui;
 
 use macroquad::prelude::Conf;
 

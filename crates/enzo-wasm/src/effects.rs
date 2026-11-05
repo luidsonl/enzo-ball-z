@@ -141,9 +141,10 @@ impl Effects {
         self.sparks(pos, Color::from_rgba(255, 107, 94, 255), 7);
     }
 
-    pub fn no_aura(&mut self, pos: Vec2) {
+    /// Texto localizado; o cliente escolhe o idioma e passa a string pronta.
+    pub fn no_aura(&mut self, pos: Vec2, text: &str) {
         self.aura_flash = 0.45;
-        self.text(pos, "Sem aura!", Color::from_rgba(94, 242, 255, 255), 10.0);
+        self.text(pos, text, Color::from_rgba(94, 242, 255, 255), 10.0);
     }
 
     fn next_f32(&mut self) -> f32 {
@@ -177,7 +178,7 @@ mod tests {
     fn particles_expire_and_timers_decay() {
         let mut effects = Effects::new();
         effects.hurt(Vec2::ZERO);
-        effects.no_aura(Vec2::ZERO);
+        effects.no_aura(Vec2::ZERO, "Sem aura!");
         assert!(effects.hurt_flash > 0.0);
         assert!(effects.aura_flash > 0.0);
         assert!(!effects.particles.is_empty());

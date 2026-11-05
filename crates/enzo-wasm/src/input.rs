@@ -22,6 +22,7 @@ pub struct InputState {
     allocate: Option<Attribute>,
     confirm: bool,
     restart: bool,
+    menu: bool,
 }
 
 impl InputState {
@@ -55,6 +56,12 @@ impl InputState {
 
         self.confirm |= is_key_pressed(KeyCode::Enter);
         self.restart |= is_key_pressed(KeyCode::R);
+        self.menu |= is_key_pressed(KeyCode::Escape);
+    }
+
+    /// Consome o pedido de abrir o menu. Não faz parte do `PlayerCommand`.
+    pub fn take_menu_request(&mut self) -> bool {
+        std::mem::take(&mut self.menu)
     }
 
     /// Monta o comando do primeiro tick do frame e limpa os edges consumidos.
@@ -93,6 +100,7 @@ impl InputState {
         self.allocate = None;
         self.confirm = false;
         self.restart = false;
+        self.menu = false;
     }
 
     /// `true` se alguma tecla de jogo está pressionada. Usado para esconder a
@@ -110,6 +118,7 @@ impl InputState {
             || self.allocate.is_some()
             || self.confirm
             || self.restart
+            || self.menu
     }
 }
 

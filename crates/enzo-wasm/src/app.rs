@@ -1,14 +1,16 @@
-//! Loop principal: tick fixo, tradução de input, eventos e desenho.
+//! Loop principal: menu, sessão de jogo, tick fixo, eventos e desenho.
 //!
-//! O cliente acumula tempo de frame e avança o [`World`] em passos exatos de
-//! `1/60 s`. O render interpola entre o snapshot anterior e o atual; a
-//! simulação nunca depende do framerate.
+//! O `app` orquestra duas cenas: o menu inicial e uma sessão de jogo. A
+//! simulação continua isolada em [`World`]; o cliente acumula tempo de frame e
+//! avança o mundo em passos exatos de `1/60 s`. O render interpola entre o
+//! snapshot anterior e o atual.
 
 use enzo_core::entities::EntityId;
 use enzo_core::events::GameEvent;
-use enzo_core::input::{PlayerCommand, TickInput};
+use enzo_core::input::{Attribute, PlayerCommand, TickInput};
 use enzo_core::levels::LEVEL_1;
 use enzo_core::map::LevelError;
+use enzo_core::progression::SaveData;
 use enzo_core::snapshot::WorldSnapshot;
 use enzo_core::world::World;
 use enzo_core::DT;
@@ -17,8 +19,11 @@ use macroquad::prelude::*;
 use crate::camera::GameCamera;
 use crate::convert::to_vec2;
 use crate::effects::Effects;
-use crate::hud;
+use crate::hud::{Hud, HudAction};
+use crate::i18n::{I18n, Text};
 use crate::input::InputState;
+use crate::menu::{Menu, MenuAction};
+use crate::pointer::Pointer;
 use crate::render::{self, Background};
 use crate::save;
 use crate::sprites::Sprites;
@@ -39,14 +44,95 @@ const RED: Color = Color::new(1.0, 0.42, 0.37, 1.0);
 const PURPLE: Color = Color::new(0.722, 0.545, 1.0, 1.0);
 const STEEL: Color = Color::new(0.82, 0.86, 0.94, 1.0);
 
+enum Scene {
+    Menu(Menu),
+    Game(Box<GameSession>),
+}
+
+enum Transition {
+    None,
+    Start { slot: usize, save: Option<SaveData> },
+    OpenMenu,
+}
+
 pub struct App {
-    world: World,
+    scene: Scene,
     sprites: Sprites,
+    i18n: I18n,
+    pointer: Pointer,
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self {
+            scene: Scene::Menu(Menu::new()),
+            sprites: Sprites::load(),
+            i18n: I18n::new(save::load_language()),
+            pointer: Pointer::default(),
+        }
+    }
+
+    pub async fn run(&mut self) {
+        loop {
+            let frame_dt = get_frame_time().clamp(0.0, MAX_FRAME_TIME);
+            self.pointer.poll();
+
+            let transition = match &mut self.scene {
+                Scene::Menu(menu) => match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
+                    Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
+                    None => Transition::None,
+                },
+                Scene::Game(session) => {
+                    if session.frame(frame_dt, self.pointer, &self.sprites) {
+                        Transition::OpenMenu
+                    } else {
+                        Transition::None
+                    }
+                }
+            };
+
+            match transition {
+                Transition::None => {}
+                Transition::Start { slot, save } => {
+                    let tiles = self.sprites.tiles_texture().clone();
+                    match GameSession::new(slot, save, tiles, self.i18n) {
+                        Ok(session) => self.scene = Scene::Game(Box::new(session)),
+                        Err(err) => {
+                            if let Scene::Menu(menu) = &mut self.scene {
+                                menu.notify(format!(
+                                    "{}: {err}",
+                                    self.i18n.t(Text::LevelLoadFailed)
+                                ));
+                            }
+                        }
+                    }
+                }
+                Transition::OpenMenu => {
+                    self.scene = Scene::Menu(Menu::new());
+                }
+            }
+
+            next_frame().await;
+        }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+struct GameSession {
+    slot: usize,
+    world: World,
     tiles: TileRenderer,
     background: Background,
     camera: GameCamera,
     effects: Effects,
     input: InputState,
+    hud: Hud,
+    i18n: I18n,
     previous: WorldSnapshot,
     current: WorldSnapshot,
     last_command: PlayerCommand,
@@ -54,31 +140,40 @@ pub struct App {
     hint_timer: f32,
     save_toast: Option<(String, f32)>,
     time: f32,
+    /// Ações de UI acumuladas para o próximo tick.
+    pending_allocate: Option<Attribute>,
+    pending_confirm: bool,
+    pending_restart: bool,
 }
 
-impl App {
-    pub fn new() -> Result<Self, LevelError> {
+impl GameSession {
+    fn new(
+        slot: usize,
+        save: Option<SaveData>,
+        tiles_texture: Texture2D,
+        i18n: I18n,
+    ) -> Result<Self, LevelError> {
         let mut world = World::new(LEVEL_1)?;
-
-        if let Some(data) = save::load() {
+        if let Some(data) = save {
             world.load_save(&data);
         }
 
-        let sprites = Sprites::load();
-        let tiles = TileRenderer::new(world.level(), sprites.tiles_texture().clone());
+        let tiles = TileRenderer::new(world.level(), tiles_texture);
         let current = world.snapshot();
         let mut camera = GameCamera::new();
         camera.resize(vec2(screen_width(), screen_height()));
         camera.update(0.0, &current, &current, 0.0);
 
         Ok(Self {
+            slot,
             world,
-            sprites,
             tiles,
             background: Background::new(),
             camera,
             effects: Effects::new(),
             input: InputState::default(),
+            hud: Hud::new(),
+            i18n,
             previous: current.clone(),
             current,
             last_command: PlayerCommand::none(),
@@ -86,57 +181,73 @@ impl App {
             hint_timer: HINT_TIME,
             save_toast: None,
             time: 0.0,
+            pending_allocate: None,
+            pending_confirm: false,
+            pending_restart: false,
         })
     }
 
-    pub async fn run(&mut self) {
-        loop {
-            let frame_dt = get_frame_time().clamp(0.0, MAX_FRAME_TIME);
-            self.time += frame_dt;
-
-            self.camera.resize(vec2(screen_width(), screen_height()));
-            self.input.poll();
-            if self.input.has_activity() {
-                self.hint_timer = 0.0;
-            }
-
-            self.advance(frame_dt);
-
-            let alpha = (self.accumulator / DT).clamp(0.0, 1.0);
-            self.effects.update(frame_dt);
-            self.camera
-                .update(frame_dt, &self.previous, &self.current, alpha);
-
-            self.hint_timer = (self.hint_timer - frame_dt).max(0.0);
-            self.tick_toast(frame_dt);
-
-            render::draw_background(&self.background, &self.camera, self.time);
-            render::draw_world(&mut render::RenderContext {
-                sprites: &self.sprites,
-                tiles: &mut self.tiles,
-                level: self.world.level(),
-                previous: &self.previous,
-                current: &self.current,
-                alpha,
-                camera: &self.camera,
-                effects: &self.effects,
-                time: self.time,
-            });
-
-            let toast = self
-                .save_toast
-                .as_ref()
-                .map(|(text, remaining)| (text.as_str(), *remaining));
-            hud::draw(
-                &self.current,
-                &self.effects,
-                self.time,
-                self.hint_timer,
-                toast,
-            );
-
-            next_frame().await;
+    /// Avança e desenha um frame. Retorna `true` quando o jogador pediu para
+    /// voltar ao menu.
+    fn frame(&mut self, frame_dt: f32, pointer: Pointer, sprites: &Sprites) -> bool {
+        self.time += frame_dt;
+        self.camera.resize(vec2(screen_width(), screen_height()));
+        self.input.poll();
+        if self.input.has_activity() || pointer.pressed {
+            self.hint_timer = 0.0;
         }
+        let mut open_menu = self.input.take_menu_request();
+
+        self.advance(frame_dt);
+
+        let alpha = (self.accumulator / DT).clamp(0.0, 1.0);
+        self.effects.update(frame_dt);
+        self.camera
+            .update(frame_dt, &self.previous, &self.current, alpha);
+
+        self.hint_timer = (self.hint_timer - frame_dt).max(0.0);
+        self.tick_toast(frame_dt);
+
+        render::draw_background(&self.background, &self.camera, self.time);
+        render::draw_world(&mut render::RenderContext {
+            sprites,
+            tiles: &mut self.tiles,
+            level: self.world.level(),
+            previous: &self.previous,
+            current: &self.current,
+            alpha,
+            camera: &self.camera,
+            effects: &self.effects,
+            time: self.time,
+        });
+
+        let toast = self
+            .save_toast
+            .as_ref()
+            .map(|(text, remaining)| (text.as_str(), *remaining));
+        let action = self.hud.draw(
+            &self.current,
+            &self.effects,
+            self.i18n,
+            pointer,
+            self.time,
+            self.hint_timer,
+            toast,
+        );
+
+        if let Some(action) = action {
+            match action {
+                HudAction::Allocate(attribute) => self.pending_allocate = Some(attribute),
+                HudAction::ConfirmLevelUp => self.pending_confirm = true,
+                HudAction::Restart => self.pending_restart = true,
+                HudAction::OpenMenu => open_menu = true,
+            }
+        }
+
+        if open_menu {
+            self.persist(Text::SaveReasonProgress);
+        }
+        open_menu
     }
 
     /// Consome o tempo acumulado em ticks fixos. O primeiro tick do frame pode
@@ -148,7 +259,19 @@ impl App {
         let mut first_tick = true;
         for _ in 0..ticks {
             let command = if first_tick {
-                self.input.take_command()
+                let mut command = self.input.take_command();
+                if let Some(attribute) = self.pending_allocate.take() {
+                    command.allocate = Some(attribute);
+                }
+                if self.pending_confirm {
+                    command.confirm = true;
+                    self.pending_confirm = false;
+                }
+                if self.pending_restart {
+                    command.restart = true;
+                    self.pending_restart = false;
+                }
+                command
             } else {
                 self.last_command.without_edges()
             };
@@ -185,13 +308,14 @@ impl App {
                 GameEvent::MogarFired { owner, .. } => {
                     if let Some(pos) = entity_center(&self.current, owner) {
                         self.effects.sparks(pos, PURPLE, 10);
-                        self.effects.text(pos, "MOGAR!", PURPLE, 12.0);
+                        self.effects
+                            .text(pos, self.i18n.t(Text::EffectMogar), PURPLE, 12.0);
                     }
                     self.camera.add_shake(1.5);
                 }
                 GameEvent::MogarNoAura { owner } => {
                     if let Some(pos) = entity_center(&self.current, owner) {
-                        self.effects.no_aura(pos);
+                        self.effects.no_aura(pos, self.i18n.t(Text::EffectNoAura));
                     }
                     self.camera.add_shake(1.0);
                 }
@@ -204,7 +328,8 @@ impl App {
                 }
                 GameEvent::MogarBlocked { owner } => {
                     if let Some(pos) = entity_center(&self.current, owner) {
-                        self.effects.text(pos, "BLOQUEADO", STEEL, 10.0);
+                        self.effects
+                            .text(pos, self.i18n.t(Text::EffectBlocked), STEEL, 10.0);
                         self.effects.sparks(pos, STEEL, 5);
                     }
                     self.camera.add_shake(1.5);
@@ -225,8 +350,12 @@ impl App {
                 }
                 GameEvent::LevelUp { player, level } => {
                     if let Some(pos) = entity_center(&self.current, player) {
-                        self.effects
-                            .text(pos, format!("NÍVEL {level}!"), GOLD, 16.0);
+                        self.effects.text(
+                            pos,
+                            format!("{} {level}!", self.i18n.t(Text::EffectLevel)),
+                            GOLD,
+                            16.0,
+                        );
                         self.effects.sparks(pos, GOLD, 18);
                     }
                     self.effects.aura_flash = 0.7;
@@ -234,16 +363,18 @@ impl App {
                 }
                 GameEvent::PlayerDied { player } => {
                     if let Some(pos) = entity_center(&self.current, player) {
-                        self.effects.text(pos, "VOCÊ CAIU!", RED, 18.0);
+                        self.effects
+                            .text(pos, self.i18n.t(Text::EffectDeath), RED, 18.0);
                         self.effects.sparks(pos, RED, 16);
                     }
                     self.effects.hurt_flash = 0.7;
                     self.camera.add_shake(9.0);
-                    self.persist("morte");
+                    self.persist(Text::SaveReasonDeath);
                 }
                 GameEvent::Victory { player } => {
                     if let Some(pos) = entity_center(&self.current, player) {
-                        self.effects.text(pos, "FASE CONCLUÍDA!", GOLD, 20.0);
+                        self.effects
+                            .text(pos, self.i18n.t(Text::EffectVictory), GOLD, 20.0);
                         self.effects.sparks(pos, GOLD, 24);
                     }
                     self.effects.victory_flash = 1.2;
@@ -253,31 +384,35 @@ impl App {
                     if let Some(pos) = entity_center(&self.current, player) {
                         self.effects.text(
                             pos,
-                            format!("+{}", hud::attribute_name(attribute)),
+                            format!("+{}", self.i18n.attribute(attribute)),
                             AURA,
                             11.0,
                         );
                     }
-                    self.persist("atributo");
+                    self.persist(Text::SaveReasonAttribute);
                 }
                 GameEvent::PhaseRestarted { .. } => {
                     self.camera.reset();
                     self.effects.clear();
                 }
-                GameEvent::SaveRequested => self.persist("progresso"),
+                GameEvent::SaveRequested => self.persist(Text::SaveReasonProgress),
             }
         }
     }
 
-    fn persist(&mut self, reason: &str) {
+    fn persist(&mut self, reason: Text) {
         let Some(data) = self.world.save_data() else {
             return;
         };
-        match save::store(&data) {
-            Ok(()) => self.save_toast = Some((reason.to_owned(), SAVE_TOAST_TIME)),
+        let reason = self.i18n.t(reason).to_owned();
+        match save::store_slot(self.slot, &data) {
+            Ok(()) => self.save_toast = Some((reason, SAVE_TOAST_TIME)),
             Err(err) => {
                 warn!("save: {err}");
-                self.save_toast = Some(("falha ao salvar".to_owned(), SAVE_TOAST_TIME));
+                self.save_toast = Some((
+                    format!("{}: {err}", self.i18n.t(Text::SaveFailed)),
+                    SAVE_TOAST_TIME,
+                ));
             }
         }
     }
