@@ -10,7 +10,7 @@ use crate::entities::{
 };
 use crate::math::{Rect, Vec2};
 use crate::progression;
-use crate::world::GamePhase;
+use crate::state::GamePhase;
 
 pub const SNAPSHOT_VERSION: u16 = 1;
 

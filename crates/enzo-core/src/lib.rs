@@ -18,6 +18,7 @@ pub mod physics;
 pub mod progression;
 pub mod rng;
 pub mod snapshot;
+pub mod state;
 pub mod world;
 
 pub const TICK_HZ: u32 = 60;

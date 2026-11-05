@@ -19,21 +19,15 @@ use crate::progression::{self, SaveData};
 use crate::snapshot::WorldSnapshot;
 use crate::DT;
 
+// Reexportado para manter `enzo_core::world::GamePhase` estável.
+pub use crate::state::GamePhase;
+
 /// Tempo entre a morte e o respawn automático.
 pub const RESPAWN_DELAY: f32 = 1.2;
 
 /// Distância abaixo do mapa em que a queda vira morte. Evita que o jogador
 /// fique caindo para sempre ao atravessar um buraco.
 pub const FALL_DEATH_MARGIN: f32 = 64.0;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum GamePhase {
-    Playing,
-    LevelUp,
-    Dead,
-    Victory,
-}
 
 pub struct World {
     level: Level,

@@ -69,6 +69,7 @@ enzoballz/
 │   │   │   │   └── slime.rs
 │   │   │   ├── progression.rs
 │   │   │   ├── world.rs
+│   │   │   ├── state.rs          # GamePhase, estado neutro entre world/snapshot
 │   │   │   ├── snapshot.rs
 │   │   │   └── events.rs
 │   │   └── tests/             # testes de cenário e determinismo
@@ -77,10 +78,10 @@ enzoballz/
 │   │   │   ├── lib.rs         # start()
 │   │   │   ├── app.rs         # loop + acumulador de tick fixo
 │   │   │   ├── input.rs       # teclado -> PlayerCommand
-│   │   │   ├── render.rs      # desenha a partir do snapshot
+│   │   │   ├── render/        # mundo, fundo e escolha de frames
 │   │   │   ├── tiles.rs       # malhas de tiles em chunks sob demanda
 │   │   │   ├── camera.rs
-│   │   │   ├── hud.rs
+│   │   │   ├── hud/           # status, overlays e widgets
 │   │   │   ├── sprites.rs
 │   │   │   └── save.rs        # localStorage
 │   │   └── assets/
@@ -126,6 +127,7 @@ enzoballz/
 | `ai`          | comportamentos de inimigos (patrulha etc.) | colisão |
 | `progression` | XP, nível, pontos, atributos e stats derivados | salvar em disco |
 | `world`       | orquestra o passo fixo e mantém o estado | render/IO |
+| `state`       | `GamePhase` neutro entre `world` e `snapshot` | lógica de fase |
 | `snapshot`    | estado serializável para render/rede/save | conter lógica |
 | `events`      | eventos do tick (dano, level-up, morte, vitória) | ser estado persistente |
 
@@ -357,13 +359,16 @@ render(previous, current, alpha)
 
 ### Render, câmera e HUD
 
-- `render.rs` desenha o mundo a partir do snapshot; o fundo é um gradiente em
-  textura cacheada e as entidades são interpoladas.
+- `render/` desenha o mundo a partir do snapshot; o fundo é um gradiente em
+  textura cacheada e as entidades são interpoladas. `poses.rs` isola a escolha
+  de frames, `background.rs` o parallax e `world.rs` o desenho das entidades.
 - `tiles.rs` agrupa o mapa em chunks de 16×16 tiles (512×512 px). Cada chunk
   visível vira uma malha estática uma única vez; chunks fora da câmera nunca são
   construídos. Isso evita percorrer e emitir todos os tiles do mapa por frame.
 - `camera.rs` segue o jogador com suavização e limita ao tamanho do mapa.
-- `hud.rs` desenha barras de vida/aura/XP, nível, pontos e combo.
+- `hud/` desenha barras de vida/aura/XP, nível e pontos; `status.rs` cuida do
+  painel persistente, `overlays.rs` das telas de pausa/fim e `widgets.rs` das
+  primitivas visuais.
 - `sprites.rs` carrega o atlas PNG e escolhe frames por estado/animacão.
 - `save.rs` grava JSON versionado em `localStorage` (`enzoballz.save.v1`).
 

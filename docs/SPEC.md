@@ -226,7 +226,6 @@ estado, sem campos paralelos no `Entity`.
 
 - Barra de vida (vermelha), aura (ciano) e XP (amarela).
 - Nível atual e pontos disponíveis.
-- Indicador de combo de aura (`x2`, `x3`...) e janela restante.
 - Dica de controles no início da fase.
 - Overlay de level-up com os quatro atributos e teclas `1`–`4`.
 - Overlay de morte e de vitória.
