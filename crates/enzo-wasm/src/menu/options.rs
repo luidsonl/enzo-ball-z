@@ -1,4 +1,4 @@
-//! Tela de opções do menu. Por enquanto, idioma.
+//! Tela de opções do menu. Por enquanto, idioma e tamanho da fonte.
 
 use macroquad::prelude::*;
 
@@ -80,38 +80,6 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     );
 
     if ui::button(pointer, minus, "-", ui, true, ui::STEEL) {
-        i18n.set_font_size(i18n.font_size() - 2.0);
-    }
-    if ui::button(pointer, plus, "+", ui, true, ui::STEEL) {
-        i18n.set_font_size(i18n.font_size() + 2.0);
-    }
-
-    let size_text = format!("{} px", i18n.font_size().round());
-    ui::center_text(
-        &size_text,
-        x + width * 0.5,
-        y + 278.0 * ui,
-        (15.0 * ui).max(11.0),
-        GOLD,
-    );
-
-    ui::center_text(
-        i18n.t(Text::FontSize),
-        x + width * 0.5,
-        y + 236.0 * ui,
-        (15.0 * ui).max(11.0),
-        rgba(206, 212, 236, 230),
-    );
-
-    let minus = Rect::new(button_x, y + 256.0 * ui, 46.0 * ui, button_h);
-    let plus = Rect::new(
-        button_x + button_w - 46.0 * ui,
-        y + 256.0 * ui,
-        46.0 * ui,
-        button_h,
-    );
-
-    if ui::button(pointer, minus, "-", ui, true, ui::STEEL) {
         let new_scale = (ui::font_scale() - 0.25).clamp(0.75, 2.0);
         ui::set_font_scale(new_scale);
         let _ = save::store_font_scale(new_scale);
@@ -127,7 +95,7 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
         &size_text,
         x + width * 0.5,
         y + 278.0 * ui,
-        (15.0 * ui).max(11.0),
+        (18.0 * ui).max(14.0),
         GOLD,
     );
 
