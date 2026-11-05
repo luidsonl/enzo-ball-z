@@ -182,6 +182,7 @@ impl Menu {
             self.pending_delete = None;
         }
         if ui::button(pointer, confirm, i18n.t(Text::Confirm), ui, true, ui::RED) {
+            macroquad::logging::info!("delete modal: confirm clicked");
             if let Some(slot) = self.pending_delete.take() {
                 match save::delete_slot(slot) {
                     Ok(()) => {
