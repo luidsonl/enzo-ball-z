@@ -29,7 +29,7 @@ pub fn font_scale() -> f32 {
 }
 
 pub fn ui_scale() -> f32 {
-    (screen_height() / 720.0).clamp(0.8, 2.0)
+    ((screen_height() / 720.0) * font_scale()).clamp(0.8, 2.0)
 }
 
 pub fn screen_size() -> Vec2 {
