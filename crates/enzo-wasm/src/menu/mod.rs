@@ -110,10 +110,14 @@ impl Menu {
         let ui = ui::ui_scale();
         draw_menu_background(self.time, ui);
 
-        let event = match self.current() {
-            MenuScreen::Main => draw_main(pointer, *i18n, ui, self.time),
-            MenuScreen::Saves => draw_saves(pointer, *i18n, ui, self.time, self),
-            MenuScreen::Options => draw_options(pointer, i18n, ui, self.time),
+        let event = if self.pending_delete.is_some() {
+            None
+        } else {
+            match self.current() {
+                MenuScreen::Main => draw_main(pointer, *i18n, ui, self.time),
+                MenuScreen::Saves => draw_saves(pointer, *i18n, ui, self.time, self),
+                MenuScreen::Options => draw_options(pointer, i18n, ui, self.time),
+            }
         };
 
         let mut action = None;

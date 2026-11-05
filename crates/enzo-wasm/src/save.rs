@@ -183,3 +183,23 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod delete_tests {
+    use super::*;
+
+    #[test]
+    fn delete_slot_removes_key() {
+        let data = enzo_core::progression::SaveData {
+            version: enzo_core::progression::SAVE_VERSION,
+            level: 1,
+            xp: 0.0,
+            points: 0,
+            attributes: enzo_core::entities::Attributes::default(),
+        };
+        store_slot(0, &data).unwrap();
+        assert!(load_slot(0).is_some());
+        delete_slot(0).unwrap();
+        assert!(load_slot(0).is_none());
+    }
+}
