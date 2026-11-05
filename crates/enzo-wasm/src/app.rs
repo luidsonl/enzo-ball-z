@@ -126,11 +126,12 @@ impl App {
                     }
                 }
                 Transition::OpenMenu => {
-                    if let Scene::Game(game) =
+                    if let Scene::Game(mut game) =
                         std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
                     {
                         let mut menu = Menu::new();
                         menu.has_background_game = true;
+                        game.paused = true;
                         self.scene = Scene::MenuOverGame { menu, game };
                     } else {
                         self.scene = Scene::Menu(Menu::new());
@@ -177,6 +178,7 @@ struct GameSession {
     pending_allocate: Option<Attribute>,
     pending_confirm: bool,
     pending_restart: bool,
+    paused: bool,
 }
 
 impl GameSession {
@@ -217,6 +219,7 @@ impl GameSession {
             pending_allocate: None,
             pending_confirm: false,
             pending_restart: false,
+            paused: false,
         })
     }
 
@@ -225,13 +228,21 @@ impl GameSession {
     fn frame(&mut self, frame_dt: f32, pointer: Pointer, sprites: &Sprites) -> bool {
         self.time += frame_dt;
         self.camera.resize(vec2(screen_width(), screen_height()));
-        self.input.poll();
-        if self.input.has_activity() || pointer.pressed {
-            self.hint_timer = 0.0;
+        if !self.paused {
+            self.input.poll();
+            if self.input.has_activity() || pointer.pressed {
+                self.hint_timer = 0.0;
+            }
         }
-        let mut open_menu = self.input.take_menu_request();
+        let mut open_menu = if self.paused {
+            false
+        } else {
+            self.input.take_menu_request()
+        };
 
-        self.advance(frame_dt);
+        if !self.paused {
+            self.advance(frame_dt);
+        }
 
         let alpha = (self.accumulator / DT).clamp(0.0, 1.0);
         self.effects.update(frame_dt);
