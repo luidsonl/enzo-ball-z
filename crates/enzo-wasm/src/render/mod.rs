@@ -1,18 +1,18 @@
 //! Render do mundo a partir do snapshot.
 //!
-//! O render nunca muta o mundo. Posições são interpoladas entre o snapshot
-//! anterior e o atual usando `alpha`; estados (pulo, dash, combo, i-frames)
-//! vêm do snapshot atual.
-//!
-//! Divisão interna:
-//! - [`poses`] escolhe frames de animação a partir do estado visual;
-//! - [`background`] desenha céu, sol, nuvens e montanhas;
-//! - [`world`] desenha tiles, entidades, projéteis e efeitos.
+//! - [`entities`] contém animação/desenho de corpos (personagens/itens).
+//! - [`skills`] contém projéteis e overlays de ataque.
+//! - [`world`] orquestra o desenho.
 
 mod background;
-mod poses;
+pub mod entities;
+pub mod skills;
 mod world;
 
 pub use background::{draw_background, Background};
-pub use poses::{enzo_frame, item_frame, slime_frame, PlayerPose};
 pub use world::{draw_world, RenderContext};
+
+// Compat: reexports usados por testes/código legado.
+pub use entities::enzo::{frame as enzo_frame, Pose as PlayerPose};
+pub use entities::items::frame as item_frame;
+pub use entities::slime::frame as slime_frame;
