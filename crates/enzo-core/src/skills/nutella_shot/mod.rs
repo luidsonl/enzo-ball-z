@@ -1,4 +1,4 @@
-//! Tiro de Nutela: projétil concedido por equipamento (placeholder).
+//! Nutella Shot: equipment-granted projectile placeholder.
 
 use crate::entities::{AttributeSet, EntitySpec, EntityStore, EquipmentTags};
 use crate::events::GameEvent;
@@ -38,6 +38,13 @@ pub static DEF: SkillDef = SkillDef {
         particles: Some("assets/skills/nutella_shot/splash.png"),
     },
 };
+
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/nutella_shot/icon.png";
+    pub const PROJECTILE: &str = "assets/skills/nutella_shot/projectile.png";
+    pub const SPLASH: &str = "assets/skills/nutella_shot/splash.png";
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State;

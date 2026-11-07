@@ -1,7 +1,18 @@
 {
+  "framework": "pixel-forge",
   "id": "melee",
+  "coreId": "Melee",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "attack",
+  "source": "innate",
+  "activation": "press",
   "assets": {
     "icon": "icon.png",
-    "impact": "impact.png"
+    "particles": "impact.png"
+  },
+  "declaredPaths": {
+    "entity": null,
+    "icon": "assets/skills/melee/icon.png",
+    "particles": "assets/skills/melee/impact.png"
   }
 }

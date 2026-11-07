@@ -1,4 +1,4 @@
-//! Entidade jogável **Enzo**.
+//! Playable **Enzo** actor.
 
 use crate::math::Vec2;
 use crate::mechanics::Locomotion;
@@ -12,11 +12,33 @@ use crate::entities::base::entity::EntityKind;
 use crate::entities::base::equipment::{EquipSlot, Equipment};
 use crate::entities::spec::EntitySpec;
 
-/// Corpo do Enzo.
+/// Enzo body size.
 pub const ENZO_SIZE: Vec2 = Vec2::new(24.0, 30.0);
 
+/// Visual/animation contract (pure data). Rendering resolves frames from this.
+pub mod visual {
+    pub const SHEET: &str = "assets/entities/enzo/sheet.png";
+    pub const ATLAS: &str = "assets/entities/enzo/atlas.json";
+    pub const CELL: f32 = 32.0;
+    pub const RIG: &str = "assets/entities/enzo/rig.json";
+    pub const CLIPS: &[&str] = &[
+        "idle",
+        "walk",
+        "run",
+        "jump",
+        "fall",
+        "attack_1",
+        "attack_2",
+        "attack_3",
+        "cast",
+        "hurt",
+        "sixseven_6",
+        "sixseven_7",
+    ];
+}
+
 impl EntitySpec {
-    /// Cria um jogador Enzo. `player_id` é estável e indexa os comandos do tick.
+    /// Creates an Enzo player. `player_id` is stable and indexes per-tick commands.
     pub fn player(player_id: PlayerId, pos: Vec2) -> Self {
         let attributes = Attributes::default();
         let stats = Stats::player(attributes);

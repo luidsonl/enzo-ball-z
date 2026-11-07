@@ -1,6 +1,18 @@
 {
+  "framework": "pixel-forge",
   "id": "dash",
+  "coreId": "Dash",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "movement",
+  "source": "innate",
+  "activation": "press",
   "assets": {
-    "icon": "icon.png"
+    "icon": "icon.png",
+    "particles": "trail.png"
+  },
+  "declaredPaths": {
+    "entity": null,
+    "icon": "assets/skills/dash/icon.png",
+    "particles": "assets/skills/dash/trail.png"
   }
 }

@@ -1,8 +1,19 @@
 {
+  "framework": "pixel-forge",
   "id": "nutella_shot",
+  "coreId": "NutellaShot",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "attack",
+  "source": "equipment",
+  "activation": "press",
   "assets": {
+    "entity": "projectile.png",
     "icon": "icon.png",
-    "projectile": "projectile.png",
-    "impact": "impact.png"
+    "particles": "splash.png"
+  },
+  "declaredPaths": {
+    "entity": "assets/skills/nutella_shot/projectile.png",
+    "icon": "assets/skills/nutella_shot/icon.png",
+    "particles": "assets/skills/nutella_shot/splash.png"
   }
 }

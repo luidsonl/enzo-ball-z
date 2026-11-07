@@ -1,7 +1,18 @@
 {
+  "framework": "pixel-forge",
   "id": "shout",
+  "coreId": "Shout",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "utility",
+  "source": "innate",
+  "activation": "press",
   "assets": {
     "icon": "icon.png",
-    "impact": "impact.png"
+    "particles": "wave.png"
+  },
+  "declaredPaths": {
+    "entity": null,
+    "icon": "assets/skills/shout/icon.png",
+    "particles": "assets/skills/shout/wave.png"
   }
 }

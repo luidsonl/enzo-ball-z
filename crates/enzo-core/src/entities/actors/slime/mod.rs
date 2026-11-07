@@ -1,4 +1,4 @@
-//! Entidade **slime**.
+//! **Slime** enemy actor.
 
 use crate::ai::Ai;
 use crate::math::Vec2;
@@ -13,7 +13,7 @@ use crate::entities::base::entity::EntityKind;
 use crate::entities::base::equipment::{EquipSlot, Equipment};
 use crate::entities::spec::EntitySpec;
 
-/// Corpo da slime.
+/// Slime body size and combat tuning.
 pub const SLIME_SIZE: Vec2 = Vec2::new(26.0, 26.0);
 pub const SLIME_XP_REWARD: f32 = 25.0;
 pub const SLIME_CONTACT_DAMAGE: f32 = 10.0;
@@ -21,7 +21,13 @@ pub const SLIME_CONTACT_DAMAGE: f32 = 10.0;
 /// Visual/animation contract (pure data). Rendering resolves frames from this.
 pub mod visual {
     pub const SHEET: &str = "assets/entities/slime/sheet.png";
+    pub const ATLAS: &str = "assets/entities/slime/atlas.json";
     pub const CELL: f32 = 32.0;
+    pub const CLIPS: &[(&str, &[usize], f32)] = &[
+        ("walk", &[0, 1], 0.18),
+        ("stretch", &[2], 0.10),
+        ("hurt", &[3], 0.12),
+    ];
     pub const WALK_A: usize = 0;
     pub const WALK_B: usize = 1;
     pub const STRETCH: usize = 2;

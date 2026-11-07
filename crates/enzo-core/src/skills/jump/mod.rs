@@ -1,4 +1,4 @@
-//! Pulo com coyote time, buffer e altura variável.
+//! Jump with coyote time, jump buffer, and variable height.
 
 use crate::entities::{AttributeSet, Body, EquipmentTags, Stats};
 
@@ -32,6 +32,13 @@ pub static DEF: SkillDef = SkillDef {
         particles: Some("assets/skills/jump/dust.png"),
     },
 };
+
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/jump/icon.png";
+    pub const DUST: &str = "assets/skills/jump/dust.png";
+    pub const DUST_DURATION: f32 = 0.20;
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {

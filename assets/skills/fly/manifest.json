@@ -1,6 +1,18 @@
 {
+  "framework": "pixel-forge",
   "id": "fly",
+  "coreId": "Fly",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "movement",
+  "source": "progression",
+  "activation": "hold",
   "assets": {
-    "icon": "icon.png"
+    "icon": "icon.png",
+    "particles": "aura.png"
+  },
+  "declaredPaths": {
+    "entity": null,
+    "icon": "assets/skills/fly/icon.png",
+    "particles": "assets/skills/fly/aura.png"
   }
 }

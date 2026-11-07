@@ -1,4 +1,4 @@
-//! Combo físico de três golpes.
+//! Three-hit physical combo.
 
 use crate::entities::{AttributeSet, EntityId, EntityStore, EquipmentTags};
 use crate::events::GameEvent;
@@ -38,6 +38,14 @@ pub static DEF: SkillDef = SkillDef {
         particles: Some("assets/skills/melee/impact.png"),
     },
 };
+
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/melee/icon.png";
+    pub const IMPACT: &str = "assets/skills/melee/impact.png";
+    pub const COMBO_STEPS: u8 = 3;
+    pub const SWING_DURATION: f32 = super::MELEE_ANIM_TIME;
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {

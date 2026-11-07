@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { BLOCK_DEFS, MANIFEST_PATH, RUNTIME_TILES_PATH, writeOutputs } from './src/blocks.mjs';
-import { validateBlocks } from './src/validate.mjs';
+import { validateAll, validateBlocks, validateSkills } from './src/validate.mjs';
 import { generateBlock, generateEntity, generateItem, generateSkill } from './src/generate.mjs';
 import { buildSkillAssets } from './src/skills.mjs';
 
@@ -9,8 +9,8 @@ function usage() {
 
 Usage:
   node tools/pixel-forge/cli.mjs build blocks [--no-sync-runtime]
-  node tools/pixel-forge/cli.mjs build skills
-  node tools/pixel-forge/cli.mjs validate blocks
+  node tools/pixel-forge/cli.mjs build skills [--force]
+  node tools/pixel-forge/cli.mjs validate [blocks|skills|all]
   node tools/pixel-forge/cli.mjs inspect block <id>
   node tools/pixel-forge/cli.mjs generate block <id> [--symbol D] [--hits 3] [--passable]
   node tools/pixel-forge/cli.mjs generate skill <id>
@@ -41,20 +41,22 @@ if (cmd === 'build' && sub === 'blocks') {
 }
 
 if (cmd === 'build' && sub === 'skills') {
-  const files = buildSkillAssets();
-  console.log(`built skill module assets: ${files.length}`);
-  for (const f of files) console.log(`  - assets/skills/${f}`);
+  const force = rest.includes('--force');
+  const files = buildSkillAssets({ force });
+  console.log(`built skill module assets: ${files.length} (contract: assets/definitions/generated/skills.json)`);
+  for (const f of files) console.log(`  - ${f}`);
   process.exit(0);
 }
 
-if (cmd === 'validate' && sub === 'blocks') {
-  const errors = validateBlocks();
+if (cmd === 'validate') {
+  const target = sub || 'all';
+  const errors = target === 'skills' ? validateSkills() : target === 'all' ? validateAll() : validateBlocks();
   if (errors.length) {
-    console.error('pixel-forge: validation failed');
+    console.error(`pixel-forge: ${target} validation failed`);
     for (const e of errors) console.error(`- ${e}`);
     process.exit(1);
   }
-  console.log('pixel-forge: blocks OK');
+  console.log(`pixel-forge: ${target} OK`);
   process.exit(0);
 }
 

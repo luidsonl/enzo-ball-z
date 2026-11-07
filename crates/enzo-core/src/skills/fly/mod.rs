@@ -1,4 +1,4 @@
-//! Voo controlado. Desabilita a gravidade enquanto equipado/ativo.
+//! Controlled flight. Disables gravity while the skill is active.
 
 use crate::entities::{AttributeId, AttributeSet, Body, EquipmentTags};
 use crate::math::approach;
@@ -34,6 +34,12 @@ pub static DEF: SkillDef = SkillDef {
         particles: Some("assets/skills/fly/aura.png"),
     },
 };
+
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/fly/icon.png";
+    pub const AURA: &str = "assets/skills/fly/aura.png";
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {

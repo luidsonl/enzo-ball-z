@@ -1,4 +1,4 @@
-//! Mogging: projétil que gasta aura e atravessa inimigos.
+//! Mogging: an aura-consuming projectile that pierces enemies.
 
 use crate::entities::{AttributeSet, EntityId, EntitySpec, EntityStore, EquipmentTags};
 use crate::events::GameEvent;

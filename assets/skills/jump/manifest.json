@@ -1,6 +1,18 @@
 {
+  "framework": "pixel-forge",
   "id": "jump",
+  "coreId": "Jump",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "movement",
+  "source": "innate",
+  "activation": "presshold",
   "assets": {
-    "icon": "icon.png"
+    "icon": "icon.png",
+    "particles": "dust.png"
+  },
+  "declaredPaths": {
+    "entity": null,
+    "icon": "assets/skills/jump/icon.png",
+    "particles": "assets/skills/jump/dust.png"
   }
 }

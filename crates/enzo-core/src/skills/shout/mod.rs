@@ -1,4 +1,4 @@
-//! Grito: utilidade de empurrão em área (placeholder).
+//! Shout: area knockback utility (placeholder).
 
 use crate::entities::{AttributeSet, EntityId, EntityStore, EquipmentTags};
 use crate::events::GameEvent;
@@ -38,6 +38,13 @@ pub static DEF: SkillDef = SkillDef {
         particles: Some("assets/skills/shout/wave.png"),
     },
 };
+
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/shout/icon.png";
+    pub const WAVE: &str = "assets/skills/shout/wave.png";
+    pub const ANIM_DURATION: f32 = super::ANIM_TIME;
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {

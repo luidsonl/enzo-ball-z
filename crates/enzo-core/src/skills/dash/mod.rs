@@ -1,4 +1,4 @@
-//! Rajada horizontal curta com cooldown.
+//! Short horizontal dash with cooldown.
 
 use crate::entities::{AttributeSet, Body, EquipmentTags};
 
@@ -33,6 +33,13 @@ pub static DEF: SkillDef = SkillDef {
         particles: Some("assets/skills/dash/trail.png"),
     },
 };
+
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/dash/icon.png";
+    pub const TRAIL: &str = "assets/skills/dash/trail.png";
+    pub const TRAIL_DURATION: f32 = super::DASH_DURATION;
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {

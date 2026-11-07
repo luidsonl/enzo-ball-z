@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { BLOCK_DEFS, TILE_CELL, buildTilesSheet } from './blocks.mjs';
+import { validateSkillAssets } from './skills.mjs';
 
 export function validateBlockDefs(defs = BLOCK_DEFS) {
   const errors = [];
@@ -40,4 +41,12 @@ export function validateBlocks() {
     // missing runtime sheet is not an error before first build
   }
   return errors;
+}
+
+export function validateSkills() {
+  return validateSkillAssets();
+}
+
+export function validateAll() {
+  return [...validateBlocks(), ...validateSkills()];
 }

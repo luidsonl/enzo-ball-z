@@ -1,8 +1,19 @@
 {
+  "framework": "pixel-forge",
   "id": "mogging",
+  "coreId": "Mogging",
+  "contract": "assets/definitions/generated/skills.json",
+  "category": "attack",
+  "source": "innate",
+  "activation": "press",
   "assets": {
+    "entity": "projectile.png",
     "icon": "icon.png",
-    "projectile": "projectile.png",
-    "impact": "impact.png"
+    "particles": "impact.png"
+  },
+  "declaredPaths": {
+    "entity": "assets/skills/mogging/projectile.png",
+    "icon": "assets/skills/mogging/icon.png",
+    "particles": "assets/skills/mogging/impact.png"
   }
 }
