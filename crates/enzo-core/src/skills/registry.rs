@@ -25,6 +25,23 @@ impl SkillId {
         }
     }
 
+    pub const fn code(self) -> u8 {
+        self.index() as u8
+    }
+
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            0 => Some(SkillId::Jump),
+            1 => Some(SkillId::Dash),
+            2 => Some(SkillId::Fly),
+            3 => Some(SkillId::Melee),
+            4 => Some(SkillId::Mogging),
+            5 => Some(SkillId::NutellaShot),
+            6 => Some(SkillId::Shout),
+            _ => None,
+        }
+    }
+
     pub const fn def(self) -> &'static SkillDef {
         match self {
             SkillId::Jump => &jump::DEF,

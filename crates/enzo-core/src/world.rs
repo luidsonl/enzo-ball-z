@@ -581,7 +581,9 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::input::ActionSlot;
     use crate::levels::LEVEL_1;
+    use crate::skills::{LoadoutChange, LoadoutRequest, SkillId};
 
     #[test]
     fn apply_loadout_swaps_skills() {

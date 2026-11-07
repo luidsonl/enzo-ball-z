@@ -32,6 +32,7 @@ impl Stats {
 }
 
 impl EntitySpec {
+    #[allow(clippy::too_many_arguments)]
     pub fn projectile(
         skill: SkillId,
         owner: EntityId,

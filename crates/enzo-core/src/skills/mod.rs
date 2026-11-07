@@ -336,4 +336,12 @@ mod tests {
             Some(SkillId::Mogging)
         );
     }
+
+    #[test]
+    fn skill_id_codes_roundtrip() {
+        for skill in SkillId::ALL {
+            assert_eq!(SkillId::from_code(skill.code()), Some(skill));
+        }
+        assert_eq!(SkillId::from_code(255), None);
+    }
 }
