@@ -89,10 +89,13 @@ pub fn activate(
     SkillResult::Started
 }
 
-/// Move projéteis de skill, aplica dano e remove expirados/colididos.
+/// Move skill projectiles, apply damage, and remove expired/collided ones.
+///
+/// Solid blocks consume projectiles. Destructible solids take 1 block-damage hit
+/// and emit block events; the projectile is consumed on impact.
 pub fn update_projectiles(
     store: &mut EntityStore,
-    level: &Level,
+    level: &mut Level,
     dt: f32,
     events: &mut Vec<GameEvent>,
 ) {
@@ -123,6 +126,8 @@ pub fn update_projectiles(
         let rect = Rect::new(new_pos.x, new_pos.y, size.x, size.y);
 
         if level.rect_overlaps_solid(rect) {
+            // Apply one damage hit to destructible blocks in the impact area.
+            level.damage_solid_blocks_in_rect(rect, 1, events);
             store.despawn(id);
             events.push(GameEvent::SkillProjectileBlocked { owner, skill });
             continue;

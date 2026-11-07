@@ -12,6 +12,12 @@ pub enum SkillRejectReason {
     EmptySlot,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlockPos {
+    pub x: usize,
+    pub y: usize,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum GameEvent {
     SkillActivated {
@@ -40,6 +46,13 @@ pub enum GameEvent {
         skill: SkillId,
         damage: f32,
         combo: u8,
+    },
+    BlockDamaged {
+        pos: BlockPos,
+        remaining_hits: u16,
+    },
+    BlockDestroyed {
+        pos: BlockPos,
     },
     LoadoutChanged {
         player: EntityId,

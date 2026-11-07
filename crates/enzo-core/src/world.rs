@@ -313,10 +313,10 @@ impl World {
             self.activate_post_physics(entity_id, events);
         }
 
-        // 6. Projéteis
-        mogging::update_projectiles(&mut self.store, &self.level, DT, events);
+        // 6. Projectiles (may damage destructible blocks)
+        mogging::update_projectiles(&mut self.store, &mut self.level, DT, events);
 
-        // 7. IA
+        // 7. AI
         ai::update(&mut self.store, &self.level);
 
         // 8. Colisões
