@@ -1,4 +1,4 @@
-//! Tradução do teclado para [`PlayerCommand`].
+//! Keyboard-to-[`PlayerCommand`] translation.
 
 use enzo_core::input::{ActionSlot, Attribute, PlayerCommand, SixSevenKey, SlotInput};
 use macroquad::prelude::{is_key_down, is_key_pressed, KeyCode};
@@ -26,6 +26,9 @@ impl InputState {
         self.up = is_key_down(KeyCode::W) || is_key_down(KeyCode::Up);
         self.down = is_key_down(KeyCode::S) || is_key_down(KeyCode::Down);
 
+        // Up also triggers jump (slot 1) on press.
+        let up_pressed = is_key_pressed(KeyCode::W) || is_key_pressed(KeyCode::Up);
+
         let slot_keys = [
             [KeyCode::Space].as_slice(),
             [KeyCode::LeftShift, KeyCode::RightShift].as_slice(),
@@ -37,6 +40,9 @@ impl InputState {
             let pressed = keys.iter().any(|key| is_key_pressed(*key));
             self.slots_held[index] = held;
             self.slots_pressed[index] |= pressed;
+        }
+        if up_pressed {
+            self.slots_pressed[ActionSlot::Slot1.index()] = true;
         }
 
         self.six |= is_key_pressed(KeyCode::Key6) || is_key_pressed(KeyCode::Kp6);
