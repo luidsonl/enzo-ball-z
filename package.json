@@ -5,9 +5,12 @@
   "description": "Plataforma 2D em Rust/WASM com farming de aura",
   "scripts": {
     "build": "bash scripts/build-wasm.sh",
+    "build:dev": "cargo build -p enzo-wasm --target wasm32-unknown-unknown && node scripts/test-web.mjs --build-dev --no-browser",
     "dev": "bash scripts/build-wasm.sh && node scripts/serve.mjs",
     "serve": "node scripts/serve.mjs",
     "sprites": "node scripts/gen-sprites.mjs",
-    "test": "cargo test -p enzo-core -p enzo-sim"
+    "test": "cargo test -p enzo-core -p enzo-sim",
+    "test:web": "node scripts/test-web.mjs",
+    "test:web:static": "node scripts/test-web.mjs --no-browser"
   }
 }
