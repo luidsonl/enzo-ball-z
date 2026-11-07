@@ -9,6 +9,8 @@
     "dev": "bash scripts/build-wasm.sh && node scripts/serve.mjs",
     "serve": "node scripts/serve.mjs",
     "sprites": "node scripts/gen-sprites.mjs",
+    "sprites:blocks": "node tools/pixel-forge/cli.mjs build blocks",
+    "sprites:validate": "node tools/pixel-forge/cli.mjs validate blocks",
     "test": "cargo test -p enzo-core -p enzo-sim",
     "test:ui": "vitest run --config vitest.config.mjs",
     "test:ui:watch": "vitest --config vitest.config.mjs",

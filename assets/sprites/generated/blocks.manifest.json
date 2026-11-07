@@ -1,0 +1,103 @@
+{
+  "framework": "pixel-forge",
+  "version": 1,
+  "kind": "blocks",
+  "cell": {
+    "w": 16,
+    "h": 16
+  },
+  "sheet": "assets/sprites/tiles.png",
+  "frames": {
+    "GROUND_TOP": 0,
+    "GROUND_FILL": 1,
+    "BLOCK": 2,
+    "PLATFORM": 3,
+    "CRATE": 4,
+    "CRATE_DAMAGED_1": 5,
+    "CRATE_DAMAGED_2": 6
+  },
+  "blocks": [
+    {
+      "id": "ground",
+      "symbol": "#",
+      "core": {
+        "collision": "solid",
+        "resistance": "unbreakable",
+        "special": "none"
+      },
+      "render": {
+        "sheet": "tiles",
+        "frames": [
+          0,
+          1
+        ],
+        "note": "top/fill selected by renderer"
+      }
+    },
+    {
+      "id": "block",
+      "symbol": "B",
+      "core": {
+        "collision": "solid",
+        "resistance": "unbreakable",
+        "special": "none"
+      },
+      "render": {
+        "sheet": "tiles",
+        "frames": [
+          2
+        ]
+      }
+    },
+    {
+      "id": "platform",
+      "symbol": "=",
+      "core": {
+        "collision": "platform",
+        "resistance": "none",
+        "special": "none"
+      },
+      "render": {
+        "sheet": "tiles",
+        "frames": [
+          3
+        ]
+      }
+    },
+    {
+      "id": "crate",
+      "symbol": "D",
+      "core": {
+        "collision": "solid",
+        "resistance": {
+          "hits": 3
+        },
+        "special": "destructible"
+      },
+      "render": {
+        "sheet": "tiles",
+        "states": {
+          "intact": 4,
+          "damaged_1": 5,
+          "damaged_2": 6,
+          "broken": null
+        },
+        "note": "broken removes the tile (empty); state chosen from block damage"
+      }
+    },
+    {
+      "id": "empty",
+      "symbol": ".",
+      "core": {
+        "collision": "passable",
+        "resistance": "none",
+        "special": "none"
+      },
+      "render": {
+        "sheet": "tiles",
+        "frames": []
+      }
+    }
+  ],
+  "generatedAt": "deterministic"
+}
