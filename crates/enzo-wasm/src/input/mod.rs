@@ -92,9 +92,7 @@ impl InputState {
         if self.allocate.is_none() {
             self.allocate = InputAction::ALL
                 .into_iter()
-                .find(|action| {
-                    action.attribute().is_some() && self.action_active(*action).0
-                })
+                .find(|action| action.attribute().is_some() && self.action_active(*action).0)
                 .and_then(|action| action.attribute());
         }
 

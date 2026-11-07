@@ -76,9 +76,7 @@ impl App {
         };
 
         ui::set_interface_scale(save::load_interface_scale());
-        ui_bridge::set_mobile_controls_mode(
-            save::load_mobile_controls_mode().bridge_code(),
-        );
+        ui_bridge::set_mobile_controls_mode(save::load_mobile_controls_mode().bridge_code());
 
         app
     }
