@@ -70,9 +70,9 @@ updating `docs/SPEC.md` first.
 
 ```text
 crates/enzo-core/   pure simulation: physics, map, entities, mechanics, skills, aura, progression
-crates/enzo-wasm/   macroquad client: input, render, HUD, and save
+crates/enzo-wasm/   macroquad client: input, render, HUD, save, DOM UI bridge/controller
 crates/enzo-sim/    headless harness for replays and CI
 assets/             maps and original sprites
-web/                HTML and miniquad/macroquad JS plugins
-scripts/            build, local server, and sprite generator
+web/                HTML, miniquad/macroquad JS plugins, DOM UI modules/CSS
+scripts/            build, local server, sprite generator, web smoke tests
 ```

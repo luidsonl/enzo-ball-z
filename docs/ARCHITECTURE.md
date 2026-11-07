@@ -8,9 +8,14 @@
 > **Audit note (2026):** The core has migrated to action slots and modular
 > skills (`Locomotion` + `Skills`, `PlayerCommand` with `slots[4]`,
 > `SNAPSHOT_VERSION = 3`, `SAVE_VERSION = 2`). The client has been adapted and
-> render has been modularized. Some UX/integration items remain planned (loadout
-> editor UI, keybinding persistence/UI, skill-owned asset pipeline, HTML/mobile
-> bridge). Where this document describes planned work, it is labeled explicitly.
+> render has been modularized. A DOM UI layer now exists (`web/ui/*`) backed by
+> Rust `ui_bridge`/`ui_controller` (`UiState` + semantic actions/loadout actions),
+> covering menus, in-game HUD tabs/panels (including Status point distribution and
+> Skills assignment for unlocked skills), and mobile controls. Remaining/planned
+> work includes full keybinding persistence/UI, skill-owned asset pipeline, richer
+> loadout/action-bar UX (locks/toasts/icons/pause polish), and a possible migration
+> of the DOM UI implementation to Vue/Vite. Where this document describes planned
+> work, it is labeled explicitly.
 
 ## 1. Principles
 
@@ -36,7 +41,7 @@ enzoballz/
 ├── Cargo.toml                 # workspace
 ├── rust-toolchain.toml        # Rust version + wasm32 target
 ├── package.json               # build/server scripts (Node)
-├── web/                       # HTML and miniquad/macroquad JS plugins
+├── web/                       # HTML, miniquad/macroquad JS plugins, DOM UI (web/ui), CSS
 ├── crates/
 │   ├── enzo-core/             # pure simulation, no render/IO
 │   │   └── src/
@@ -56,17 +61,20 @@ enzoballz/
 │   │       ├── state.rs       # neutral game phase/state
 │   │       ├── snapshot.rs    # WorldSnapshot v3
 │   │       └── events.rs
-│   ├── enzo-wasm/             # client: macroquad + wasm-bindgen
+│   ├── enzo-wasm/             # client: macroquad; wasm exports for DOM UI bridge
 │   │   └── src/
 │   │       ├── lib.rs / main.rs / app.rs
 │   │       ├── input.rs       # keyboard -> slot-based PlayerCommand (defaults)
+│   │       ├── ui_bridge.rs   # wasm exports: actions, UiState, loadout/UI actions
+│   │       ├── ui_controller.rs # publishes UiState / consumes semantic UI actions
 │   │       ├── pointer.rs, ui.rs, i18n.rs
-│   │       ├── menu/
+│   │       ├── menu/          # canvas/menu logic as applicable
 │   │       ├── render/
 │   │       │   ├── world.rs   # orchestration only
 │   │       │   ├── entities/  # character/entity animation and drawing
 │   │       │   └── skills/    # projectile and attack visuals
-│   │       ├── hud/, camera.rs, tiles.rs, sprites.rs, save.rs
+│   │       ├── hud/           # canvas HUD modules (legacy/partial) + overlays
+│   │       ├── camera.rs, tiles.rs, sprites.rs, save.rs
 │   │       └── ...
 │   └── enzo-sim/              # headless harness (development binary)
 ├── assets/                    # maps and original sprites
@@ -329,12 +337,10 @@ commands or scene changes. No game rules live in the UI layer.
 - `tiles.rs` groups the map into chunks (e.g., 16×16 tiles). Visible chunks are
   built once as static meshes; off-camera chunks are not built.
 - `camera.rs` follows the player with smoothing and clamps to map bounds.
-- `ui.rs` contains shared visual primitives (panels, buttons, dots, text).
-- `menu/` is a screen stack (`Main`, `Saves`, `Options`, etc.). New screens add
-  variants without changing the `app` loop structure.
-- `hud/` draws the fixed HUD, draggable windows, and overlays. Window frames
-  handle focus, dragging, and closing; content modules render status/inventory/
-  equipment/skills views.
+- `ui.rs` contains shared visual primitives (panels, buttons, dots, text), mainly for canvas-rendered UI.
+- `menu/` contains menu/screen logic as used by the client; DOM menus in `web/ui/menus.js` also render menu state from `UiState`.
+- `hud/` contains canvas HUD/overlay modules. In addition, DOM HUD in `web/ui/hud.js` renders tabs/panels (Status point distribution, Equipment, Skills assignment for unlocked skills, Items), and DOM mobile controls live in `web/ui/mobile-controls.js`.
+- `ui_bridge.rs` / `ui_controller.rs` expose semantic UI actions and polled `UiState` JSON to the DOM layer; the DOM layer must not compute game rules.
 - `i18n.rs` stores `Text` keys and translations (pt-BR/en). Language is selected
   in the menu and persisted in `localStorage`; the core never formats UI text.
 - `save.rs` stores versioned JSON in `localStorage` (save v2 with migration
@@ -502,31 +508,40 @@ Client B ──commands @ 60 Hz──▶   ├─ step @ 60 Hz
 - [ ] No `enzo-core` file imports `macroquad`, `wasm-bindgen`, or `web-sys`.
 - [ ] Save/restore works after reloading the page (including loadout migration).
 
-## 12. Planned evolution: keybindings, loadout UI, skill assets, HTML/mobile bridge
+## 12. Planned evolution: keybindings, loadout/UI polish, skill assets, DOM UI (Vue/Vite migration candidate)
 
 > Partially implemented in core/client (see audit in `ACTIONS_AND_SKILLS.md`).
 > This section tracks remaining architectural integration work.
 
 The target is to keep these layers separated:
 
-1. **Physical key** (`enzo-wasm`/HTML): `KeyCode`, touch button, gamepad.
+1. **Physical key** (`enzo-wasm`/HTML/DOM): `KeyCode`, touch button, gamepad.
 2. **`InputAction`** (`enzo-core::input`): stable semantic vocabulary.
 3. **Loadout** (`enzo-core::skills`): which `SkillId` occupies each of the 4
    slots.
 4. **Skill** (`enzo-core::skills`): requirements, state, activation, cost,
    cooldown, and assets.
 
+Current DOM bridge (implemented in parts):
+- Rust exports (`ui_bridge.rs`) provide `enzo_action_down/up`, `enzo_ui_action`,
+  `enzo_loadout_assign/clear`, and polled `UiState` JSON (`enzo_ui_state_ptr/len`).
+- `ui_controller.rs` publishes state and consumes semantic UI actions; core rules
+  remain authoritative.
+- `web/ui/*` renders DOM menus, HUD/panels, and mobile controls. The bridge uses
+  `#[no_mangle] extern "C"` exports (no `wasm-bindgen`/`web-sys`).
+
 Remaining/planned integration work:
 
 - `KeyBindings` model + `enzoballz.bindings.v1` persistence + rebind UI.
-- Functional loadout editor UI (pause/menu, slot selection, skill selection,
-  swap/move/clear, requirement toasts) wired to `World::apply_loadout` or the
-  appropriate client/core bridge flow.
+- Loadout/UI polish: richer action bar, lock reasons/toasts, icon/cooldown/aura
+  feedback, pause/loadout-edit UX, and full skill catalog presentation.
 - Skill-owned asset files under `assets/skills/<id>/` generated and loaded; move
   skill-specific fx/frame ownership out of shared generic handling where
   appropriate.
-- HTML/mobile bridge using `miniquad_add_plugin` + `#[no_mangle] extern "C"`
-  exports (no `wasm-bindgen`/`web-sys`): HTML emits `InputAction`/`LoadoutRequest`
-  and renders `UiState`; HTML never calculates rules or reads/writes saves.
+- **Vue.js + Vite migration (planned, if adopted):** migrate `web/ui/*` DOM view
+  layer to Vue components while preserving the Rust bridge contract (`UiState`,
+  semantic actions, loadout actions, virtual input). Build pipeline (`dist/`),
+  miniquad plugin/script ordering, and web tests must be updated accordingly.
 
-All core invariants from section 1 still apply.
+All core invariants from section 1 still apply. HTML/DOM must never calculate
+game rules or read/write authoritative saves.

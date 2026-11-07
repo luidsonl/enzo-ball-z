@@ -21,9 +21,9 @@
 | Render modularization (client) | **Done** | `render/world.rs` orchestrates; projectile/attack visuals in `render/skills/*`; entity/character animations in `render/entities/*`. |
 | Mogging rename | **Done** | `Mogar` → `Mogging` across core/docs/scripts where migrated. |
 | Skill assets (`assets/skills/<id>/`) | **Not done** | Icons/entity/particle assets not generated/wired as skill-owned files; render/HUD use placeholders/shared handling in places. |
-| Functional loadout-editing UI | **Not done** | HUD shows simplified slot/loadout state; slot→skill editor, swap/move/clear UX, requirement toasts/locks, and pause flow are incomplete. |
+| Functional loadout-editing UI | **Partial** | DOM HUD/Skills panel can select a slot and assign/clear **unlocked** skills via `loadoutAssign`/`loadoutClear` (core-authoritative). Full UX remains pending: requirement lock reasons/toasts in editor, swap/move clarity in all flows, polish, and pause/loadout-edit flow integration. |
 | `KeyBindings` persistence + rebind UI | **Not done** | Defaults are hardcoded; no `enzoballz.bindings.v1` model/UI yet. |
-| HTML/mobile bridge (`UiState`, exports, touch) | **Not done** | Planned; canvas HUD still primary. |
+| HTML/mobile/DOM bridge (`UiState`, exports, touch) | **Partial** | Implemented in parts: Rust `ui_bridge`/`ui_controller` export `UiState` JSON and semantic actions (`enzo_ui_action`, `enzo_loadout_assign/clear`, `enzo_action_down/up`); `web/ui/*` renders DOM menus, HUD tabs/panels (Status point distribution, Skills, Equipment, Items), and mobile controls. Remaining/planned: full HTML-bridge packaging as originally scoped, broader touch UX polish, and eventual migration of DOM UI implementation to Vue/Vite if adopted. |
 | Placeholder skills finalized (`NutellaShot`, `Shout`) | **Partial** | Modules/placeholders exist; balance, visuals, and gameplay integration need refinement. |
 | Expanded slot/loadout/save/determinism scenario tests | **Partial** | Core tests pass; targeted slot/loadout/cooldown/lock/save migration scenario coverage should be expanded (see plan). |
 
@@ -925,8 +925,8 @@ crates/enzo-wasm/src/
 | 5 | `feat(core): add validated skill loadout` | `Loadout`, `LoadoutRequest`, `World::apply_loadout`, events | **Done** |
 | 6 | `feat(core): persist loadout and expose skill catalog` | `SaveData` v2 + migration; snapshot v3 | **Done** |
 | 7 | `feat(wasm): map keys to InputAction` | `KeyBindings`, defaults, persistence; rebind UI optional later | **Partial** (slot-based keyboard mapping done; `KeyBindings` model/persistence/UI pending) |
-| 8 | `feat(wasm): add action bar and skill menu` | icons, loadout editor, pause | **Not done** (simplified HUD exists) |
-| 9 | `feat(wasm): bridge HTML actions and loadout` | `UiState`, exports, virtual input | **Not done** |
+| 8 | `feat(wasm): add action bar and skill menu` | icons, loadout editor, pause | **Partial** (DOM HUD tabs/panels and basic skills assignment exist; full action bar/icons/locks/toasts/pause UX pending) |
+| 9 | `feat(wasm): bridge HTML actions and loadout` | `UiState`, exports, virtual input | **Partial** (Rust bridge + DOM UI modules exist; Vue/Vite migration and remaining bridge/UX polish pending) |
 | 10 | `feat(assets): generate skill icons and effects` | `gen-sprites.mjs`, assets, existence test | **Not done** |
 | 11 | `test(core): cover slot swaps and requirement changes` | level-up/item/cooldown scenarios + determinism | **Partial** |
 
