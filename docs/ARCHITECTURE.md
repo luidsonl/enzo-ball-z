@@ -4,6 +4,11 @@
 > simulação, o pipeline de build WASM e o harness de testes. O objetivo é que o
 > `enzo-core` rode sem alterações no navegador (cliente), em testes headless e,
 > no futuro, em um servidor autoritativo.
+>
+> **Estado atual vs. alvo:** as seções 1–11 descrevem o código de hoje. A
+> refatoração planejada de input (action slots) e de skills modulares está na
+> seção 12 e em [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md). Enquanto a
+> migração não acontece, vale o texto das seções 1–11.
 
 ## 1. Princípios
 
@@ -541,7 +546,7 @@ Cliente B ──comandos 60 Hz──▶   ├─ step a 60 Hz
 | Build wasm grande/lento | `opt-level = "s"`, `lto = true`, `codegen-units = 1` no perfil release |
 | Sprites gerados ficarem feios | Gerador versionado; trocar PNGs depois sem tocar no core |
 | Save quebrar entre versões | `version` no JSON + migração explícita ou reset seguro |
-| Escopo crescer (mais poderes/fases) | `SPEC.md` lista não-objetivos; novos poderes entram como módulo em `attacks` ou `movements` |
+| Escopo crescer (mais poderes/fases) | `SPEC.md` lista não-objetivos; no MVP atual, novos poderes entram como módulo em `attacks`/`movements`; no alvo, em `skills/` (seção 12) |
 
 ## 11. Definition of Done do harness
 
@@ -552,3 +557,101 @@ Cliente B ──comandos 60 Hz──▶   ├─ step a 60 Hz
 - [ ] `enzo-sim` roda um replay e imprime o hash final.
 - [ ] Nenhum arquivo do `enzo-core` importa `macroquad`, `wasm-bindgen` ou `web-sys`.
 - [ ] Save/restore funciona após recarregar a página.
+
+## 12. Evolução planejada: action slots e skills modulares
+
+> **Não implementado.** Esta seção resume o alvo; o contrato completo está em
+> [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md). Nada aqui vale para o código
+> atual até a migração correspondente.
+
+O objetivo é separar quatro camadas que hoje estão acopladas:
+
+1. **Tecla física** (`enzo-wasm`/HTML): `KeyCode`, botão touch, gamepad.
+2. **`InputAction`** (`enzo-core::input`): vocabulário semântico estável
+   (`MoveLeft`, `Slot3`, `Six`, ...).
+3. **Loadout** (`enzo-core::skills`): qual `SkillId` ocupa cada um dos 4 slots.
+4. **Skill** (`enzo-core::skills`): requisitos, estado, ativação, custo, cooldown
+   e assets.
+
+### 12.1 Contratos que mudam
+
+```rust
+pub struct SlotInput {
+    pub pressed: bool, // edge do tick
+    pub held: bool,    // estado contínuo
+}
+
+pub struct PlayerCommand {
+    pub move_x: i8,
+    pub move_y: i8,
+    pub slots: [SlotInput; ActionSlot::COUNT], // 4 slots genéricos
+    pub sixseven: Option<SixSevenKey>,
+    pub allocate: Option<Attribute>,
+    pub confirm: bool,
+    pub restart: bool,
+}
+```
+
+- `jump`, `jump_held`, `dash`, `melee` e `mogar` saem do comando.
+- `Entity` troca `movement: Movement`/`combat: Combat` por
+  `locomotion: Locomotion` (andar, SixSeven) e `skills: Skills` (tudo que é
+  slot).
+- `MoveId`/`MoveSet`/`MoveCategory` viram `SkillId`/`SkillDef`/`SkillCategory`.
+  Cada skill tem seu módulo com `DEF`, estado tipado e `pub const REQUIREMENTS`.
+- O loadout é array `[Option<SkillId>; 4]`, com unicidade garantida por
+  `Loadout::assign` (skill já equipada troca de slot). O save é tratado como
+  entrada não confiável e passa por `sanitize()`.
+- Trocar loadout é API de core (`World::apply_loadout(LoadoutRequest)`), não
+  campo do `PlayerCommand`: acontece com o jogo pausado e é esparso.
+- Snapshot sobe para `SNAPSHOT_VERSION = 3` com `loadout`, `slots` e `catalog`;
+  save sobe para `SAVE_VERSION = 2` com migração de v1.
+
+### 12.2 Ordem alvo de `World::step`
+
+A ordem continua sendo contrato. A refatoração troca as etapas 2–6 atuais por um
+pipeline de skills:
+
+1. input (aplica `move_x`, `move_y`, slots e SixSeven);
+2. sixseven (aura, combo, lentidão);
+3. skills pré-física (andar, buffer de pulo, dash, intenção vertical de voo);
+4. física e colisão;
+5. skills pós-física (soco, Mogar, tiro de nutela, grito);
+6. projéteis;
+7. IA;
+8. colisões e dano de contato;
+9. cooldowns e timers de skill;
+10. progressão;
+11. limpeza;
+12. eventos.
+
+Qualquer mudança nessa ordem exige atualizar
+[`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md) e um teste de determinismo.
+
+### 12.3 Estrutura alvo
+
+```text
+crates/enzo-core/src/
+├── input.rs          # InputAction, ActionSlot, SlotInput, PlayerCommand
+├── mechanics/        # walk, sixseven (não são slots)
+├── skills/           # registry, requirements, loadout, jump, dash, ...
+├── entities/         # Entity { locomotion, skills, ... }
+├── world.rs          # pipeline da seção 12.2
+├── snapshot.rs       # v3
+└── progression.rs    # SaveData v2
+```
+
+No cliente, `input/` ganha `bindings.rs` (teclas por `InputAction`) e
+`virtual_input.rs` (ações vindas do HTML/mobile); o HUD ganha `action_bar.rs`.
+A ponte HTML usa `miniquad_add_plugin` + exports `#[no_mangle] extern "C"`, sem
+`wasm-bindgen`/`web-sys`, e o HTML só emite `InputAction`/`LoadoutRequest` e
+renderiza `UiState`.
+
+### 12.4 Regras que continuam valendo
+
+- O core continua puro: nada de teclado, arquivo, relógio ou rede.
+- O cliente continua sem regra de jogo: ele não valida requisito, aura,
+  cooldown ou duplicata.
+- Assets de skill ficam em `assets/skills/<id>/` e são declarados no `SkillDef`.
+- SixSeven continua `6`/`7`, fora dos slots e do loadout.
+- Toda skill nova entra como módulo + `SkillId` + entrada no registry + ícone;
+  não como lógica solta no `World`.

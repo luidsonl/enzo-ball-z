@@ -56,6 +56,17 @@ docs/               spec e arquitetura
 scripts/            build WASM, servidor local, gerador de sprites
 ```
 
+Estrutura **planejada** (não implementada) para a refatoração de action slots e
+skills modulares; ver `docs/ACTIONS_AND_SKILLS.md`:
+
+```text
+crates/enzo-core/src/
+├── input.rs          # InputAction, ActionSlot, SlotInput, PlayerCommand
+├── mechanics/        # walk, sixseven (mecânicas fora dos slots)
+└── skills/           # registry, requirements, loadout + um módulo por skill
+assets/skills/<id>/   # icon.png obrigatório + entidade/partículas opcionais
+```
+
 ## 5. Invariantes de arquitetura
 
 Estas regras são obrigatórias. Quebrá-las exige atualizar `docs/ARCHITECTURE.md`
@@ -88,6 +99,18 @@ e justificar no commit.
     Cada movimento declara `REQUIREMENTS` (tipo de entidade, nível e atributos) e
     só entra no `MoveSet` via `try_assign`. O `World` orquestra sistemas, não
     implementa movimento nem ataque inline.
+12. **Action slots são genéricos (alvo).** O alvo são 4 slots (`ActionSlot`)
+    sem categoria fixa: qualquer `SkillId` disponível pode ocupar qualquer slot.
+    A categoria (Movimento/Ataque/Utilidade) é metadado de UI.
+13. **Loadout é regra do core (alvo).** `slot → SkillId` vive no `enzo-core`,
+    persiste no save e aparece no snapshot. A mesma skill **nunca** pode estar em
+    dois slots; `Loadout::assign` troca de slot em vez de duplicar, e saves são
+    sanitizados ao carregar. O cliente não decide o que pode ser equipado.
+14. **Skill é módulo, não caso especial (alvo).** Cada skill tem seu arquivo em
+    `skills/`, com `DEF`, estado tipado, `REQUIREMENTS` e assets declarados em
+    `assets/skills/<id>/` (ícone obrigatório). Identidade é `SkillId` em enum com
+    registry estático e dispatch por `match`; sem `Box<dyn Skill>` e sem lógica
+    de skill solta no `World`.
 
 ## 6. Convenções de código
 
@@ -112,8 +135,11 @@ e justificar no commit.
 Toda mudança de regra de jogo precisa de teste. O mínimo:
 
 - **Unitário:** funções de `math`, `map`, `aura`, `progression`, `moves`,
-  `movements` e `attacks`.
+  `movements` e `attacks`. Após a refatoração: `mechanics` e `skills`
+  (incluindo `Loadout::assign`, `sanitize` e requisitos).
 - **Cenário:** pulo, colisão, double-tap, combo de 3, Mogar, morte, bandeira.
+  Após a refatoração: troca/movimentação de skill entre slots e bloqueio por
+  nível/atributo/item.
 - **Determinismo:** mesma semente + mesmos comandos = mesmo snapshot.
 - **Regressão:** bug corrigido ganha um teste que falharia antes.
 
@@ -143,11 +169,18 @@ Não use `sleep` em teste. Avance ticks explicitamente com `World::step`.
   (Dragon Ball, Mario etc.). O nome "Mogar" é do projeto.
 - Novos assets entram em `assets/` com o script que os gera versionado.
 - Se trocar um PNG, mantenha o atlas e as dimensões documentados.
+- Assets de skill planejados ficam em `assets/skills/<id>/`: `icon.png`
+  obrigatório e entidade/partículas opcionais, declarados no `SkillDef`.
+- Toda `SkillId` precisa de ícone legível em 32 px. Nada de lista de assets
+  paralela ao `SkillDef`.
 
 ## 10. O que NÃO fazer
 
 - Colocar regra de jogo no `enzo-wasm`.
 - Ler teclado, relógio ou arquivo dentro do `enzo-core`.
+- Duplicar a mesma `SkillId` em dois slots ou deixar o cliente validar loadout.
+- Criar skill fora de `skills/` ou declarar asset de skill fora de
+  `assets/skills/<id>/`.
 - Usar `f32` para tomar decisões de rede que exijam bit-exatidão (o multiplayer
   é autoritativo por snapshot; se virar lockstep, migre para ponto fixo).
 - Criar estado global, `lazy_static` ou singleton mutável no core.
@@ -169,6 +202,7 @@ Antes de considerar uma tarefa concluída:
 ## 12. Estado atual
 
 - [x] Spec e arquitetura documentados.
+- [x] Plano de action slots e skills modulares em `docs/ACTIONS_AND_SKILLS.md`.
 - [ ] Workspace Cargo e scaffold.
 - [ ] `enzo-core`: math, rng, map, entity, physics.
 - [ ] `enzo-core`: aura, combate, IA, progressão, world, snapshot.

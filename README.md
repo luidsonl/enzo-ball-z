@@ -13,6 +13,8 @@ testes headless e, no futuro, em um servidor autoritativo.
 
 - [`docs/SPEC.md`](docs/SPEC.md) — regras de jogo, controles e balanceamento.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — harness, contratos e build.
+- [`docs/ACTIONS_AND_SKILLS.md`](docs/ACTIONS_AND_SKILLS.md) — plano de action
+  slots, skills modulares e controles mobile.
 - [`AGENTS.md`](AGENTS.md) — convenções para agentes de código.
 
 ## Desenvolvimento

@@ -2,6 +2,12 @@
 
 > Spec fechado a partir da entrevista `@grillme`. Valores numéricos são o ponto
 > de partida; o balanceamento pode mudar sem alterar a arquitetura.
+>
+> Este documento descreve o **MVP atual**. A evolução planejada para 4 slots
+> genéricos de habilidade, skills modulares, remapeamento de teclas e controles
+> mobile está em [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md). Onde este
+> documento e o plano divergirem, o texto marcado como “atual” vale para o
+> código de hoje e o plano vale para o alvo.
 
 ## 1. Objetivo
 
@@ -28,15 +34,22 @@ pontos para distribuir entre Velocidade, Força, Vida e Aura.
 - Auto-save local da progressão por slot.
 - Sprites pixel-art originais gerados por script.
 
-## 3. Não-objetivos do MVP
+## 3. Não-objetivos do MVP atual
 
 - Multiplayer em rede, servidor, matchmaking, autenticação.
 - Co-op local.
 - Mais de uma fase, chefes, loja e coleta de itens no mapa.
-- Outros golpes além do Mogar.
 - Áudio.
-- Opções gráficas, remapeamento de teclas, mobile/touch.
+- Opções gráficas.
 - Assets de terceiros (incluindo personagens de Dragon Ball ou Mario).
+
+Os itens abaixo saíram do não-objetivo e passaram a ser **evolução planejada**,
+não implementada no código atual:
+
+- Catálogo amplo de skills além do Mogar (voo, tiro de nutela, grito etc.), com
+  troca de skill equipada em 4 slots genéricos.
+- Remapeamento de teclas e controles mobile/touch.
+- HUD e menus em HTML por cima do canvas.
 
 ## 4. Loop de jogo
 
@@ -79,6 +92,32 @@ Explorar e enfrentar inimigos
 | Abrir menu | `Esc` | salva e volta ao menu inicial |
 | Navegar menus/HUD | mouse | clique edge-triggered |
 
+### 5.1 Alvo: 4 action slots (planejado)
+
+O alvo substitui os campos fixos de input (`jump`, `dash`, `melee`, `mogar`) por
+quatro slots genéricos. Qualquer skill disponível pode ocupar qualquer slot, e a
+mesma skill nunca pode estar em dois slots.
+
+| Slot | Tecla padrão | Skill padrão |
+| ---- | ------------ | ------------ |
+| 1 | `Espaço` | Pulo |
+| 2 | `Shift` | Dash |
+| 3 | `J` | Soco (combo físico) |
+| 4 | `K` | Mogar |
+
+- Movimento: `A`/`D` ou `←`/`→`; vertical: `W`/`S` ou `↑`/`↓`.
+- `W`/`↑` deixam de ser pulo no alvo: viram a ação semântica “subir”, usada pelo
+  voo. O pulo pertence ao slot 1.
+- `1`–`4` continuam distribuindo atributos na tela de level-up.
+- SixSeven continua em `6`/`7`, **fora** dos slots.
+- O loadout (`slot → skill`) é regra do core, persiste no save e aparece no
+  snapshot. Trocar skill é feito no menu de habilidades, com o jogo pausado.
+- Skills declaram requisitos (personagem, nível, atributos, item equipado) e têm
+  ícone próprio.
+
+Contratos, UX, assets, migração e riscos estão em
+[`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md).
+
 ## 6. Movimento
 
 - Chão: aceleração `1800 px/s²`, desaceleração `2200 px/s²`.
@@ -101,6 +140,11 @@ Cada movimento é um componente próprio (`Walk`, `Jump`, `Dash`, `Fly`,
 `SixSeven`) dentro de `Movement`; o controlador só define intenção. Todo
 movimento declara requisitos (tipos de entidade, nível e atributos mínimos) e só
 entra no `MoveSet` da entidade quando eles são cumpridos.
+
+> **Alvo (não implementado):** andar e SixSeven continuam mecânicas fora dos
+> slots; pulo, dash, voo, soco e Mogar viram `SkillId` equipáveis em
+> `Loadout`. `Movement`/`Combat` dão lugar a `Locomotion`/`Skills`. Ver
+> [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md).
 
 ## 7. Aura e SixSeven
 
@@ -233,6 +277,11 @@ estado, sem campos paralelos no `Entity`.
 - Versão incompatível → save ignorado com aviso no console (sem crash).
 - Apagar um slot remove apenas a chave daquele slot.
 
+> **Alvo (não implementado):** o save sobe para `SAVE_VERSION = 2` com
+> `loadout: [Option<SkillId>; 4]`; saves v1 são migrados preenchendo o loadout
+> padrão. As chaves passam a `enzoballz.save.slot.{0..2}.v2`. Detalhes em
+> [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md).
+
 ## 13. HUD e UI
 
 - Menu inicial com as telas: principal, saves (3 slots) e opções (idioma).
@@ -249,6 +298,12 @@ estado, sem campos paralelos no `Entity`.
 - Dica de controles no início da fase, banners de fase/level-up e overlays de
   morte e vitória com botões de reiniciar e voltar ao menu.
 - Todos os textos vêm de um sistema de i18n com pt-BR e inglês.
+
+> **Alvo (não implementado):** a barra fixa troca o indicador único de Mogar por
+> uma action bar com os 4 slots (ícone, tecla, custo, cooldown e bloqueio). A
+> janela de habilidades vira o editor de loadout: clicar no slot e depois na
+> skill, com troca automática se a skill já estiver em outro slot. O menu abre
+> com o jogo pausado. Ver [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md).
 
 ## 14. Fase
 
@@ -297,3 +352,25 @@ estado, sem campos paralelos no `Entity`.
 5. **Sem áudio no MVP.**
 6. **Valores de balanceamento** da seção 10 são iniciais e ajustáveis.
 7. **UI em pt-BR e inglês**, escolhida no menu e persistida localmente.
+
+## 18. Evolução planejada
+
+Nada desta seção está implementado no MVP atual. A ordem abaixo é a ordem de
+entrega proposta; cada fase tem plano, contratos e critérios de aceite em
+[`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md).
+
+1. **Input por ação:** teclado vira `InputAction`/`KeyBindings`; o
+   `PlayerCommand` passa a ter `move_x`, `move_y` e `slots[4]`.
+2. **Skills modulares:** `MoveId`/`MoveSet` viram `SkillId`/`SkillDef`/`Loadout`;
+   pulo, dash, voo, soco, Mogar, tiro de nutela e grito ganham módulo próprio,
+   requisitos, ícone e estado tipado.
+3. **Loadout persistente:** troca de skill no core, save v2, snapshot v3 e menu
+   de habilidades com troca/clear e bloqueio por requisito.
+4. **Controles mobile:** botões touch emitem `InputAction` diretamente, sem
+   passar por teclas físicas.
+5. **UI em HTML sobre o canvas:** canvas desenha o mundo; HUD, menus e controles
+   mobile viram DOM e conversam com o wasm por uma ponte de ações e `UiState`.
+   O HTML não calcula regras nem lê/grava save.
+
+O objetivo de longo prazo é que qualquer skill nova entre como um módulo com
+código, requisitos, ícone e arte gerada, sem alterar teclado, HUD ou rede.
