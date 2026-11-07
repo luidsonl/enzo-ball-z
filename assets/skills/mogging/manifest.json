@@ -1,0 +1,8 @@
+{
+  "id": "mogging",
+  "assets": {
+    "icon": "icon.png",
+    "projectile": "projectile.png",
+    "impact": "impact.png"
+  }
+}

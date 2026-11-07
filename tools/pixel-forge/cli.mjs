@@ -2,12 +2,14 @@
 import { BLOCK_DEFS, MANIFEST_PATH, RUNTIME_TILES_PATH, writeOutputs } from './src/blocks.mjs';
 import { validateBlocks } from './src/validate.mjs';
 import { generateBlock, generateEntity, generateItem, generateSkill } from './src/generate.mjs';
+import { buildSkillAssets } from './src/skills.mjs';
 
 function usage() {
   console.log(`pixel-forge
 
 Usage:
   node tools/pixel-forge/cli.mjs build blocks [--no-sync-runtime]
+  node tools/pixel-forge/cli.mjs build skills
   node tools/pixel-forge/cli.mjs validate blocks
   node tools/pixel-forge/cli.mjs inspect block <id>
   node tools/pixel-forge/cli.mjs generate block <id> [--symbol D] [--hits 3] [--passable]
@@ -35,6 +37,13 @@ if (cmd === 'build' && sub === 'blocks') {
   if (syncRuntimeTiles) console.log(`runtime sheet: ${RUNTIME_TILES_PATH}`);
   console.log(`per-module sprites: ${perBlockFiles.length}`);
   console.log(`blocks: ${manifest.blocks.map((b) => b.id).join(', ')}`);
+  process.exit(0);
+}
+
+if (cmd === 'build' && sub === 'skills') {
+  const files = buildSkillAssets();
+  console.log(`built skill module assets: ${files.length}`);
+  for (const f of files) console.log(`  - assets/skills/${f}`);
   process.exit(0);
 }
 
