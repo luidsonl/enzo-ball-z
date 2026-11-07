@@ -1,0 +1,50 @@
+{
+  "blocks": [
+    {
+      "collision": "passable",
+      "id": "empty",
+      "name": "empty",
+      "render": "empty",
+      "resistance": "None",
+      "special": "none",
+      "symbol": "."
+    },
+    {
+      "collision": "solid",
+      "id": "ground",
+      "name": "ground",
+      "render": "ground",
+      "resistance": "Unbreakable",
+      "special": "none",
+      "symbol": "#"
+    },
+    {
+      "collision": "solid",
+      "id": "block",
+      "name": "block",
+      "render": "block",
+      "resistance": "Unbreakable",
+      "special": "none",
+      "symbol": "B"
+    },
+    {
+      "collision": "platform",
+      "id": "platform",
+      "name": "platform",
+      "render": "platform",
+      "resistance": "None",
+      "special": "none",
+      "symbol": "="
+    },
+    {
+      "collision": "solid",
+      "id": "crate",
+      "name": "crate",
+      "render": "crate",
+      "resistance": "Hits(3)",
+      "special": "destructible",
+      "symbol": "D"
+    }
+  ],
+  "source": "enzo-core"
+}

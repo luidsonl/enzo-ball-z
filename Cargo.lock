@@ -77,6 +77,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "enzo-export"
+version = "0.1.0"
+dependencies = [
+ "enzo-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enzo-sim"
 version = "0.1.0"
 dependencies = [

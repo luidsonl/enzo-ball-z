@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/enzo-core", "crates/enzo-sim", "crates/enzo-wasm"]
+members = [
+    "crates/enzo-core",
+    "crates/enzo-export",
+    "crates/enzo-sim",
+    "crates/enzo-wasm",
+]
 
 [workspace.package]
 version = "0.1.0"

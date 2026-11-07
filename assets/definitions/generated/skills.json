@@ -1,0 +1,124 @@
+{
+  "skills": [
+    {
+      "activation": "presshold",
+      "assets": {
+        "entity": null,
+        "icon": "assets/skills/jump/icon.png",
+        "particles": "assets/skills/jump/dust.png"
+      },
+      "aura_cost": 0.0,
+      "category": "movement",
+      "cooldown": 0.0,
+      "id": "Jump",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 1
+      },
+      "source": "innate"
+    },
+    {
+      "activation": "press",
+      "assets": {
+        "entity": null,
+        "icon": "assets/skills/dash/icon.png",
+        "particles": "assets/skills/dash/trail.png"
+      },
+      "aura_cost": 0.0,
+      "category": "movement",
+      "cooldown": 0.699999988079071,
+      "id": "Dash",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 1
+      },
+      "source": "innate"
+    },
+    {
+      "activation": "hold",
+      "assets": {
+        "entity": null,
+        "icon": "assets/skills/fly/icon.png",
+        "particles": "assets/skills/fly/aura.png"
+      },
+      "aura_cost": 0.0,
+      "category": "movement",
+      "cooldown": 0.0,
+      "id": "Fly",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 5
+      },
+      "source": "progression"
+    },
+    {
+      "activation": "press",
+      "assets": {
+        "entity": null,
+        "icon": "assets/skills/melee/icon.png",
+        "particles": "assets/skills/melee/impact.png"
+      },
+      "aura_cost": 0.0,
+      "category": "attack",
+      "cooldown": 0.0,
+      "id": "Melee",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 1
+      },
+      "source": "innate"
+    },
+    {
+      "activation": "press",
+      "assets": {
+        "entity": "assets/skills/mogging/projectile.png",
+        "icon": "assets/skills/mogging/icon.png",
+        "particles": "assets/skills/mogging/impact.png"
+      },
+      "aura_cost": 25.0,
+      "category": "attack",
+      "cooldown": 0.3499999940395355,
+      "id": "Mogging",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 1
+      },
+      "source": "innate"
+    },
+    {
+      "activation": "press",
+      "assets": {
+        "entity": "assets/skills/nutella_shot/projectile.png",
+        "icon": "assets/skills/nutella_shot/icon.png",
+        "particles": "assets/skills/nutella_shot/splash.png"
+      },
+      "aura_cost": 0.0,
+      "category": "attack",
+      "cooldown": 0.25,
+      "id": "NutellaShot",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 1
+      },
+      "source": "equipment"
+    },
+    {
+      "activation": "press",
+      "assets": {
+        "entity": null,
+        "icon": "assets/skills/shout/icon.png",
+        "particles": "assets/skills/shout/wave.png"
+      },
+      "aura_cost": 10.0,
+      "category": "utility",
+      "cooldown": 2.0,
+      "id": "Shout",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_level": 1
+      },
+      "source": "innate"
+    }
+  ],
+  "source": "enzo-core"
+}
