@@ -18,6 +18,16 @@ pub const SLIME_SIZE: Vec2 = Vec2::new(26.0, 26.0);
 pub const SLIME_XP_REWARD: f32 = 25.0;
 pub const SLIME_CONTACT_DAMAGE: f32 = 10.0;
 
+/// Visual/animation contract (pure data). Rendering resolves frames from this.
+pub mod visual {
+    pub const SHEET: &str = "assets/entities/slime/sheet.png";
+    pub const CELL: f32 = 32.0;
+    pub const WALK_A: usize = 0;
+    pub const WALK_B: usize = 1;
+    pub const STRETCH: usize = 2;
+    pub const HURT: usize = 3;
+}
+
 impl Stats {
     pub fn slime() -> Self {
         Self {

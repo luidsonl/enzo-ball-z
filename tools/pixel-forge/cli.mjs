@@ -29,10 +29,11 @@ const [, , cmd, sub, ...rest] = process.argv;
 
 if (cmd === 'build' && sub === 'blocks') {
   const syncRuntimeTiles = !rest.includes('--no-sync-runtime');
-  const { sheet, manifest } = writeOutputs({ syncRuntimeTiles });
+  const { sheet, manifest, perBlockFiles } = writeOutputs({ syncRuntimeTiles });
   console.log(`built block tiles: ${sheet.w}x${sheet.h}`);
   console.log(`manifest: ${MANIFEST_PATH}`);
   if (syncRuntimeTiles) console.log(`runtime sheet: ${RUNTIME_TILES_PATH}`);
+  console.log(`per-module sprites: ${perBlockFiles.length}`);
   console.log(`blocks: ${manifest.blocks.map((b) => b.id).join(', ')}`);
   process.exit(0);
 }

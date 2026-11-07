@@ -188,7 +188,35 @@ export function buildManifest() {
   };
 }
 
-export function writeOutputs({ syncRuntimeTiles = true } = {}) {
+function writePngFile(path, canvas) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, encodePng(canvas));
+}
+
+export function writePerBlockSprites() {
+  const out = [];
+  const defs = [
+    { id: 'ground', files: [['top.png', (c) => drawGroundTop(c, 0)], ['fill.png', (c) => drawGroundFill(c, 0)]] },
+    { id: 'brick', files: [['default.png', (c) => drawBlock(c, 0)]] },
+    { id: 'platform', files: [['default.png', (c) => drawPlatform(c, 0)]] },
+    { id: 'crate', files: [['intact.png', (c) => drawCrate(c, 0, 0)], ['damaged_1.png', (c) => drawCrate(c, 0, 1)], ['damaged_2.png', (c) => drawCrate(c, 0, 2)]] },
+  ];
+  for (const def of defs) {
+    const dir = join(ROOT, 'assets/blocks', def.id);
+    for (const [name, draw] of def.files) {
+      const c = new Canvas(TILE_CELL, TILE_CELL);
+      draw(c);
+      const path = join(dir, name);
+      writePngFile(path, c);
+      out.push(path);
+    }
+    const localManifest = { id: def.id, sprites: def.files.map(([f]) => f), sheet: 'assets/sprites/tiles.png' };
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(localManifest, null, 2) + '\n');
+  }
+  return out;
+}
+
+export function writeOutputs({ syncRuntimeTiles = true, perBlock = true } = {}) {
   mkdirSync(GENERATED_DIR, { recursive: true });
   const sheet = buildTilesSheet();
   const png = encodePng(sheet);
@@ -198,5 +226,6 @@ export function writeOutputs({ syncRuntimeTiles = true } = {}) {
     mkdirSync(dirname(RUNTIME_TILES_PATH), { recursive: true });
     writeFileSync(RUNTIME_TILES_PATH, png);
   }
-  return { sheet, png, manifest: buildManifest() };
+  const perBlockFiles = perBlock ? writePerBlockSprites() : [];
+  return { sheet, png, manifest: buildManifest(), perBlockFiles };
 }

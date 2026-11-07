@@ -1,0 +1,7 @@
+{
+  "id": "platform",
+  "sprites": [
+    "default.png"
+  ],
+  "sheet": "assets/sprites/tiles.png"
+}

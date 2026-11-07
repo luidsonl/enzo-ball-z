@@ -39,6 +39,13 @@ pub static DEF: SkillDef = SkillDef {
     },
 };
 
+/// Visual/animation metadata co-located with the skill module.
+pub mod visual {
+    pub const ICON: &str = "assets/skills/mogging/icon.png";
+    pub const PROJECTILE: &str = "assets/skills/mogging/projectile.png";
+    pub const IMPACT: &str = "assets/skills/mogging/impact.png";
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State;
 

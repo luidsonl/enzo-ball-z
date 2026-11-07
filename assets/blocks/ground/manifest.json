@@ -1,0 +1,8 @@
+{
+  "id": "ground",
+  "sprites": [
+    "top.png",
+    "fill.png"
+  ],
+  "sheet": "assets/sprites/tiles.png"
+}
