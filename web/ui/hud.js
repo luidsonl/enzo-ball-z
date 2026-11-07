@@ -4,6 +4,41 @@ import { subscribe } from "./state.js";
 
 let lastHudKey = null;
 
+function isFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function fullscreenLabel(language) {
+  const active = isFullscreen();
+  if (language === "pt") return active ? "Sair" : "Tela cheia";
+  return active ? "Exit" : "Fullscreen";
+}
+
+async function toggleFullscreen() {
+  try {
+    if (isFullscreen()) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } else {
+      const root = document.documentElement;
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+    }
+  } catch {
+    // Ignore fullscreen errors (gesture/policy restrictions).
+  }
+  updateFullscreenButtons();
+}
+
+function updateFullscreenButtons() {
+  document.querySelectorAll(".dom-hud-fullscreen-btn").forEach((btn) => {
+    const lang = btn.dataset.lang || "en";
+    btn.textContent = fullscreenLabel(lang);
+    btn.title = btn.textContent;
+    btn.setAttribute("aria-pressed", isFullscreen() ? "true" : "false");
+  });
+}
+
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -29,8 +64,8 @@ function pct(current, max) {
 }
 
 function hudKey(state) {
-  if (!state || (state.scene !== "game" && state.scene !== "menu_over_game")) return "hidden";
-  const mobile = mobileControlsVisible(state?.settings) ? 1 : 0;
+  if (!state || state.scene !== "game") return `hidden:${state?.scene ?? ""}`;
+  const mobile = mobileControlsVisible(state?.settings, state?.scene) ? 1 : 0;
   if (!state.player) return `hidden:${state.scene}:${state.phase ?? ""}:${state.game_toast ?? ""}:${mobile}`;
   const p = state.player;
   const slots = (p.slots || []).map(s => `${s.slot}:${s.skill ?? ""}:${s.available?1:0}:${s.active?1:0}:${s.cooldown.toFixed(1)}`).join("|");
@@ -45,8 +80,8 @@ function renderHud(state) {
   if (key === lastHudKey) return;
   lastHudKey = key;
 
-  const inGameScene = state && (state.scene === "game" || state.scene === "menu_over_game");
-  if (!inGameScene) {
+  const showHud = state && state.scene === "game";
+  if (!showHud) {
     root.replaceChildren();
     root.style.pointerEvents = "none";
     return;
@@ -77,21 +112,35 @@ function renderHud(state) {
     bars.appendChild(bar(`Lv ${player.level}`, player.xp, player.xp_to_next, "xp"));
     top.appendChild(bars);
 
+    const topActions = el("div", "dom-hud-actions");
+    topActions.style.pointerEvents = "auto";
+
+    const fullscreenBtn = document.createElement("button");
+    fullscreenBtn.type = "button";
+    fullscreenBtn.className = "dom-hud-btn dom-hud-fullscreen-btn";
+    const lang = state.settings?.language || "en";
+    fullscreenBtn.dataset.lang = lang;
+    fullscreenBtn.textContent = fullscreenLabel(lang);
+    fullscreenBtn.title = fullscreenBtn.textContent;
+    fullscreenBtn.setAttribute("aria-pressed", isFullscreen() ? "true" : "false");
+    fullscreenBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); void toggleFullscreen(); });
+    topActions.appendChild(fullscreenBtn);
+
     if (state.scene === "game") {
       const menuBtn = document.createElement("button");
       menuBtn.type = "button";
-      menuBtn.className = "dom-hud-menu-btn";
+      menuBtn.className = "dom-hud-btn dom-hud-menu-btn";
       menuBtn.textContent = labels.menu || "Menu";
-      menuBtn.style.pointerEvents = "auto";
       menuBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); uiAction(UiAction.HudOpenMenu); });
-      top.appendChild(menuBtn);
+      topActions.appendChild(menuBtn);
     }
+    top.appendChild(topActions);
     frag.appendChild(top);
 
     // When mobile controls are visible, slot buttons are provided by mobile controls.
-    if (!mobileControlsVisible(state?.settings)) {
+    if (!mobileControlsVisible(state?.settings, state?.scene)) {
       const actionBar = el("div", "dom-action-bar");
-      actionBar.style.pointerEvents = state.scene === "game" ? "auto" : "none";
+      actionBar.style.pointerEvents = "auto";
       (player.slots || []).forEach((slot, index) => {
         const b = document.createElement("button");
         b.type = "button";
@@ -160,5 +209,7 @@ function renderHud(state) {
 }
 
 export function initHud() {
+  document.addEventListener("fullscreenchange", updateFullscreenButtons);
+  document.addEventListener("webkitfullscreenchange", updateFullscreenButtons);
   subscribe(renderHud);
 }

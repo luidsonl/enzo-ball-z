@@ -167,7 +167,8 @@ function isAutoMobile() {
   return coarse || (touch && small);
 }
 
-export function mobileControlsVisible(settings) {
+export function mobileControlsVisible(settings, scene) {
+  if (scene === "menu" || scene === "menu_over_game") return false;
   const modeCode = settings?.mobile_controls;
   if (modeCode === "on") return true;
   if (modeCode === "off") return false;
@@ -181,7 +182,7 @@ export function mobileControlsVisible(settings) {
 export function applyMobileControlsMode(state) {
   const root = document.getElementById("dom-controls-root");
   if (!root) return;
-  const visible = mobileControlsVisible(state?.settings);
+  const visible = mobileControlsVisible(state?.settings, state?.scene);
   root.style.display = visible ? "" : "none";
   return visible;
 }

@@ -204,6 +204,12 @@
 .dom-hud-track.hp .dom-hud-fill { background: #ff8a80; }
 .dom-hud-track.aura .dom-hud-fill { background: #5ef2ff; }
 .dom-hud-track.xp .dom-hud-fill { background: #f6c445; }
+.dom-hud-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.dom-hud-btn,
 .dom-hud-menu-btn {
   pointer-events: auto;
   border: 1px solid rgba(255,255,255,0.2);
@@ -211,6 +217,11 @@
   color: #fff;
   border-radius: 10px;
   padding: 8px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.dom-hud-btn:active {
+  background: rgba(80, 180, 255, 0.45);
 }
 
 .dom-action-bar {
