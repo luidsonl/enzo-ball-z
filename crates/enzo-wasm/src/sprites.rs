@@ -1,26 +1,27 @@
-//! Sprites originais embutidos no binário.
+//! Original sprites loaded at runtime.
 //!
-//! Os PNGs são gerados por `scripts/gen-sprites.mjs` e entram no wasm via
-//! `include_bytes!`. Assim o cliente não depende de carregamento assíncrono de
-//! assets nem de caminhos relativos no navegador.
+//! PNGs are generated/versioned under `assets/sprites/` and copied to
+//! `dist/assets/sprites/` by the build pipeline. The client loads them at
+//! runtime so the wasm binary stays smaller and the same image files can be
+//! reused outside the wasm (web UI, tooling, future clients).
 //!
-//! Cada folha usa uma célula fixa: tiles e itens têm 16×16; atores e efeitos
-//! têm 32×32. O render escolhe o frame pelo estado do snapshot.
+//! Each sheet uses a fixed cell: tiles and items are 16x16; actors and effects
+//! are 32x32. Rendering chooses frames from snapshot/state.
 
 use macroquad::prelude::*;
 
-const TILES_PNG: &[u8] = include_bytes!("../../../assets/sprites/tiles.png");
-const ENZO_PNG: &[u8] = include_bytes!("../../../assets/sprites/enzo.png");
-const SLIME_PNG: &[u8] = include_bytes!("../../../assets/sprites/slime.png");
-const FX_PNG: &[u8] = include_bytes!("../../../assets/sprites/fx.png");
-const FLAG_PNG: &[u8] = include_bytes!("../../../assets/sprites/flag.png");
-const ITEMS_PNG: &[u8] = include_bytes!("../../../assets/sprites/items.png");
+const TILES_PATH: &str = "assets/sprites/tiles.png";
+const ENZO_PATH: &str = "assets/sprites/enzo.png";
+const SLIME_PATH: &str = "assets/sprites/slime.png";
+const FX_PATH: &str = "assets/sprites/fx.png";
+const FLAG_PATH: &str = "assets/sprites/flag.png";
+const ITEMS_PATH: &str = "assets/sprites/items.png";
 
 pub const TILE_CELL: f32 = 16.0;
 pub const ACTOR_CELL: f32 = 32.0;
 pub const ITEM_CELL: f32 = 16.0;
 
-/// Índices das folhas de tiles.
+/// Tile sheet frame indices.
 pub mod tile {
     pub const GROUND_TOP: usize = 0;
     pub const GROUND_FILL: usize = 1;
@@ -28,7 +29,7 @@ pub mod tile {
     pub const PLATFORM: usize = 3;
 }
 
-/// Índices da folha do Enzo.
+/// Enzo sheet frame indices.
 pub mod enzo {
     pub const IDLE_A: usize = 0;
     pub const IDLE_B: usize = 1;
@@ -46,7 +47,7 @@ pub mod enzo {
     pub const FARM_B: usize = 13;
 }
 
-/// Índices da folha da capanga.
+/// Enemy (slime/minion) sheet frame indices.
 pub mod slime {
     pub const WALK_A: usize = 0;
     pub const WALK_B: usize = 1;
@@ -54,7 +55,7 @@ pub mod slime {
     pub const HURT: usize = 3;
 }
 
-/// Índices da folha de efeitos.
+/// Effects sheet frame indices.
 pub mod fx {
     pub const MOGGING: usize = 0;
     pub const SLASH_A: usize = 1;
@@ -66,7 +67,7 @@ pub mod fx {
     pub const DUST: usize = 7;
 }
 
-/// Índices da folha de itens.
+/// Item sheet frame indices.
 pub mod item {
     pub const SWORD: usize = 0;
     pub const BOW: usize = 1;
@@ -85,14 +86,14 @@ pub struct Sprites {
 }
 
 impl Sprites {
-    pub fn load() -> Self {
+    pub async fn load() -> Self {
         Self {
-            tiles: texture(TILES_PNG, "tiles"),
-            enzo: texture(ENZO_PNG, "enzo"),
-            slime: texture(SLIME_PNG, "slime"),
-            fx: texture(FX_PNG, "fx"),
-            flag: texture(FLAG_PNG, "flag"),
-            items: texture(ITEMS_PNG, "items"),
+            tiles: texture(TILES_PATH, "tiles").await,
+            enzo: texture(ENZO_PATH, "enzo").await,
+            slime: texture(SLIME_PATH, "slime").await,
+            fx: texture(FX_PATH, "fx").await,
+            flag: texture(FLAG_PATH, "flag").await,
+            items: texture(ITEMS_PATH, "items").await,
         }
     }
 
@@ -100,7 +101,7 @@ impl Sprites {
         draw_sheet(&self.tiles, TILE_CELL, index, dest, false, tint);
     }
 
-    /// Textura usada pelo cache de chunks de tiles.
+    /// Texture used by the tile chunk cache.
     pub fn tiles_texture(&self) -> &Texture2D {
         &self.tiles
     }
@@ -135,17 +136,27 @@ impl Sprites {
     }
 }
 
-fn texture(bytes: &[u8], name: &str) -> Texture2D {
-    let texture = match Image::from_file_with_format(bytes, Some(ImageFormat::Png)) {
-        Ok(image) => Texture2D::from_image(&image),
+async fn texture(path: &str, name: &str) -> Texture2D {
+    let texture = match macroquad::file::load_file(path).await {
+        Ok(bytes) => match Image::from_file_with_format(&bytes, Some(ImageFormat::Png)) {
+            Ok(image) => Texture2D::from_image(&image),
+            Err(err) => {
+                macroquad::logging::error!("failed to decode sprite '{name}' ({path}): {err}");
+                fallback_texture()
+            }
+        },
         Err(err) => {
-            macroquad::logging::error!("falha ao carregar sprite '{name}': {err}");
-            // Fallback visível (magenta) em vez de panic no navegador.
-            Texture2D::from_rgba8(1, 1, &[255, 0, 255, 255])
+            macroquad::logging::error!("failed to load sprite '{name}' ({path}): {err}");
+            fallback_texture()
         }
     };
     texture.set_filter(FilterMode::Nearest);
     texture
+}
+
+fn fallback_texture() -> Texture2D {
+    // Visible magenta fallback instead of panicking in the browser.
+    Texture2D::from_rgba8(1, 1, &[255, 0, 255, 255])
 }
 
 fn draw_sheet(texture: &Texture2D, cell: f32, frame: usize, dest: Rect, flip_x: bool, tint: Color) {

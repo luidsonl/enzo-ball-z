@@ -69,10 +69,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
+        let sprites = Sprites::load().await;
         let app = Self {
             scene: Scene::Menu(Menu::new()),
-            sprites: Sprites::load(),
+            sprites,
             i18n: I18n::new(save::load_language()),
             pointer: Pointer::default(),
             ui_publish_accum: 0.0,
@@ -295,12 +296,6 @@ impl App {
         }
 
         self.apply_transition(transition);
-    }
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

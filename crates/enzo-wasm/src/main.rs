@@ -5,6 +5,6 @@ use enzo_wasm::window_conf;
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut app = App::new();
+    let mut app = App::new().await;
     app.run().await;
 }
