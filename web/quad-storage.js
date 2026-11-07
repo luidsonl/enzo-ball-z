@@ -37,5 +37,7 @@ miniquad_add_plugin({
     register_plugin: params_register_js_plugin,
     on_init: params_set_mem,
     name: "quad_storage",
-    version: "0.1.4"
+    // Must match quad-storage-sys crate_version(): (major << 24) | (minor << 16) | patch
+    // quad-storage-sys 0.1.0 => 65536
+    version: (0 << 24) | (1 << 16) | 0
 });
