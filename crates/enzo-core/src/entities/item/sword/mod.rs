@@ -1,4 +1,4 @@
-//! Espada: arma ativa que exige Força.
+//! Sword: active weapon that requires Strength.
 
 use crate::skills::EntityType;
 
@@ -19,4 +19,10 @@ impl ItemData {
         ),
         heal: 0.0,
     };
+}
+
+/// Visual/animation metadata co-located with the item module.
+pub mod visual {
+    pub const ICON: &str = "assets/items/sword/icon.png";
+    pub const WORLD_SPRITE: &str = "assets/items/sword/world.png";
 }

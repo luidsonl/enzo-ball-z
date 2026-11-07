@@ -1,4 +1,4 @@
-//! Poção: item ativo de consumo que restaura vida.
+//! Potion: consumable active item that restores health.
 
 use crate::skills::EntityType;
 
@@ -16,4 +16,11 @@ impl ItemData {
         ),
         heal: 30.0,
     };
+}
+
+/// Visual/animation metadata co-located with the item module.
+pub mod visual {
+    pub const ICON: &str = "assets/items/potion/icon.png";
+    pub const WORLD_SPRITE: &str = "assets/items/potion/world.png";
+    pub const BOB_AMPLITUDE: f32 = 2.0;
 }

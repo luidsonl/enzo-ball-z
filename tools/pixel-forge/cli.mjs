@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { BLOCK_DEFS, MANIFEST_PATH, RUNTIME_TILES_PATH, writeOutputs } from './src/blocks.mjs';
-import { validateAll, validateBlocks, validateSkills } from './src/validate.mjs';
+import { validateAll, validateBlocks, validateEntities, validateItems, validateSkills } from './src/validate.mjs';
 import { generateBlock, generateEntity, generateItem, generateSkill } from './src/generate.mjs';
 import { buildSkillAssets } from './src/skills.mjs';
+import { buildItemAssets } from './src/items.mjs';
+import { buildEntityAssets } from './src/entities.mjs';
 
 function usage() {
   console.log(`pixel-forge
@@ -10,7 +12,9 @@ function usage() {
 Usage:
   node tools/pixel-forge/cli.mjs build blocks [--no-sync-runtime]
   node tools/pixel-forge/cli.mjs build skills [--force]
-  node tools/pixel-forge/cli.mjs validate [blocks|skills|all]
+  node tools/pixel-forge/cli.mjs build items [--force]
+  node tools/pixel-forge/cli.mjs build entities [--force]
+  node tools/pixel-forge/cli.mjs validate [blocks|skills|items|entities|all]
   node tools/pixel-forge/cli.mjs inspect block <id>
   node tools/pixel-forge/cli.mjs generate block <id> [--symbol D] [--hits 3] [--passable]
   node tools/pixel-forge/cli.mjs generate skill <id>
@@ -48,9 +52,25 @@ if (cmd === 'build' && sub === 'skills') {
   process.exit(0);
 }
 
+if (cmd === 'build' && sub === 'items') {
+  const files = buildItemAssets({ force: rest.includes('--force') });
+  console.log(`built item module assets: ${files.length}`);
+  for (const f of files) console.log(`  - ${f}`);
+  process.exit(0);
+}
+
+if (cmd === 'build' && sub === 'entities') {
+  const files = buildEntityAssets({ force: rest.includes('--force') });
+  console.log(`built entity module assets: ${files.length}`);
+  for (const f of files) console.log(`  - ${f}`);
+  process.exit(0);
+}
+
 if (cmd === 'validate') {
   const target = sub || 'all';
-  const errors = target === 'skills' ? validateSkills() : target === 'all' ? validateAll() : validateBlocks();
+  const map = { blocks: validateBlocks, skills: validateSkills, items: validateItems, entities: validateEntities, all: validateAll };
+  const fn = map[target] || validateBlocks;
+  const errors = fn();
   if (errors.length) {
     console.error(`pixel-forge: ${target} validation failed`);
     for (const e of errors) console.error(`- ${e}`);

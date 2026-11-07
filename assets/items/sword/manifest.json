@@ -1,0 +1,8 @@
+{
+  "framework": "pixel-forge",
+  "id": "sword",
+  "assets": {
+    "icon": "icon.png",
+    "world": "world.png"
+  }
+}

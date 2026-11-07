@@ -1,4 +1,4 @@
-//! Arco: arma ativa que exige Velocidade.
+//! Bow: active weapon that requires Speed.
 
 use crate::skills::EntityType;
 
@@ -19,4 +19,10 @@ impl ItemData {
         ),
         heal: 0.0,
     };
+}
+
+/// Visual/animation metadata co-located with the item module.
+pub mod visual {
+    pub const ICON: &str = "assets/items/bow/icon.png";
+    pub const WORLD_SPRITE: &str = "assets/items/bow/world.png";
 }

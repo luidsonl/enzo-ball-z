@@ -1,4 +1,4 @@
-//! Amuleto: acessório passivo que exige Aura.
+//! Amulet: passive accessory that requires Aura.
 
 use crate::skills::EntityType;
 
@@ -19,4 +19,10 @@ impl ItemData {
         ),
         heal: 0.0,
     };
+}
+
+/// Visual/animation metadata co-located with the item module.
+pub mod visual {
+    pub const ICON: &str = "assets/items/amulet/icon.png";
+    pub const WORLD_SPRITE: &str = "assets/items/amulet/world.png";
 }

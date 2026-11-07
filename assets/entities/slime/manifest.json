@@ -1,0 +1,11 @@
+{
+  "framework": "pixel-forge",
+  "id": "slime",
+  "sheet": "sheet.png",
+  "atlas": "atlas.json",
+  "clips": [
+    "walk",
+    "stretch",
+    "hurt"
+  ]
+}

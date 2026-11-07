@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { BLOCK_DEFS, TILE_CELL, buildTilesSheet } from './blocks.mjs';
 import { validateSkillAssets } from './skills.mjs';
+import { validateItemAssets } from './items.mjs';
+import { validateEntityAssets } from './entities.mjs';
 
 export function validateBlockDefs(defs = BLOCK_DEFS) {
   const errors = [];
@@ -47,6 +49,14 @@ export function validateSkills() {
   return validateSkillAssets();
 }
 
+export function validateItems() {
+  return validateItemAssets();
+}
+
+export function validateEntities() {
+  return validateEntityAssets();
+}
+
 export function validateAll() {
-  return [...validateBlocks(), ...validateSkills()];
+  return [...validateBlocks(), ...validateSkills(), ...validateItems(), ...validateEntities()];
 }

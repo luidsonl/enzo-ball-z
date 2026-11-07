@@ -1,4 +1,4 @@
-//! Armadura: item passivo que exige Vida.
+//! Armor: passive item that requires Health.
 
 use crate::skills::EntityType;
 
@@ -19,4 +19,10 @@ impl ItemData {
         ),
         heal: 0.0,
     };
+}
+
+/// Visual/animation metadata co-located with the item module.
+pub mod visual {
+    pub const ICON: &str = "assets/items/armor/icon.png";
+    pub const WORLD_SPRITE: &str = "assets/items/armor/world.png";
 }

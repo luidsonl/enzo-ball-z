@@ -1,0 +1,12 @@
+{
+  "framework": "pixel-forge",
+  "id": "enzo",
+  "sheet": "sheet.png",
+  "atlas": "atlas.json",
+  "clips": [
+    "idle",
+    "walk",
+    "jump",
+    "hurt"
+  ]
+}

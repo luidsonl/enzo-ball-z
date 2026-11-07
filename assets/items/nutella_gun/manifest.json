@@ -1,0 +1,8 @@
+{
+  "framework": "pixel-forge",
+  "id": "nutella_gun",
+  "assets": {
+    "icon": "icon.png",
+    "world": "world.png"
+  }
+}
