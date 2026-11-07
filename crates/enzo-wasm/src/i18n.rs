@@ -5,7 +5,7 @@
 //! exaustivo garante que uma tradução nova não esqueça um idioma.
 //!
 //! Regra do projeto: o core nunca formata texto de UI. Ele expõe dados
-//! (`Attribute`, `MoveId`, `ItemKind`, `EquipSlot`) e o cliente escolhe o rótulo.
+//! (`Attribute`, `SkillId`, `ItemKind`, `EquipSlot`) and the client chooses the label.
 
 use enzo_core::entities::{EquipSlot, ItemKind};
 use enzo_core::input::Attribute;
@@ -488,7 +488,7 @@ mod tests {
 
     /// Lista de chaves para o teste de cobertura. Mantenha em sincronia com o
     /// enum: novas chaves devem entrar aqui.
-    const ALL_TEXT: [Text; 98] = [
+    const ALL_TEXT: [Text; 105] = [
         Text::MenuSubtitle,
         Text::Play,
         Text::Resume,
@@ -614,7 +614,7 @@ mod tests {
         assert_eq!(i18n.t(Text::Play), "Play");
         assert_eq!(i18n.attribute(Attribute::Speed), "Speed");
         assert_eq!(i18n.item(ItemKind::Sword), "Sword");
-        assert_eq!(i18n.movement(MoveId::Mogging), "Mogging");
+        assert_eq!(i18n.skill(SkillId::Mogging), "Mogging");
         assert_eq!(i18n.equip_slot(EquipSlot::Weapon), "Weapon");
     }
 

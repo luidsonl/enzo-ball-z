@@ -326,6 +326,7 @@ mod tests {
             xp: 20.0,
             points: 2,
             attributes: enzo_core::entities::Attributes::default(),
+            loadout: enzo_core::skills::Loadout::default(),
         };
         let pt = slot_summary(I18n::new(Language::PtBr), &data);
         let en = slot_summary(I18n::new(Language::English), &data);
