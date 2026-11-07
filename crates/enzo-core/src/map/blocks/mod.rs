@@ -3,7 +3,7 @@
 //! Each block kind lives in its own module (like entity specs), exporting a
 //! `DEF: BlockDef`. The registry is indexed by [`BlockId`] discriminant.
 
-pub mod brick;
+pub mod block;
 pub mod crate_block;
 pub mod empty;
 pub mod ground;
@@ -11,7 +11,7 @@ pub mod platform;
 
 use super::block::{BlockDef, BlockId};
 
-pub use brick::DEF as BLOCK_BRICK;
+pub use block::DEF as BLOCK_BRICK;
 pub use crate_block::DEF as BLOCK_CRATE;
 pub use empty::DEF as BLOCK_EMPTY;
 pub use ground::DEF as BLOCK_GROUND;

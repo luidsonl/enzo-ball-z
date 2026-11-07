@@ -1,7 +1,0 @@
-{
-  "id": "brick",
-  "sprites": [
-    "default.png"
-  ],
-  "sheet": "assets/sprites/tiles.png"
-}

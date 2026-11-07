@@ -3,5 +3,6 @@
   "sprites": [
     "default.png"
   ],
-  "sheet": "assets/sprites/tiles.png"
+  "sheet": "assets/sprites/tiles.png",
+  "contract": "assets/definitions/generated/blocks.json"
 }

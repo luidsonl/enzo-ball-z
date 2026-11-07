@@ -2,6 +2,7 @@
   "framework": "pixel-forge",
   "version": 1,
   "kind": "blocks",
+  "contractSource": "enzo-core",
   "cell": {
     "w": 16,
     "h": 16
@@ -18,13 +19,26 @@
   },
   "blocks": [
     {
-      "id": "ground",
-      "symbol": "#",
-      "core": {
-        "collision": "solid",
-        "resistance": "unbreakable",
-        "special": "none"
+      "collision": "passable",
+      "id": "empty",
+      "name": "empty",
+      "render": {
+        "sheet": "tiles",
+        "frames": []
       },
+      "resistance": "None",
+      "special": "none",
+      "symbol": ".",
+      "core": {
+        "collision": "passable",
+        "resistance": "None",
+        "special": "none"
+      }
+    },
+    {
+      "collision": "solid",
+      "id": "ground",
+      "name": "ground",
       "render": {
         "sheet": "tiles",
         "frames": [
@@ -32,48 +46,58 @@
           1
         ],
         "note": "top/fill selected by renderer"
+      },
+      "resistance": "Unbreakable",
+      "special": "none",
+      "symbol": "#",
+      "core": {
+        "collision": "solid",
+        "resistance": "Unbreakable",
+        "special": "none"
       }
     },
     {
+      "collision": "solid",
       "id": "block",
-      "symbol": "B",
-      "core": {
-        "collision": "solid",
-        "resistance": "unbreakable",
-        "special": "none"
-      },
+      "name": "block",
       "render": {
         "sheet": "tiles",
         "frames": [
           2
         ]
+      },
+      "resistance": "Unbreakable",
+      "special": "none",
+      "symbol": "B",
+      "core": {
+        "collision": "solid",
+        "resistance": "Unbreakable",
+        "special": "none"
       }
     },
     {
+      "collision": "platform",
       "id": "platform",
-      "symbol": "=",
-      "core": {
-        "collision": "platform",
-        "resistance": "none",
-        "special": "none"
-      },
+      "name": "platform",
       "render": {
         "sheet": "tiles",
         "frames": [
           3
         ]
+      },
+      "resistance": "None",
+      "special": "none",
+      "symbol": "=",
+      "core": {
+        "collision": "platform",
+        "resistance": "None",
+        "special": "none"
       }
     },
     {
+      "collision": "solid",
       "id": "crate",
-      "symbol": "D",
-      "core": {
-        "collision": "solid",
-        "resistance": {
-          "hits": 3
-        },
-        "special": "destructible"
-      },
+      "name": "crate",
       "render": {
         "sheet": "tiles",
         "states": {
@@ -83,19 +107,14 @@
           "broken": null
         },
         "note": "broken removes the tile (empty); state chosen from block damage"
-      }
-    },
-    {
-      "id": "empty",
-      "symbol": ".",
-      "core": {
-        "collision": "passable",
-        "resistance": "none",
-        "special": "none"
       },
-      "render": {
-        "sheet": "tiles",
-        "frames": []
+      "resistance": "Hits(3)",
+      "special": "destructible",
+      "symbol": "D",
+      "core": {
+        "collision": "solid",
+        "resistance": "Hits(3)",
+        "special": "destructible"
       }
     }
   ],
