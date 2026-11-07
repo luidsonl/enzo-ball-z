@@ -4,8 +4,10 @@
 //! This controller owns the translation between semantic UI actions and game/menu
 //! state changes, and publishes serializable [`UiState`] for rendering.
 
+use enzo_core::entities::EquipSlot;
 use enzo_core::input::Attribute;
 use enzo_core::progression::{xp_to_next, SaveData};
+use enzo_core::skills::SkillCategory;
 use enzo_core::snapshot::{EntitySnapshot, WorldSnapshot};
 use serde::Serialize;
 
@@ -46,6 +48,21 @@ pub struct UiLabels {
     pub level_up: String,
     pub victory: String,
     pub game_over: String,
+    pub status: String,
+    pub equipment: String,
+    pub inventory: String,
+    pub skills: String,
+    pub status_title: String,
+    pub equipment_title: String,
+    pub inventory_title: String,
+    pub skills_title: String,
+    pub inventory_empty: String,
+    pub no_item: String,
+    pub assign: String,
+    pub clear: String,
+    pub equipped: String,
+    pub locked: String,
+    pub close: String,
 }
 
 impl UiLabels {
@@ -82,6 +99,37 @@ impl UiLabels {
                 "Game Over".to_owned()
             } else {
                 "Fim de jogo".to_owned()
+            },
+            status: i18n.t(Text::Status).to_owned(),
+            equipment: i18n.t(Text::Equipment).to_owned(),
+            inventory: i18n.t(Text::Inventory).to_owned(),
+            skills: i18n.t(Text::Skills).to_owned(),
+            status_title: i18n.t(Text::StatusTitle).to_owned(),
+            equipment_title: i18n.t(Text::EquipmentTitle).to_owned(),
+            inventory_title: i18n.t(Text::InventoryTitle).to_owned(),
+            skills_title: i18n.t(Text::SkillsTitle).to_owned(),
+            inventory_empty: i18n.t(Text::InventoryEmpty).to_owned(),
+            no_item: i18n.t(Text::NoItem).to_owned(),
+            assign: if i18n.language().code() == "en" {
+                "Assign".to_owned()
+            } else {
+                "Alocar".to_owned()
+            },
+            clear: if i18n.language().code() == "en" {
+                "Clear".to_owned()
+            } else {
+                "Limpar".to_owned()
+            },
+            equipped: if i18n.language().code() == "en" {
+                "Equipped".to_owned()
+            } else {
+                "Equipado".to_owned()
+            },
+            locked: i18n.t(Text::SkillLocked).to_owned(),
+            close: if i18n.language().code() == "en" {
+                "Close".to_owned()
+            } else {
+                "Fechar".to_owned()
             },
         }
     }
@@ -127,12 +175,38 @@ pub struct UiMenuState {
 pub struct UiSkillSlotState {
     pub slot: u8,
     pub skill: Option<u8>,
+    pub skill_name: Option<String>,
     pub available: bool,
     pub cooldown: f32,
     pub cooldown_max: f32,
     pub aura_cost: f32,
     pub active: bool,
     pub lock_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiCatalogEntry {
+    pub skill: u8,
+    pub name: String,
+    pub category: String,
+    pub available: bool,
+    pub lock_reason: Option<String>,
+    pub equipped_slot: Option<u8>,
+    pub aura_cost: f32,
+    pub cooldown_max: f32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiEquipmentSlot {
+    pub slot: String,
+    pub slot_label: String,
+    pub item: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiInventoryItem {
+    pub kind: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -153,8 +227,12 @@ pub struct UiPlayerState {
     pub xp: f32,
     pub xp_to_next: f32,
     pub points: u32,
+    pub pending_level_up: bool,
     pub attributes: UiAttributes,
     pub slots: Vec<UiSkillSlotState>,
+    pub catalog: Vec<UiCatalogEntry>,
+    pub equipment_slots: Vec<UiEquipmentSlot>,
+    pub inventory: Vec<UiInventoryItem>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -210,7 +288,23 @@ fn menu_state(menu: &Menu) -> UiMenuState {
     }
 }
 
-fn player_state(entity: &EntitySnapshot) -> Option<UiPlayerState> {
+fn category_label(category: SkillCategory) -> &'static str {
+    match category {
+        SkillCategory::Movement => "Movement",
+        SkillCategory::Attack => "Attack",
+        SkillCategory::Utility => "Utility",
+    }
+}
+
+fn equip_slot_code(slot: EquipSlot) -> &'static str {
+    match slot {
+        EquipSlot::Weapon => "weapon",
+        EquipSlot::Armor => "armor",
+        EquipSlot::Accessory => "accessory",
+    }
+}
+
+fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
     let p = entity.player.as_ref()?;
     let slots = p
         .slots
@@ -219,6 +313,7 @@ fn player_state(entity: &EntitySnapshot) -> Option<UiPlayerState> {
         .map(|(i, slot)| UiSkillSlotState {
             slot: i as u8,
             skill: slot.skill.map(|s| s.code()),
+            skill_name: slot.skill.map(|s| i18n.skill(s).to_owned()),
             available: slot.available,
             cooldown: slot.cooldown,
             cooldown_max: slot.cooldown_max,
@@ -227,6 +322,45 @@ fn player_state(entity: &EntitySnapshot) -> Option<UiPlayerState> {
             lock_reason: slot.lock.as_ref().map(|l| format!("{:?}", l)),
         })
         .collect();
+
+    let catalog = p
+        .catalog
+        .iter()
+        .map(|entry| UiCatalogEntry {
+            skill: entry.skill.code(),
+            name: i18n.skill(entry.skill).to_owned(),
+            category: category_label(entry.skill.def().category).to_owned(),
+            available: entry.available,
+            lock_reason: entry.lock.as_ref().map(|l| format!("{:?}", l)),
+            equipped_slot: entry.equipped_slot.map(|s| s.index() as u8),
+            aura_cost: entry.aura_cost,
+            cooldown_max: entry.cooldown_max,
+        })
+        .collect();
+
+    let equipment_slots = [EquipSlot::Weapon, EquipSlot::Armor, EquipSlot::Accessory]
+        .into_iter()
+        .map(|slot| {
+            let item = p.equipped[slot.index()]
+                .as_ref()
+                .map(|eq| i18n.item(eq.kind).to_owned());
+            UiEquipmentSlot {
+                slot: equip_slot_code(slot).to_owned(),
+                slot_label: i18n.equip_slot(slot).to_owned(),
+                item,
+            }
+        })
+        .collect();
+
+    let inventory = p
+        .inventory
+        .iter()
+        .map(|kind| UiInventoryItem {
+            kind: format!("{:?}", kind),
+            name: i18n.item(*kind).to_owned(),
+        })
+        .collect();
+
     Some(UiPlayerState {
         health: entity.health,
         max_health: entity.max_health,
@@ -236,6 +370,7 @@ fn player_state(entity: &EntitySnapshot) -> Option<UiPlayerState> {
         xp: p.xp,
         xp_to_next: p.xp_to_next,
         points: p.points,
+        pending_level_up: p.pending_level_up,
         attributes: UiAttributes {
             speed: p.attributes.speed,
             strength: p.attributes.strength,
@@ -243,6 +378,9 @@ fn player_state(entity: &EntitySnapshot) -> Option<UiPlayerState> {
             aura: p.attributes.aura,
         },
         slots,
+        catalog,
+        equipment_slots,
+        inventory,
     })
 }
 
@@ -256,7 +394,7 @@ pub fn build_state(
     let (phase, player) = if let Some(snapshot) = snapshot {
         (
             Some(format!("{:?}", snapshot.phase)),
-            snapshot.player().and_then(player_state),
+            snapshot.player().and_then(|e| player_state(e, i18n)),
         )
     } else {
         (None, None)

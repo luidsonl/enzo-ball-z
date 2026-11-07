@@ -200,12 +200,15 @@ function syncSlotControls(state) {
     btn.classList.toggle("slot-locked", !!(slot && !slot.available));
     btn.classList.toggle("slot-cooldown", !!(slot && slot.cooldown > 0.01));
     if (label) {
-      const skill = slot?.skill != null ? `S${slot.skill}` : "";
-      label.textContent = skill ? `${layoutSlot}\n${skill}` : String(layoutSlot);
+      const skillName = slot?.skill_name || (slot?.skill != null ? `S${slot.skill}` : "");
+      const shortName = skillName.length > 8 ? skillName.slice(0, 7) + "…" : skillName;
+      label.textContent = skillName ? `${layoutSlot}\n${shortName}` : String(layoutSlot);
       label.style.whiteSpace = "pre-line";
-      label.style.fontSize = skill ? "12px" : "";
+      label.style.fontSize = skillName ? "10px" : "";
       label.style.textAlign = "center";
       label.style.lineHeight = "1.05";
+      label.style.maxWidth = "100%";
+      label.style.overflow = "hidden";
     }
     let cd = btn.querySelector(".ui-slot-cd");
     if (slot && slot.cooldown > 0.01) {

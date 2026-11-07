@@ -224,6 +224,114 @@
   background: rgba(80, 180, 255, 0.45);
 }
 
+.dom-hud-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: auto;
+  align-content: flex-start;
+  max-width: min(52vw, 520px);
+}
+.dom-hud-tab {
+  pointer-events: auto;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(20,24,40,0.78);
+  color: #e8ecff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font: 13px/1.1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.dom-hud-tab.active,
+.dom-hud-tab:active {
+  background: rgba(28, 120, 150, 0.95);
+  border-color: rgba(94,242,255,0.5);
+  color: #fff;
+}
+@keyframes dom-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(246,196,69,0.0); border-color: rgba(246,196,69,0.45); }
+  50% { box-shadow: 0 0 0 3px rgba(246,196,69,0.18); border-color: rgba(246,196,69,0.95); color: #fff3bf; }
+}
+.dom-hud-tab.blink {
+  animation: dom-blink 0.9s ease-in-out infinite;
+}
+
+.dom-game-panel-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: max(56px, calc(env(safe-area-inset-top) + 48px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: rgba(4, 6, 16, 0.28);
+  pointer-events: auto;
+  z-index: 3;
+}
+.dom-game-panel {
+  width: min(94vw, 720px);
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  background: rgba(12, 14, 32, 0.97);
+  border: 1px solid rgba(94, 242, 255, 0.35);
+  border-radius: 14px;
+  padding: 14px;
+  color: #e8ecff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+.dom-game-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.dom-game-panel-header .dom-title { margin: 0; text-align: left; }
+.dom-game-panel-body { display: grid; gap: 10px; }
+
+.dom-status-grid, .dom-list, .dom-skill-list { display: grid; gap: 6px; }
+.dom-status-row, .dom-list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+.dom-status-key, .dom-list-key { color: #ced4ec; }
+.dom-status-val, .dom-list-val { color: #fff; font-weight: 600; }
+
+.dom-slot-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.dom-skill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+}
+.dom-skill-row.locked { opacity: 0.72; }
+.dom-skill-row.equipped { border-color: rgba(94,242,255,0.35); }
+.dom-skill-info { min-width: 0; }
+.dom-skill-name { color: #fff; font-weight: 600; }
+.dom-skill-meta { color: #ced4ec; font-size: 12px; margin-top: 2px; word-break: break-word; }
+.dom-skill-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.dom-action-slot .slot-skill {
+  max-width: 46px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dom-action-bar {
   position: absolute;
   left: 50%;
