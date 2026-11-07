@@ -14,17 +14,19 @@ if [[ ! -f "$WASM" ]]; then
   exit 1
 fi
 
-rm -rf dist
-mkdir -p dist/assets
+if [[ ! -x "node_modules/.bin/vite" ]]; then
+  echo "erro: vite não encontrado. Execute: npm install" >&2
+  exit 1
+fi
 
-# GitHub Pages usa Jekyll por padrão; o arquivo vazio desliga o processamento
-# e evita que o wasm/assets sejam ignorados ou reescritos.
+rm -rf dist
+node_modules/.bin/vite build
+
+# GitHub Pages usa Jekyll por padrão; o arquivo vazio desliga o processamento.
 touch dist/.nojekyll
 
-cp "$WASM" dist/
-cp web/index.html web/mq_js_bundle.js web/sapp_jsutils.js web/quad-storage.js web/ui.css dist/
-mkdir -p dist/ui
-cp web/ui/*.js dist/ui/
+cp "$WASM" dist/enzo-wasm.wasm
+mkdir -p dist/assets
 cp -r assets/. dist/assets/
 
 echo "build ok: dist/"

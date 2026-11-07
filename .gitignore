@@ -1,5 +1,6 @@
 /target
 /dist
+/dist-vue-poc
 /node_modules
 /local.data
 *.log

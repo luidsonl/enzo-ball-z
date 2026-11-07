@@ -1,0 +1,58 @@
+#dom-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  font: 14px/1.2 system-ui, sans-serif;
+  color: var(--ui-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dom-hud-root,
+.dom-menu-root,
+.dom-controls-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dom-btn {
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(40, 46, 78, 0.95);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+  margin: 4px;
+}
+.dom-btn.primary { background: rgba(28, 120, 150, 0.95); border-color: rgba(94, 242, 255, 0.5); }
+.dom-btn.secondary { background: rgba(52, 58, 92, 0.95); }
+.dom-btn.danger { background: rgba(140, 52, 52, 0.95); border-color: rgba(255, 128, 116, 0.5); }
+.dom-btn.selected { outline: 2px solid #f6c445; }
+.dom-btn.small { padding: 6px 10px; font-size: 13px; }
+
+.dom-title {
+  margin: 0 0 8px;
+  color: #f6c445;
+  text-align: center;
+}
+
+.dom-subtitle,
+.dom-slot-meta,
+.dom-option-label,
+.dom-status-key,
+.dom-list-key,
+.dom-skill-meta,
+.muted {
+  color: #ced4ec;
+}
+
+.dom-subtitle,
+.dom-slot-meta,
+.dom-option-label { font-size: 14px; }
+
+.muted { opacity: 0.75; }

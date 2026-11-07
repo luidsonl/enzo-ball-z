@@ -1,4 +1,5 @@
-// Low-level wasm bridge helpers. wasm_exports/wasm_memory are globals set by mq.
+// Wasm bridge helpers (production). wasm_exports/wasm_memory are globals set by miniquad.
+// Core rules remain authoritative in Rust; this layer only transports intents and reads UiState.
 
 export const Action = Object.freeze({
   MoveLeft: 0,
@@ -43,6 +44,7 @@ export const UiAction = Object.freeze({
 });
 
 const pendingUi = [];
+const textDecoder = new TextDecoder();
 
 export function exportsReady() {
   return typeof globalThis.wasm_exports !== "undefined" && globalThis.wasm_exports &&
@@ -114,7 +116,7 @@ export function readUiStateJson() {
     const len = globalThis.wasm_exports.enzo_ui_state_len();
     if (!ptr || !len || typeof globalThis.wasm_memory === "undefined" || !globalThis.wasm_memory) return null;
     const bytes = new Uint8Array(globalThis.wasm_memory.buffer, ptr, len);
-    const json = new TextDecoder().decode(bytes);
+    const json = textDecoder.decode(bytes);
     return json || null;
   } catch (_) {
     return null;

@@ -1,0 +1,7 @@
+:root {
+  --ui-btn: rgba(18, 20, 34, 0.72);
+  --ui-btn-active: rgba(80, 180, 255, 0.75);
+  --ui-btn-border: rgba(255, 255, 255, 0.18);
+  --ui-text: #e8e8ff;
+  --dom-ui-scale: 1;
+}

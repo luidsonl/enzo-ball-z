@@ -38,20 +38,15 @@ async function run(cmd, cmdArgs, opts = {}) {
 }
 
 async function assembleDevDist() {
-  console.log("building dev wasm and assembling dist...");
+  console.log("building dev wasm and assembling dist (Vue UI)...");
   await run("cargo", ["build", "-p", "enzo-wasm", "--target", "wasm32-unknown-unknown"], { cwd: resolve(".") });
-  await mkdir(join(root, "assets"), { recursive: true });
-  await mkdir(join(root, "ui"), { recursive: true });
+  if (resolve(root) === resolve("dist")) {
+    await run("node_modules/.bin/vite", ["build"], { cwd: resolve(".") });
+  } else {
+    await run("node_modules/.bin/vite", ["build", "--outDir", root], { cwd: resolve(".") });
+  }
   await copyFile("target/wasm32-unknown-unknown/debug/enzo-wasm.wasm", join(root, "enzo-wasm.wasm"));
-  for (const f of ["index.html", "mq_js_bundle.js", "sapp_jsutils.js", "quad-storage.js", "ui.css"]) {
-    await copyFile(join("web", f), join(root, f));
-  }
-  for (const f of await readdir("web/ui")) {
-    if (f.endsWith(".js")) await copyFile(join("web/ui", f), join(root, "ui", f));
-  }
-  await copyFile("web/quad-storage.js", join(root, "quad-storage.js")); // ensure fixed plugin
-  // copy assets recursively (simple)
-  await run("bash", ["-lc", `cp -r assets/. '${root}/assets/' && touch '${root}/.nojekyll'`], { cwd: resolve(".") });
+  await run("bash", ["-lc", `mkdir -p '${root}/assets' && cp -r assets/. '${root}/assets/' && touch '${root}/.nojekyll'`], { cwd: resolve(".") });
   ok("dev dist assembled");
 }
 
@@ -60,12 +55,11 @@ async function checkNodeSyntax() {
     "scripts/smoke-web.mjs",
     "scripts/test-web.mjs",
     "scripts/serve.mjs",
-    "web/ui/main.js",
-    "web/ui/bridge.js",
-    "web/ui/mobile-controls.js",
-    "web/ui/state.js",
-    "web/ui/hud.js",
-    "web/ui/menus.js",
+    "web/src/main.js",
+    "web/src/bridge/bridge.js",
+    "web/src/state/uiState.js",
+    "web/src/lib/mobile.js",
+    "vite.config.mjs",
   ];
   for (const file of files) {
     try {
@@ -80,7 +74,7 @@ async function checkNodeSyntax() {
 async function checkArtifacts() {
   const required = [
     "index.html", "enzo-wasm.wasm", "mq_js_bundle.js", "sapp_jsutils.js",
-    "quad-storage.js", "ui.css", "ui/main.js", "ui/bridge.js", "ui/hud.js", "ui/menus.js", "assets",
+    "quad-storage.js", "ui.css", "ui/main.js", "assets",
   ];
   for (const rel of required) {
     try {
@@ -99,8 +93,10 @@ async function checkArtifacts() {
   else ok("quad-storage version not stale 0.1.4");
 
   const html = await readFile(join(root, "index.html"), "utf8");
-  if (html.includes('type="module"') && html.includes("ui/main.js")) ok("index.html loads modular UI");
-  else fail("index.html missing modular UI entry");
+  if (html.includes("glcanvas") && html.includes('id="dom-ui"') && html.includes("enzo-wasm.wasm")) ok("index.html has game shell");
+  else fail("index.html missing expected game shell");
+  if (html.includes("mq_js_bundle.js") && html.includes("sapp_jsutils.js") && html.includes("quad-storage.js")) ok("index.html loads miniquad plugins");
+  else fail("index.html missing miniquad plugins");
 }
 
 const mime = {

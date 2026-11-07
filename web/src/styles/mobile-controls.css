@@ -1,0 +1,52 @@
+.dom-controls-root {
+  pointer-events: none;
+}
+
+.ui-btn {
+  pointer-events: auto;
+  touch-action: none;
+  border: 1px solid var(--ui-btn-border);
+  border-radius: 14px;
+  background: var(--ui-btn);
+  color: var(--ui-text);
+  font: inherit;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+.ui-btn.active,
+.ui-btn:active {
+  background: var(--ui-btn-active);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.ui-label {
+  pointer-events: none;
+  line-height: 1;
+}
+
+.ui-btn[data-kind="slot"] .ui-label {
+  font-size: 18px;
+}
+
+.ui-btn[data-kind="slot"].slot-active {
+  border-color: #5ef2ff;
+  box-shadow: 0 0 0 1px rgba(94, 242, 255, 0.35) inset;
+}
+.ui-btn[data-kind="slot"].slot-locked { opacity: 0.55; }
+.ui-btn[data-kind="slot"].slot-cooldown { filter: saturate(0.7); }
+.ui-slot-cd {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  font-size: 9px;
+  color: #fff;
+  pointer-events: none;
+}
+
+@media (pointer: fine) and (min-width: 1100px) {
+  .dom-controls-root { opacity: 0.9; }
+}
