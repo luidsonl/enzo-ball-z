@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Barra fixa do jogador e toggles dos submenus.
 //!
 //! A barra nunca se move. Os quatro dots à direita abrem/fecham as janelas

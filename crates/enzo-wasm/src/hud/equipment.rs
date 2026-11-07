@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Conteúdo da janela de equipamentos.
 
 use enzo_core::entities::EquipSlot;

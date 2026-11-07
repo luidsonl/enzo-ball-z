@@ -22,7 +22,9 @@ mkdir -p dist/assets
 touch dist/.nojekyll
 
 cp "$WASM" dist/
-cp web/index.html web/mq_js_bundle.js web/sapp_jsutils.js web/quad-storage.js web/ui.js web/ui.css dist/
+cp web/index.html web/mq_js_bundle.js web/sapp_jsutils.js web/quad-storage.js web/ui.css dist/
+mkdir -p dist/ui
+cp web/ui/*.js dist/ui/
 cp -r assets/. dist/assets/
 
 echo "build ok: dist/"

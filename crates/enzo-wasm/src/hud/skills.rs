@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Conteúdo da janela de habilidades / slots.
 
 use enzo_core::snapshot::PlayerSnapshot;

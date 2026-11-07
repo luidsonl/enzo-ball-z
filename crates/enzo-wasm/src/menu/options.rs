@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Tela de opções do menu. Por enquanto, idioma e tamanho da fonte.
 
 use macroquad::prelude::*;

@@ -49,6 +49,7 @@ pub enum HudAction {
     OpenMenu,
 }
 
+#[allow(dead_code)]
 pub struct Hud {
     windows: [WindowState; WindowId::ALL.len()],
     /// Ordem de empilhamento; o último é o mais acima.
@@ -60,6 +61,7 @@ pub struct Hud {
     was_level_up: bool,
 }
 
+#[allow(dead_code)]
 impl Hud {
     pub fn new() -> Self {
         Self {
@@ -72,88 +74,20 @@ impl Hud {
         }
     }
 
-    /// Desenha o HUD inteiro e devolve no máximo uma ação de UI por frame.
-    ///
-    /// O clique é edge-triggered, então uma única ação por frame é suficiente.
+    /// Canvas HUD rendering removed; DOM/HTML UI is rendered from controller state.
     #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &mut self,
-        snapshot: &WorldSnapshot,
-        effects: &Effects,
-        i18n: I18n,
-        pointer: Pointer,
-        time: f32,
-        hint_timer: f32,
-        save_toast: Option<(&str, f32)>,
+        _snapshot: &WorldSnapshot,
+        _effects: &Effects,
+        _i18n: I18n,
+        _pointer: Pointer,
+        _time: f32,
+        _hint_timer: f32,
+        _save_toast: Option<(&str, f32)>,
     ) -> Option<HudAction> {
-        set_default_camera();
-        let ui = ui::ui_scale();
-        let screen = ui::screen_size();
-
-        if !self.initialized {
-            self.init_layout(ui, screen);
-            self.initialized = true;
-        }
-        for state in &mut self.windows {
-            state.pos =
-                pointer::clamp_window(state.pos, state.size, screen, WindowState::title_height(ui));
-        }
-
-        let (entity, player) = find_player(snapshot)?;
-
-        // Level-up abre a janela de status sozinho. O dot continua piscando se
-        // o jogador fechar a janela antes de gastar os pontos.
-        if snapshot.phase == GamePhase::LevelUp && !self.was_level_up {
-            self.open(WindowId::Status);
-        }
-        self.was_level_up = snapshot.phase == GamePhase::LevelUp;
-
-        let fixed = status::draw_fixed(
-            entity,
-            player,
-            effects,
-            i18n,
-            pointer,
-            time,
-            ui,
-            &self.windows,
-        );
-        if let Some(id) = fixed.toggle {
-            self.toggle(id);
-        }
-
-        let mut action = fixed.menu.then_some(HudAction::OpenMenu);
-
-        overlays::draw_phase_banner(snapshot, i18n, ui);
-        overlays::draw_hints(hint_timer, i18n, ui);
-        overlays::draw_save_toast(save_toast, i18n, ui);
-
-        if matches!(snapshot.phase, GamePhase::Playing | GamePhase::LevelUp) {
-            self.update_drag(pointer, screen, ui);
-            self.handle_pointer(pointer, ui);
-            if let Some(window_action) = self.draw_windows(pointer, player, i18n, ui) {
-                action = Some(window_action);
-            }
-        }
-
-        draw_flashes(effects, snapshot);
-
-        match snapshot.phase {
-            GamePhase::Playing => {}
-            GamePhase::LevelUp => overlays::draw_level_up_banner(player, i18n, ui),
-            GamePhase::Dead => {
-                if let Some(overlay_action) = overlays::draw_dead(snapshot, i18n, pointer, ui) {
-                    action = Some(overlay_action);
-                }
-            }
-            GamePhase::Victory => {
-                if let Some(overlay_action) = overlays::draw_victory(snapshot, i18n, pointer, ui) {
-                    action = Some(overlay_action);
-                }
-            }
-        }
-
-        action
+        // Canvas UI disabled: DOM UI is the active interface.
+        None
     }
 
     fn init_layout(&mut self, ui: f32, screen: Vec2) {
@@ -269,7 +203,7 @@ impl Hud {
         }
     }
 
-    fn open(&mut self, id: WindowId) {
+    pub fn open(&mut self, id: WindowId) {
         self.windows[id.index()].open = true;
         self.focus(id);
     }
@@ -311,6 +245,7 @@ impl Default for Hud {
     }
 }
 
+#[allow(dead_code)]
 fn default_pos(id: WindowId) -> Vec2 {
     match id {
         WindowId::Status => Vec2::new(430.0, 116.0),
@@ -320,6 +255,7 @@ fn default_pos(id: WindowId) -> Vec2 {
     }
 }
 
+#[allow(dead_code)]
 fn default_size(id: WindowId) -> Vec2 {
     match id {
         WindowId::Status => Vec2::new(360.0, 380.0),
@@ -329,6 +265,7 @@ fn default_size(id: WindowId) -> Vec2 {
     }
 }
 
+#[allow(dead_code)]
 fn draw_flashes(effects: &Effects, snapshot: &WorldSnapshot) {
     if effects.hurt_flash > 0.0 && snapshot.phase != GamePhase::Dead {
         draw_rectangle(
@@ -350,6 +287,7 @@ fn draw_flashes(effects: &Effects, snapshot: &WorldSnapshot) {
     }
 }
 
+#[allow(dead_code)]
 pub(super) fn find_player(snapshot: &WorldSnapshot) -> Option<(&EntitySnapshot, &PlayerSnapshot)> {
     snapshot
         .entities

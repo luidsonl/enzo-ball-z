@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Tela principal do menu.
 
 use macroquad::prelude::*;

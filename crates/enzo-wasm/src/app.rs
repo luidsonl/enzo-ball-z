@@ -30,6 +30,7 @@ use crate::sprites::Sprites;
 use crate::tiles::TileRenderer;
 use crate::ui;
 use crate::ui_bridge;
+use crate::ui_controller;
 
 /// Limite de tempo de frame aceito de uma vez. Evita "espiral da morte" quando
 /// a aba fica em segundo plano e o navegador entrega um delta enorme.
@@ -64,6 +65,7 @@ pub struct App {
     sprites: Sprites,
     i18n: I18n,
     pointer: Pointer,
+    ui_publish_accum: f32,
 }
 
 impl App {
@@ -73,6 +75,7 @@ impl App {
             sprites: Sprites::load(),
             i18n: I18n::new(save::load_language()),
             pointer: Pointer::default(),
+            ui_publish_accum: 0.0,
         };
 
         ui::set_interface_scale(save::load_interface_scale());
@@ -86,6 +89,12 @@ impl App {
             let frame_dt = get_frame_time().clamp(0.0, MAX_FRAME_TIME);
             self.pointer.poll();
 
+            let ui_actions = ui_bridge::drain_ui_actions();
+            let had_ui_actions = !ui_actions.is_empty();
+            if had_ui_actions {
+                self.handle_ui_actions(ui_actions);
+            }
+
             let transition = match &mut self.scene {
                 Scene::Menu(menu) => match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                     Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
@@ -93,6 +102,7 @@ impl App {
                     None => Transition::None,
                 },
                 Scene::Game(session) => {
+                    session.i18n = self.i18n;
                     if session.frame(frame_dt, self.pointer, &self.sprites) {
                         Transition::OpenMenu
                     } else {
@@ -100,7 +110,7 @@ impl App {
                     }
                 }
                 Scene::MenuOverGame { menu, game } => {
-                    // Jogo continua rodando em segundo plano (sem input do HUD).
+                    game.i18n = self.i18n;
                     let offscreen = Pointer::at(Vec2::new(-10_000.0, -10_000.0));
                     let _ = game.frame(frame_dt, offscreen, &self.sprites);
                     match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
@@ -111,46 +121,180 @@ impl App {
                 }
             };
 
-            match transition {
-                Transition::None => {}
-                Transition::Start { slot, save } => {
-                    let tiles = self.sprites.tiles_texture().clone();
-                    match GameSession::new(slot, save, tiles, self.i18n) {
-                        Ok(session) => self.scene = Scene::Game(Box::new(session)),
-                        Err(err) => {
-                            if let Scene::Menu(menu) = &mut self.scene {
-                                menu.notify(format!(
-                                    "{}: {err}",
-                                    self.i18n.t(Text::LevelLoadFailed)
-                                ));
-                            }
-                        }
+            self.apply_transition(transition);
+
+            // Publish UI state at a reduced rate to avoid JSON/DOM overhead every frame.
+            // Menus are stable; HUD cooldowns/bars update smoothly enough at ~15 Hz.
+            self.ui_publish_accum += frame_dt;
+            if had_ui_actions || self.ui_publish_accum >= (1.0 / 15.0) {
+                self.ui_publish_accum = 0.0;
+                match &self.scene {
+                    Scene::Menu(menu) => {
+                        ui_controller::publish("menu", None, Some(menu), self.i18n, None)
                     }
-                }
-                Transition::OpenMenu => {
-                    if let Scene::Game(mut game) =
-                        std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
-                    {
-                        let mut menu = Menu::new();
-                        menu.has_background_game = true;
-                        game.paused = true;
-                        self.scene = Scene::MenuOverGame { menu, game };
-                    } else {
-                        self.scene = Scene::Menu(Menu::new());
-                    }
-                }
-                Transition::Resume => {
-                    if let Scene::MenuOverGame { mut game, .. } =
-                        std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
-                    {
-                        game.paused = false;
-                        self.scene = Scene::Game(game);
-                    }
+                    Scene::Game(session) => ui_controller::publish(
+                        "game",
+                        Some(&session.current),
+                        None,
+                        self.i18n,
+                        session.game_toast_text(),
+                    ),
+                    Scene::MenuOverGame { menu, game } => ui_controller::publish(
+                        "menu_over_game",
+                        Some(&game.current),
+                        Some(menu),
+                        self.i18n,
+                        game.game_toast_text(),
+                    ),
                 }
             }
 
             next_frame().await;
         }
+    }
+
+    fn apply_transition(&mut self, transition: Transition) {
+        match transition {
+            Transition::None => {}
+            Transition::Start { slot, save } => {
+                let tiles = self.sprites.tiles_texture().clone();
+                match GameSession::new(slot, save, tiles, self.i18n) {
+                    Ok(session) => self.scene = Scene::Game(Box::new(session)),
+                    Err(err) => {
+                        if let Scene::Menu(menu) = &mut self.scene {
+                            menu.notify(format!("{}: {err}", self.i18n.t(Text::LevelLoadFailed)));
+                        }
+                    }
+                }
+            }
+            Transition::OpenMenu => {
+                if let Scene::Game(mut game) =
+                    std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
+                {
+                    let mut menu = Menu::new();
+                    menu.has_background_game = true;
+                    game.paused = true;
+                    self.scene = Scene::MenuOverGame { menu, game };
+                } else {
+                    self.scene = Scene::Menu(Menu::new());
+                }
+            }
+            Transition::Resume => {
+                if let Scene::MenuOverGame { mut game, .. } =
+                    std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
+                {
+                    game.paused = false;
+                    game.i18n = self.i18n;
+                    self.scene = Scene::Game(game);
+                }
+            }
+        }
+    }
+
+    fn handle_ui_actions(&mut self, actions: Vec<ui_bridge::UiAction>) {
+        use ui_bridge::UiAction;
+        let mut transition = Transition::None;
+        for action in actions {
+            match &mut self.scene {
+                Scene::Menu(menu) => {
+                    if let Some(menu_action) = menu.apply_ui_action(action, &mut self.i18n) {
+                        match menu_action {
+                            MenuAction::Start { slot, save } => {
+                                transition = Transition::Start { slot, save };
+                            }
+                            MenuAction::Resume => {}
+                        }
+                    }
+                }
+                Scene::Game(session) => match action {
+                    UiAction::HudAllocate { attribute } => {
+                        if let Some(attr) = Attribute::ALL.get(attribute as usize).copied() {
+                            session.pending_allocate = Some(attr);
+                        }
+                    }
+                    UiAction::HudConfirmLevelUp => session.pending_confirm = true,
+                    UiAction::HudRestart => session.pending_restart = true,
+                    UiAction::HudOpenMenu => {
+                        session.persist(Text::SaveReasonProgress);
+                        transition = Transition::OpenMenu;
+                    }
+                    UiAction::HudOpenSkills => session.hud.open(crate::hud::WindowId::Skills),
+                    UiAction::LoadoutAssign { slot, skill } => {
+                        if let (Some(slot), Some(skill)) = (
+                            enzo_core::input::ActionSlot::from_index(slot as usize),
+                            enzo_core::skills::SkillId::from_code(skill),
+                        ) {
+                            let _ = session.world.apply_loadout(
+                                0,
+                                enzo_core::skills::LoadoutRequest::Assign { slot, skill },
+                            );
+                        }
+                    }
+                    UiAction::LoadoutClear { slot } => {
+                        if let Some(slot) = enzo_core::input::ActionSlot::from_index(slot as usize)
+                        {
+                            let _ = session.world.apply_loadout(
+                                0,
+                                enzo_core::skills::LoadoutRequest::Clear { slot },
+                            );
+                        }
+                    }
+                    _ => {}
+                },
+                Scene::MenuOverGame { menu, game } => match action {
+                    UiAction::HudAllocate { attribute } => {
+                        if let Some(attr) = Attribute::ALL.get(attribute as usize).copied() {
+                            game.pending_allocate = Some(attr);
+                        }
+                    }
+                    UiAction::HudConfirmLevelUp => game.pending_confirm = true,
+                    UiAction::HudRestart => {
+                        game.pending_restart = true;
+                        transition = Transition::Resume;
+                    }
+                    UiAction::HudOpenSkills => game.hud.open(crate::hud::WindowId::Skills),
+                    UiAction::LoadoutAssign { slot, skill } => {
+                        if let (Some(slot), Some(skill)) = (
+                            enzo_core::input::ActionSlot::from_index(slot as usize),
+                            enzo_core::skills::SkillId::from_code(skill),
+                        ) {
+                            let _ = game.world.apply_loadout(
+                                0,
+                                enzo_core::skills::LoadoutRequest::Assign { slot, skill },
+                            );
+                        }
+                    }
+                    UiAction::LoadoutClear { slot } => {
+                        if let Some(slot) = enzo_core::input::ActionSlot::from_index(slot as usize)
+                        {
+                            let _ = game.world.apply_loadout(
+                                0,
+                                enzo_core::skills::LoadoutRequest::Clear { slot },
+                            );
+                        }
+                    }
+                    _ => {
+                        if let Some(menu_action) = menu.apply_ui_action(action, &mut self.i18n) {
+                            match menu_action {
+                                MenuAction::Start { slot, save } => {
+                                    transition = Transition::Start { slot, save };
+                                }
+                                MenuAction::Resume => transition = Transition::Resume,
+                            }
+                        }
+                    }
+                },
+            }
+            if !matches!(transition, Transition::None) {
+                break;
+            }
+        }
+
+        if let Scene::MenuOverGame { game, .. } = &mut self.scene {
+            game.i18n = self.i18n;
+        }
+
+        self.apply_transition(transition);
     }
 }
 
@@ -504,6 +648,10 @@ impl GameSession {
         if expired {
             self.save_toast = None;
         }
+    }
+
+    fn game_toast_text(&self) -> Option<&str> {
+        self.save_toast.as_ref().map(|(text, _)| text.as_str())
     }
 }
 

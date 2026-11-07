@@ -126,6 +126,7 @@ impl InputState {
         let move_x = axis(self.left, self.right);
         let move_y = axis(self.up, self.down);
         let mut slots = [SlotInput::default(); ActionSlot::COUNT];
+        #[allow(clippy::needless_range_loop)]
         for index in 0..ActionSlot::COUNT {
             slots[index] = SlotInput {
                 pressed: self.slots_pressed[index],
@@ -264,15 +265,17 @@ mod tests {
 
     #[test]
     fn consume_preserves_only_continuous_state() {
-        let mut input = InputState::default();
-        input.left = true;
-        input.up = true;
-        input.slots_pressed = [true, false, true, false];
-        input.slots_held = [true, false, true, true];
-        input.six = true;
-        input.allocate = Some(Attribute::Aura);
-        input.confirm = true;
-        input.restart = true;
+        let mut input = InputState {
+            left: true,
+            up: true,
+            slots_pressed: [true, false, true, false],
+            slots_held: [true, false, true, true],
+            six: true,
+            allocate: Some(Attribute::Aura),
+            confirm: true,
+            restart: true,
+            ..InputState::default()
+        };
 
         let command = input.take_command();
         assert_eq!(command.move_x, -1);

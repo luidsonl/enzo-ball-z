@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Tela de gerenciamento de saves.
 
 use macroquad::prelude::*;

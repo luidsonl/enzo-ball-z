@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Banners, dicas e telas de morte/vitória.
 //!
 //! As telas de fim têm botões clicáveis; o teclado (R/Enter) continua valendo

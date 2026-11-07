@@ -1,0 +1,321 @@
+//! UI controller: orchestrates menu/HUD/game UI state and DOM actions.
+//!
+//! The DOM/HTML layer interacts with Rust only through [`crate::ui_bridge`] exports.
+//! This controller owns the translation between semantic UI actions and game/menu
+//! state changes, and publishes serializable [`UiState`] for rendering.
+
+use enzo_core::input::Attribute;
+use enzo_core::progression::{xp_to_next, SaveData};
+use enzo_core::snapshot::{EntitySnapshot, WorldSnapshot};
+use serde::Serialize;
+
+use crate::i18n::{I18n, Text};
+use crate::menu::{Menu, MenuScreen};
+use crate::save::{self, SLOT_COUNT};
+use crate::ui_bridge::UiAction;
+
+// --- Serializable UI state (read by DOM) ---
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiLabels {
+    pub play: String,
+    pub resume: String,
+    pub options: String,
+    pub back: String,
+    pub saves_title: String,
+    pub options_title: String,
+    pub choose_slot: String,
+    pub slot: String,
+    pub empty_slot: String,
+    pub load: String,
+    pub new_game: String,
+    pub delete: String,
+    pub delete_confirm: String,
+    pub confirm: String,
+    pub cancel: String,
+    pub language: String,
+    pub interface_size: String,
+    pub mobile_controls: String,
+    pub on: String,
+    pub off: String,
+    pub auto: String,
+    pub level: String,
+    pub points: String,
+    pub menu: String,
+    pub restart: String,
+    pub level_up: String,
+    pub victory: String,
+    pub game_over: String,
+}
+
+impl UiLabels {
+    pub fn from_i18n(i18n: I18n) -> Self {
+        Self {
+            play: i18n.t(Text::Play).to_owned(),
+            resume: i18n.t(Text::Resume).to_owned(),
+            options: i18n.t(Text::Options).to_owned(),
+            back: i18n.t(Text::Back).to_owned(),
+            saves_title: i18n.t(Text::SavesTitle).to_owned(),
+            options_title: i18n.t(Text::OptionsTitle).to_owned(),
+            choose_slot: i18n.t(Text::ChooseSlot).to_owned(),
+            slot: i18n.t(Text::SlotLabel).to_owned(),
+            empty_slot: i18n.t(Text::EmptySlot).to_owned(),
+            load: i18n.t(Text::Load).to_owned(),
+            new_game: i18n.t(Text::NewGame).to_owned(),
+            delete: i18n.t(Text::Delete).to_owned(),
+            delete_confirm: i18n.t(Text::DeleteConfirm).to_owned(),
+            confirm: i18n.t(Text::Confirm).to_owned(),
+            cancel: i18n.t(Text::Cancel).to_owned(),
+            language: i18n.t(Text::Language).to_owned(),
+            interface_size: i18n.t(Text::InterfaceSize).to_owned(),
+            mobile_controls: i18n.t(Text::MobileControls).to_owned(),
+            on: i18n.t(Text::MobileControlsOn).to_owned(),
+            off: i18n.t(Text::MobileControlsOff).to_owned(),
+            auto: i18n.t(Text::MobileControlsAuto).to_owned(),
+            level: i18n.t(Text::LevelLabel).to_owned(),
+            points: i18n.t(Text::PointsLabel).to_owned(),
+            menu: i18n.t(Text::MenuButton).to_owned(),
+            restart: i18n.t(Text::RestartNow).to_owned(),
+            level_up: i18n.t(Text::LevelUpTitle).to_owned(),
+            victory: i18n.t(Text::VictoryTitle).to_owned(),
+            game_over: if i18n.language().code() == "en" {
+                "Game Over".to_owned()
+            } else {
+                "Fim de jogo".to_owned()
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSettings {
+    pub language: String,
+    pub mobile_controls: String,
+    pub interface_scale: f32,
+}
+
+impl UiSettings {
+    pub fn current() -> Self {
+        Self {
+            language: save::load_language().code().to_owned(),
+            mobile_controls: save::load_mobile_controls_mode().code().to_owned(),
+            interface_scale: save::load_interface_scale(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSlotSummary {
+    pub slot: u8,
+    pub occupied: bool,
+    pub level: Option<u32>,
+    pub xp: Option<f32>,
+    pub xp_to_next: Option<f32>,
+    pub points: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiMenuState {
+    pub screen: String,
+    pub has_background_game: bool,
+    pub pending_delete: Option<u8>,
+    pub slots: Vec<UiSlotSummary>,
+    pub toast: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSkillSlotState {
+    pub slot: u8,
+    pub skill: Option<u8>,
+    pub available: bool,
+    pub cooldown: f32,
+    pub cooldown_max: f32,
+    pub aura_cost: f32,
+    pub active: bool,
+    pub lock_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiAttributes {
+    pub speed: u32,
+    pub strength: u32,
+    pub health: u32,
+    pub aura: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiPlayerState {
+    pub health: f32,
+    pub max_health: f32,
+    pub aura: f32,
+    pub max_aura: f32,
+    pub level: u32,
+    pub xp: f32,
+    pub xp_to_next: f32,
+    pub points: u32,
+    pub attributes: UiAttributes,
+    pub slots: Vec<UiSkillSlotState>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiState {
+    pub scene: String,
+    pub phase: Option<String>,
+    pub player: Option<UiPlayerState>,
+    pub menu: Option<UiMenuState>,
+    pub game_toast: Option<String>,
+    pub settings: UiSettings,
+    pub labels: UiLabels,
+}
+
+// --- State building ---
+
+fn slot_summary(slot: usize, data: Option<&SaveData>) -> UiSlotSummary {
+    match data {
+        Some(data) => UiSlotSummary {
+            slot: slot as u8,
+            occupied: true,
+            level: Some(data.level),
+            xp: Some(data.xp),
+            xp_to_next: Some(xp_to_next(data.level)),
+            points: Some(data.points),
+        },
+        None => UiSlotSummary {
+            slot: slot as u8,
+            occupied: false,
+            level: None,
+            xp: None,
+            xp_to_next: None,
+            points: None,
+        },
+    }
+}
+
+fn menu_state(menu: &Menu) -> UiMenuState {
+    let screen = match menu.current() {
+        MenuScreen::Main => "main",
+        MenuScreen::Saves => "saves",
+        MenuScreen::Options => "options",
+    };
+    let mut slots = Vec::with_capacity(SLOT_COUNT);
+    for i in 0..SLOT_COUNT {
+        slots.push(slot_summary(i, menu.slot(i)));
+    }
+    UiMenuState {
+        screen: screen.to_owned(),
+        has_background_game: menu.has_background_game,
+        pending_delete: menu.pending_delete_slot().map(|s| s as u8),
+        slots,
+        toast: menu.toast_text().map(|s: &str| s.to_owned()),
+    }
+}
+
+fn player_state(entity: &EntitySnapshot) -> Option<UiPlayerState> {
+    let p = entity.player.as_ref()?;
+    let slots = p
+        .slots
+        .iter()
+        .enumerate()
+        .map(|(i, slot)| UiSkillSlotState {
+            slot: i as u8,
+            skill: slot.skill.map(|s| s.code()),
+            available: slot.available,
+            cooldown: slot.cooldown,
+            cooldown_max: slot.cooldown_max,
+            aura_cost: slot.aura_cost,
+            active: slot.active,
+            lock_reason: slot.lock.as_ref().map(|l| format!("{:?}", l)),
+        })
+        .collect();
+    Some(UiPlayerState {
+        health: entity.health,
+        max_health: entity.max_health,
+        aura: p.aura,
+        max_aura: p.max_aura,
+        level: p.level,
+        xp: p.xp,
+        xp_to_next: p.xp_to_next,
+        points: p.points,
+        attributes: UiAttributes {
+            speed: p.attributes.speed,
+            strength: p.attributes.strength,
+            health: p.attributes.health,
+            aura: p.attributes.aura,
+        },
+        slots,
+    })
+}
+
+pub fn build_state(
+    scene: &str,
+    snapshot: Option<&WorldSnapshot>,
+    menu: Option<&Menu>,
+    i18n: I18n,
+    game_toast: Option<&str>,
+) -> UiState {
+    let (phase, player) = if let Some(snapshot) = snapshot {
+        (
+            Some(format!("{:?}", snapshot.phase)),
+            snapshot.player().and_then(player_state),
+        )
+    } else {
+        (None, None)
+    };
+    UiState {
+        scene: scene.to_owned(),
+        phase,
+        player,
+        menu: menu.map(menu_state),
+        game_toast: game_toast.map(|s| s.to_owned()),
+        settings: UiSettings::current(),
+        labels: UiLabels::from_i18n(i18n),
+    }
+}
+
+pub fn publish(
+    scene: &str,
+    snapshot: Option<&WorldSnapshot>,
+    menu: Option<&Menu>,
+    i18n: I18n,
+    game_toast: Option<&str>,
+) {
+    let state = build_state(scene, snapshot, menu, i18n, game_toast);
+    if let Ok(json) = serde_json::to_string(&state) {
+        crate::ui_bridge::set_ui_state_json(json);
+    }
+}
+
+// --- Action handling (semantic, no game rules in DOM) ---
+
+/// Apply menu-only UI actions. Returns `true` if the action was handled as a menu action.
+pub fn apply_menu_action(
+    menu: &mut Menu,
+    action: UiAction,
+    i18n: &mut I18n,
+) -> Option<crate::menu::MenuAction> {
+    match action {
+        UiAction::MenuBack => {
+            if menu.pending_delete_slot().is_some() {
+                menu.apply_ui_action(UiAction::MenuCancelDelete, i18n);
+            } else {
+                menu.apply_ui_action(UiAction::MenuBack, i18n);
+            }
+            None
+        }
+        UiAction::MenuOpenSaves
+        | UiAction::MenuOpenOptions
+        | UiAction::MenuStart { .. }
+        | UiAction::MenuResume
+        | UiAction::MenuRequestDelete { .. }
+        | UiAction::MenuCancelDelete
+        | UiAction::MenuConfirmDelete
+        | UiAction::SetLanguage { .. }
+        | UiAction::SetMobileControls { .. }
+        | UiAction::SetInterfaceScale { .. } => menu.apply_ui_action(action, i18n),
+        _ => None,
+    }
+}
+
+pub fn attribute_from_code(code: u8) -> Option<Attribute> {
+    Attribute::ALL.get(code as usize).copied()
+}

@@ -1,8 +1,9 @@
-//! DOM/HTML UI bridge.
+//! DOM/HTML UI bridge (FFI transport layer).
 //!
-//! The HTML/mobile UI emits semantic [`InputAction`] codes and loadout requests.
-//! Rust exports functions for JS to call, and merges virtual actions into input.
-//! This bridge must not contain game rules.
+//! The HTML/JS DOM layer interacts with Rust only through the exported functions
+//! in this module. Semantic UI actions are queued and consumed by the app/UI
+//! controller; virtual input actions are merged into gameplay input. This module
+//! must not contain game rules.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -15,13 +16,64 @@ pub struct VirtualActionState {
     pub held: bool,
 }
 
+/// Semantic UI actions emitted by DOM. The controller/app owns behavior.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UiAction {
+    MenuBack,
+    MenuOpenSaves,
+    MenuOpenOptions,
+    MenuStart { slot: u8, new_game: bool },
+    MenuResume,
+    MenuRequestDelete { slot: u8 },
+    MenuCancelDelete,
+    MenuConfirmDelete,
+    SetLanguage { code: u8 }, // 0=pt-BR, 1=en
+    SetMobileControls { mode: u8 },
+    SetInterfaceScale { percent: u16 },
+    HudAllocate { attribute: u8 },
+    HudConfirmLevelUp,
+    HudRestart,
+    HudOpenMenu,
+    HudOpenSkills,
+    LoadoutAssign { slot: u8, skill: u8 },
+    LoadoutClear { slot: u8 },
+}
+
+impl UiAction {
+    /// Parse the generic `enzo_ui_action` FFI payload.
+    pub fn from_ffi(code: u8, a: u8, b: u8, _c: u8) -> Option<Self> {
+        Some(match code {
+            1 => UiAction::MenuBack,
+            2 => UiAction::MenuOpenSaves,
+            3 => UiAction::MenuOpenOptions,
+            4 => UiAction::MenuStart {
+                slot: a,
+                new_game: b != 0,
+            },
+            5 => UiAction::MenuResume,
+            6 => UiAction::MenuRequestDelete { slot: a },
+            7 => UiAction::MenuCancelDelete,
+            8 => UiAction::MenuConfirmDelete,
+            9 => UiAction::SetLanguage { code: a },
+            10 => UiAction::SetMobileControls { mode: a },
+            11 => UiAction::SetInterfaceScale {
+                percent: (a as u16) * 256 + b as u16,
+            },
+            12 => UiAction::HudAllocate { attribute: a },
+            13 => UiAction::HudConfirmLevelUp,
+            14 => UiAction::HudRestart,
+            15 => UiAction::HudOpenMenu,
+            16 => UiAction::HudOpenSkills,
+            _ => return None,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct BridgeState {
     pub actions: [VirtualActionState; InputAction::COUNT],
     pub ui_state_json: String,
-    pub ui_state_dirty: bool,
-    pub pending_loadout: VecDeque<(u8, u8)>, // (slot, skill) - placeholder protocol
-    pub pending_clear: VecDeque<u8>,
+    pub pending_ui_actions: VecDeque<UiAction>,
     /// 0=off, 1=on, 2=auto (default).
     pub mobile_controls_mode: u8,
 }
@@ -60,24 +112,20 @@ pub fn action_down(code: u8) {
 pub fn action_up(code: u8) {
     if let Some(action) = InputAction::from_code(code) {
         with_bridge_mut(|b| {
-            let s = &mut b.actions[action.code() as usize];
-            s.held = false;
+            b.actions[action.code() as usize].held = false;
         });
     }
 }
 
-/// Takes accumulated virtual state for `action` and clears its pressed edge.
 pub fn take_virtual_action(action: InputAction) -> VirtualActionState {
     with_bridge_mut(|b| {
         let idx = action.code() as usize;
         let state = b.actions[idx];
         b.actions[idx].pressed = false;
-        // Keep held until action_up is received.
         state
     })
 }
 
-/// Peeks virtual held/pressed without consuming pressed (used for polling merge).
 pub fn peek_virtual_action(action: InputAction) -> VirtualActionState {
     with_bridge(|b| b.actions[action.code() as usize])
 }
@@ -86,11 +134,16 @@ pub fn clear_virtual_pressed(action: InputAction) {
     with_bridge_mut(|b| b.actions[action.code() as usize].pressed = false);
 }
 
+pub fn push_ui_action(action: UiAction) {
+    with_bridge_mut(|b| b.pending_ui_actions.push_back(action));
+}
+
+pub fn drain_ui_actions() -> Vec<UiAction> {
+    with_bridge_mut(|b| b.pending_ui_actions.drain(..).collect())
+}
+
 pub fn set_ui_state_json(json: String) {
-    with_bridge_mut(|b| {
-        b.ui_state_dirty = b.ui_state_json != json;
-        b.ui_state_json = json;
-    });
+    with_bridge_mut(|b| b.ui_state_json = json);
 }
 
 pub fn ui_state_json() -> String {
@@ -105,30 +158,39 @@ pub fn mobile_controls_mode() -> u8 {
     with_bridge(|b| b.mobile_controls_mode)
 }
 
-// --- Wasm exports for JS (miniquad/macroquad style) ---
+// --- Wasm exports for JS ---
 
-/// JS -> Rust: semantic action pressed.
 #[no_mangle]
 pub extern "C" fn enzo_action_down(code: u8) {
     action_down(code);
 }
 
-/// JS -> Rust: semantic action released.
 #[no_mangle]
 pub extern "C" fn enzo_action_up(code: u8) {
     action_up(code);
 }
 
-/// JS -> Rust: request loadout assignment (slot index, skill code). Placeholder.
 #[no_mangle]
 pub extern "C" fn enzo_loadout_assign(slot: u8, skill: u8) {
-    with_bridge_mut(|b| b.pending_loadout.push_back((slot, skill)));
+    push_ui_action(UiAction::LoadoutAssign { slot, skill });
 }
 
-/// JS -> Rust: request loadout clear (slot index). Placeholder.
 #[no_mangle]
 pub extern "C" fn enzo_loadout_clear(slot: u8) {
-    with_bridge_mut(|b| b.pending_clear.push_back(slot));
+    push_ui_action(UiAction::LoadoutClear { slot });
+}
+
+/// Generic UI action bridge.
+/// Codes:
+/// 1=menu back, 2=open saves, 3=open options, 4=start(slot=a,new=b),
+/// 5=resume, 6=request delete(slot=a), 7=cancel delete, 8=confirm delete,
+/// 9=set language(a), 10=set mobile controls(a), 11=set interface scale percent(a*256+b),
+/// 12=allocate attribute(a), 13=confirm level up, 14=restart, 15=open menu, 16=open skills
+#[no_mangle]
+pub extern "C" fn enzo_ui_action(code: u8, a: u8, b: u8, c: u8) {
+    if let Some(action) = UiAction::from_ffi(code, a, b, c) {
+        push_ui_action(action);
+    }
 }
 
 thread_local! {
@@ -138,27 +200,23 @@ thread_local! {
 fn refresh_ui_state_buf() -> usize {
     UI_STATE_BUF.with(|buf| {
         let mut buf = buf.borrow_mut();
-        let json = ui_state_json();
         buf.clear();
-        buf.extend_from_slice(json.as_bytes());
+        buf.extend_from_slice(ui_state_json().as_bytes());
         buf.len()
     })
 }
 
-/// Returns pointer to UTF-8 UI state JSON bytes (valid until next refresh call).
 #[no_mangle]
 pub extern "C" fn enzo_ui_state_ptr() -> *const u8 {
     refresh_ui_state_buf();
     UI_STATE_BUF.with(|buf| buf.borrow().as_ptr())
 }
 
-/// Returns length of the last refreshed UI state JSON buffer.
 #[no_mangle]
 pub extern "C" fn enzo_ui_state_len() -> u32 {
     UI_STATE_BUF.with(|buf| buf.borrow().len() as u32)
 }
 
-/// Returns mobile controls mode: 0=off, 1=on, 2=auto.
 #[no_mangle]
 pub extern "C" fn enzo_mobile_controls_mode() -> u8 {
     mobile_controls_mode()
@@ -171,7 +229,6 @@ mod tests {
 
     #[test]
     fn virtual_action_roundtrip() {
-        // Reset relevant action
         action_up(InputAction::Slot1.code());
         let _ = take_virtual_action(InputAction::Slot1);
 
@@ -190,5 +247,29 @@ mod tests {
     fn ignores_unknown_action_codes() {
         action_down(255);
         action_up(255);
+        enzo_ui_action(255, 0, 0, 0);
+    }
+
+    #[test]
+    fn ui_action_queue_drains() {
+        let _ = drain_ui_actions();
+        push_ui_action(UiAction::MenuBack);
+        push_ui_action(UiAction::HudOpenMenu);
+        let actions = drain_ui_actions();
+        assert_eq!(actions.len(), 2);
+        assert!(drain_ui_actions().is_empty());
+    }
+
+    #[test]
+    fn parses_ffi_ui_actions() {
+        assert_eq!(UiAction::from_ffi(1, 0, 0, 0), Some(UiAction::MenuBack));
+        assert_eq!(
+            UiAction::from_ffi(4, 2, 1, 0),
+            Some(UiAction::MenuStart {
+                slot: 2,
+                new_game: true
+            })
+        );
+        assert_eq!(UiAction::from_ffi(255, 0, 0, 0), None);
     }
 }

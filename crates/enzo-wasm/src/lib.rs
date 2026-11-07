@@ -19,6 +19,7 @@ pub mod sprites;
 pub mod tiles;
 pub mod ui;
 pub mod ui_bridge;
+pub mod ui_controller;
 
 use macroquad::prelude::Conf;
 

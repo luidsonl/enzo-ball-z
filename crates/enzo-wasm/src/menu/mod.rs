@@ -19,10 +19,6 @@ use crate::pointer::Pointer;
 use crate::save;
 use crate::ui::{self, rgba, GOLD};
 
-use main::draw as draw_main;
-use options::draw as draw_options;
-use saves::draw as draw_saves;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuScreen {
     Main,
@@ -40,6 +36,7 @@ pub enum MenuAction {
 
 /// Eventos internos produzidos por uma tela. O `Menu` aplica depois de desenhar,
 /// mantendo a pilha e a persistência em um único lugar.
+#[allow(dead_code)]
 pub(super) enum MenuEvent {
     Push(MenuScreen),
     Back,
@@ -80,8 +77,113 @@ impl Menu {
         self.toast = Some((text.into(), 2.6));
     }
 
-    pub(super) fn current(&self) -> MenuScreen {
+    pub fn current(&self) -> MenuScreen {
         self.screens.last().copied().unwrap_or(MenuScreen::Main)
+    }
+
+    pub fn slot(&self, slot: usize) -> Option<&SaveData> {
+        self.slots.get(slot).and_then(|s| s.as_ref())
+    }
+
+    pub fn pending_delete_slot(&self) -> Option<usize> {
+        self.pending_delete
+    }
+
+    pub fn toast_text(&self) -> Option<&str> {
+        self.toast.as_ref().map(|(text, _)| text.as_str())
+    }
+
+    /// Apply a semantic UI action from the DOM bridge. Returns a scene-level action.
+    pub fn apply_ui_action(
+        &mut self,
+        action: crate::ui_bridge::UiAction,
+        i18n: &mut I18n,
+    ) -> Option<MenuAction> {
+        use crate::ui_bridge::UiAction;
+        match action {
+            UiAction::MenuBack => {
+                if self.pending_delete.is_some() {
+                    self.pending_delete = None;
+                } else {
+                    self.back();
+                }
+                None
+            }
+            UiAction::MenuOpenSaves => {
+                self.push(MenuScreen::Saves);
+                None
+            }
+            UiAction::MenuOpenOptions => {
+                self.push(MenuScreen::Options);
+                None
+            }
+            UiAction::MenuStart { slot, new_game } => {
+                let slot = slot as usize;
+                if slot >= save::SLOT_COUNT {
+                    return None;
+                }
+                let save = if new_game { None } else { self.slots[slot] };
+                Some(MenuAction::Start { slot, save })
+            }
+            UiAction::MenuResume => Some(MenuAction::Resume),
+            UiAction::MenuRequestDelete { slot } => {
+                let slot = slot as usize;
+                if slot < save::SLOT_COUNT && self.slots[slot].is_some() {
+                    self.pending_delete = Some(slot);
+                }
+                None
+            }
+            UiAction::MenuCancelDelete => {
+                self.pending_delete = None;
+                None
+            }
+            UiAction::MenuConfirmDelete => {
+                if let Some(slot) = self.pending_delete.take() {
+                    match save::delete_slot(slot) {
+                        Ok(()) => {
+                            self.refresh_slots();
+                            self.toast =
+                                Some((format!("{} {}", i18n.t(Text::SlotDeleted), slot + 1), 1.4));
+                        }
+                        Err(err) => {
+                            self.toast =
+                                Some((format!("{}: {err}", i18n.t(Text::SaveFailed)), 2.4));
+                        }
+                    }
+                }
+                None
+            }
+            UiAction::SetLanguage { code } => {
+                let language = if code == 1 {
+                    Language::English
+                } else {
+                    Language::PtBr
+                };
+                i18n.set_language(language);
+                if let Err(err) = save::store_language(language) {
+                    self.toast = Some((format!("{}: {err}", i18n.t(Text::SaveFailed)), 2.4));
+                }
+                None
+            }
+            UiAction::SetMobileControls { mode } => {
+                let mode = save::MobileControlsMode::from_code(match mode {
+                    0 => "off",
+                    1 => "on",
+                    _ => "auto",
+                })
+                .unwrap_or_default();
+                let _ = save::store_mobile_controls_mode(mode);
+                crate::ui_bridge::set_mobile_controls_mode(mode.bridge_code());
+                None
+            }
+            UiAction::SetInterfaceScale { percent } => {
+                let scale = (percent as f32 / 100.0).clamp(0.75, 2.0);
+                crate::ui::set_interface_scale(scale);
+                let _ = save::store_interface_scale(scale);
+                None
+            }
+            _ => None,
+        }
     }
 
     fn push(&mut self, screen: MenuScreen) {
@@ -98,10 +200,11 @@ impl Menu {
     }
 
     /// Atualiza o menu e devolve a ação que o `app` deve executar.
+    /// Tick menu state. Canvas menu UI is disabled; DOM UI renders state and emits actions.
     pub fn frame(
         &mut self,
-        pointer: Pointer,
-        i18n: &mut I18n,
+        _pointer: Pointer,
+        _i18n: &mut I18n,
         frame_dt: f32,
     ) -> Option<MenuAction> {
         self.time += frame_dt;
@@ -111,50 +214,11 @@ impl Menu {
                 self.toast = None;
             }
         }
-
-        let ui = ui::ui_scale();
-        if !self.has_background_game {
-            draw_menu_background(self.time, ui);
-        }
-
-        let event = if self.pending_delete.is_some() {
-            None
-        } else {
-            match self.current() {
-                MenuScreen::Main => {
-                    draw_main(pointer, *i18n, ui, self.time, self.has_background_game)
-                }
-                MenuScreen::Saves => draw_saves(pointer, *i18n, ui, self.time, self),
-                MenuScreen::Options => draw_options(pointer, i18n, ui, self.time),
-            }
-        };
-
-        let mut action = None;
-        if self.pending_delete.is_some() {
-            // O modal bloqueia a tela de baixo: cliques fora dele não podem
-            // navegar nem iniciar uma partida enquanto a confirmação está aberta.
-            self.draw_delete_modal(pointer, *i18n, ui);
-        } else if let Some(event) = event {
-            match event {
-                MenuEvent::Push(screen) => self.push(screen),
-                MenuEvent::Back => self.back(),
-                MenuEvent::Start { slot, save } => action = Some(MenuAction::Start { slot, save }),
-                MenuEvent::Resume => action = Some(MenuAction::Resume),
-                MenuEvent::RequestDelete(slot) => self.pending_delete = Some(slot),
-                MenuEvent::SetLanguage(language) => {
-                    i18n.set_language(language);
-                    if let Err(err) = save::store_language(language) {
-                        self.toast = Some((format!("{}: {err}", i18n.t(Text::SaveFailed)), 2.4));
-                    }
-                }
-            }
-        }
-
-        draw_toast(self.toast.as_ref(), ui);
-
-        action
+        // Canvas UI removed: DOM/controller handles menu rendering and actions.
+        None
     }
 
+    #[allow(dead_code)]
     fn draw_delete_modal(&mut self, pointer: Pointer, i18n: I18n, ui: f32) {
         let overlay = rgba(4, 4, 12, 190);
         draw_rectangle(0.0, 0.0, screen_width(), screen_height(), overlay);
@@ -214,6 +278,7 @@ impl Default for Menu {
     }
 }
 
+#[allow(dead_code)]
 pub(super) fn slot_summary(i18n: I18n, data: &SaveData) -> String {
     let level = i18n.t(Text::LevelLabel);
     let points = i18n.t(Text::PointsLabel);
@@ -228,6 +293,7 @@ pub(super) fn slot_summary(i18n: I18n, data: &SaveData) -> String {
     )
 }
 
+#[allow(dead_code)]
 fn draw_menu_background(time: f32, ui: f32) {
     let width = screen_width();
     let height = screen_height();
@@ -263,6 +329,7 @@ fn draw_menu_background(time: f32, ui: f32) {
     }
 }
 
+#[allow(dead_code)]
 fn draw_toast(toast: Option<&(String, f32)>, ui: f32) {
     let Some((label, remaining)) = toast else {
         return;
