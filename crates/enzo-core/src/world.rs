@@ -166,7 +166,7 @@ impl World {
             };
             let player_id = index as PlayerId;
             match self.phase {
-                GamePhase::Playing => self.apply_playing_command(player_id, command),
+                GamePhase::Playing => self.apply_playing_command(player_id, command, &mut events),
                 GamePhase::LevelUp => self.apply_level_up_command(player_id, command, &mut events),
                 GamePhase::Dead | GamePhase::Victory => {
                     if command.restart {
@@ -186,7 +186,33 @@ impl World {
         TickOutput::new(events)
     }
 
-    fn apply_playing_command(&mut self, player_id: PlayerId, command: PlayerCommand) {
+    fn apply_playing_command(
+        &mut self,
+        player_id: PlayerId,
+        command: PlayerCommand,
+        events: &mut Vec<GameEvent>,
+    ) {
+        let Some(entity_id) = self.store.player_entity_id(player_id) else {
+            return;
+        };
+
+        if let Some(attribute) = command.allocate {
+            if let Some(entity) = self.store.get_mut(entity_id) {
+                if progression::allocate_point(entity, attribute) {
+                    events.push(GameEvent::AttributeAllocated {
+                        player: entity_id,
+                        attribute,
+                    });
+                }
+            }
+        }
+
+        if command.confirm {
+            if let Some(entity) = self.store.get_mut(entity_id) {
+                progression::confirm_level_up(entity);
+            }
+        }
+
         let Some(entity) = self.store.player_mut(player_id) else {
             return;
         };
