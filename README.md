@@ -15,6 +15,9 @@ headless tests, and, in the future, on an authoritative server.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — harness, contracts, and build.
 - [`docs/ACTIONS_AND_SKILLS.md`](docs/ACTIONS_AND_SKILLS.md) — action slots,
   modular skills, and mobile controls (plan and implementation status).
+- [`docs/ANIMATION_AND_CUSTOMIZATION_PLAN.md`](docs/ANIMATION_AND_CUSTOMIZATION_PLAN.md) —
+  entity animation states, layered character customization, skill visuals, and
+  pixel-art asset pipeline recommendations.
 - [`AGENTS.md`](AGENTS.md) — conventions for coding agents.
 
 ## Development
