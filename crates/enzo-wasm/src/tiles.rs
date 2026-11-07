@@ -1,16 +1,14 @@
-//! Cache de tiles em chunks.
+//! Chunked tile cache.
 //!
-//! Em vez de percorrer e desenhar todos os tiles do mapa a cada frame, cada
-//! chunk visível vira uma malha estática uma única vez. Chunks fora da câmera
-//! nunca são construídos, então mapas grandes não pagam o custo inteiro na
-//! inicialização.
+//! Instead of drawing every map tile each frame, each visible chunk becomes a
+//! static mesh built once. Chunks outside the camera are never built.
 
-use enzo_core::map::{Level, Tile, TILE_SIZE};
+use enzo_core::map::{Level, RenderKind, TILE_SIZE};
 use macroquad::prelude::*;
 
-use crate::sprites::{tile, TILE_CELL};
+use crate::sprites::{self, TILE_CELL};
 
-/// Lado de um chunk em tiles. 16x16 cobre 512x512 px de mundo.
+/// Chunk side in tiles. 16x16 covers 512x512 px of world space.
 pub const CHUNK_TILES: i32 = 16;
 const CHUNK_PX: f32 = CHUNK_TILES as f32 * TILE_SIZE;
 
@@ -22,8 +20,8 @@ pub struct ChunkRange {
     pub max_y: usize,
 }
 
-/// Chunks que tocam a câmera, com uma margem de um chunk para evitar pop-in.
-/// Retorna `None` para mapas vazios.
+/// Chunks touching the camera, with a one-chunk margin to avoid pop-in.
+/// Returns `None` for empty maps.
 pub fn visible_chunks(view: Rect, cols: usize, rows: usize) -> Option<ChunkRange> {
     if cols == 0 || rows == 0 {
         return None;
@@ -69,7 +67,10 @@ impl TileRenderer {
         }
     }
 
-    /// Constrói sob demanda e desenha apenas os chunks que tocam a câmera.
+    /// Builds and draws chunks touching the camera.
+    ///
+    /// Chunks are rebuilt when drawn so destructible/dynamic block states remain
+    /// visible. If performance becomes an issue, add dirty-chunk invalidation.
     pub fn draw(&mut self, level: &Level, view: Rect) {
         let Some(range) = visible_chunks(view, self.cols, self.rows) else {
             return;
@@ -78,11 +79,9 @@ impl TileRenderer {
         for cy in range.min_y..=range.max_y {
             for cx in range.min_x..=range.max_x {
                 let index = cy * self.cols + cx;
-                if self.chunks[index].is_none() {
-                    self.chunks[index] =
-                        Some(build_chunk(level, cx, cy, &self.texture, self.atlas));
-                    self.built += 1;
-                }
+                let mesh = build_chunk(level, cx, cy, &self.texture, self.atlas);
+                self.built = self.built.max(index + 1);
+                self.chunks[index] = Some(mesh);
                 if let Some(mesh) = &self.chunks[index] {
                     if !mesh.vertices.is_empty() {
                         draw_mesh(mesh);
@@ -113,17 +112,33 @@ fn build_chunk(level: &Level, cx: usize, cy: usize, texture: &Texture2D, atlas: 
     for ty in start_y..end_y {
         for tx in start_x..end_x {
             let tile = level.tile_at(tx, ty);
-            let frame = match tile {
-                Tile::Empty => continue,
-                Tile::Ground => {
+            let frame = match tile.render_kind() {
+                RenderKind::Empty => continue,
+                RenderKind::Ground => {
                     if level.tile_at(tx, ty - 1).is_solid() {
-                        tile::GROUND_FILL
+                        sprites::tile::GROUND_FILL
                     } else {
-                        tile::GROUND_TOP
+                        sprites::tile::GROUND_TOP
                     }
                 }
-                Tile::Block => tile::BLOCK,
-                Tile::Platform => tile::PLATFORM,
+                RenderKind::Block => sprites::tile::BLOCK,
+                RenderKind::Platform => sprites::tile::PLATFORM,
+                RenderKind::Crate => {
+                    let damage = if tx >= 0 && ty >= 0 {
+                        level.block_damage(tx as usize, ty as usize)
+                    } else {
+                        0
+                    };
+                    match damage {
+                        0 => sprites::tile::CRATE,
+                        1 => sprites::tile::CRATE_DAMAGED_1,
+                        _ => sprites::tile::CRATE_DAMAGED_2,
+                    }
+                }
+                // Placeholders until dedicated sprites are generated via pixel-forge.
+                RenderKind::Water => sprites::tile::PLATFORM,
+                RenderKind::Ladder => sprites::tile::BLOCK,
+                RenderKind::Flag => sprites::tile::BLOCK,
             };
             push_tile(&mut vertices, &mut indices, tx, ty, frame, atlas);
         }

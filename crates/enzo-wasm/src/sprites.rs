@@ -27,6 +27,9 @@ pub mod tile {
     pub const GROUND_FILL: usize = 1;
     pub const BLOCK: usize = 2;
     pub const PLATFORM: usize = 3;
+    pub const CRATE: usize = 4;
+    pub const CRATE_DAMAGED_1: usize = 5;
+    pub const CRATE_DAMAGED_2: usize = 6;
 }
 
 /// Enzo sheet frame indices.

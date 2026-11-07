@@ -548,7 +548,10 @@ impl GameSession {
                     }
                     self.camera.add_shake(1.0);
                 }
-                GameEvent::SkillActivated { .. } | GameEvent::LoadoutChanged { .. } => {}
+                GameEvent::SkillActivated { .. }
+                | GameEvent::LoadoutChanged { .. }
+                | GameEvent::BlockDamaged { .. }
+                | GameEvent::BlockDestroyed { .. } => {}
                 GameEvent::PlayerDamaged { player, damage, .. } => {
                     if let Some(pos) = entity_center(&self.current, player) {
                         self.effects.hurt(pos);
