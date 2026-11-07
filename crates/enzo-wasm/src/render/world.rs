@@ -1,7 +1,7 @@
 //! Desenho do mundo: tiles, entidades, projéteis e efeitos.
 
-use enzo_core::attacks::melee::MELEE_ANIM_TIME;
 use enzo_core::map::Level;
+use enzo_core::skills::melee::MELEE_ANIM_TIME;
 use enzo_core::snapshot::{EntitySnapshot, PlayerSnapshot, SnapshotKind, WorldSnapshot};
 use macroquad::prelude::*;
 
@@ -72,7 +72,10 @@ fn draw_items(
     time: f32,
 ) {
     for entity in &current.entities {
-        let SnapshotKind::Item(data) = &entity.kind else {
+        if entity.kind != SnapshotKind::Item {
+            continue;
+        }
+        let Some(data) = entity.item.as_ref() else {
             continue;
         };
         let pos = interpolate(previous, entity, alpha);
@@ -96,7 +99,10 @@ fn draw_enemies(
     time: f32,
 ) {
     for entity in &current.entities {
-        let SnapshotKind::Enemy(data) = &entity.kind else {
+        if entity.kind != SnapshotKind::Enemy {
+            continue;
+        }
+        let Some(data) = entity.enemy.as_ref() else {
             continue;
         };
         let pos = interpolate(previous, entity, alpha);
@@ -142,7 +148,7 @@ fn draw_projectiles(
     time: f32,
 ) {
     for entity in &current.entities {
-        if !matches!(entity.kind, SnapshotKind::Projectile(_)) {
+        if entity.kind != SnapshotKind::Projectile {
             continue;
         }
         let pos = interpolate(previous, entity, alpha);
@@ -153,7 +159,7 @@ fn draw_projectiles(
         for index in 1..4 {
             let trail = center - vec2(direction * index as f32 * 8.0, 0.0);
             sprites.draw_fx(
-                fx::MOGAR,
+                fx::MOGGING,
                 Rect::new(trail.x - 16.0, trail.y - 16.0, 32.0, 32.0),
                 direction < 0.0,
                 rgba(255, 255, 255, 40 - index as u8 * 8),
@@ -168,7 +174,7 @@ fn draw_projectiles(
             rgba(94, 242, 255, 28),
         );
         sprites.draw_fx(
-            fx::MOGAR,
+            fx::MOGGING,
             Rect::new(center.x - 16.0, center.y - 16.0, 32.0, 32.0),
             direction < 0.0,
             WHITE,
@@ -184,7 +190,10 @@ fn draw_players(
     time: f32,
 ) {
     for entity in &current.entities {
-        let SnapshotKind::Player(data) = &entity.kind else {
+        if entity.kind != SnapshotKind::Player {
+            continue;
+        }
+        let Some(data) = entity.player.as_ref() else {
             continue;
         };
         let pos = interpolate(previous, entity, alpha);

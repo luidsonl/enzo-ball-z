@@ -56,7 +56,7 @@ pub mod slime {
 
 /// Índices da folha de efeitos.
 pub mod fx {
-    pub const MOGAR: usize = 0;
+    pub const MOGGING: usize = 0;
     pub const SLASH_A: usize = 1;
     pub const SLASH_B: usize = 2;
     pub const SLASH_C: usize = 3;

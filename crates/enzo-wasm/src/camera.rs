@@ -151,7 +151,7 @@ fn world_camera(rect: Rect) -> Camera2D {
 
 fn focus(snapshot: &WorldSnapshot) -> Option<Focus> {
     snapshot.entities.iter().find_map(|entity| {
-        if matches!(entity.kind, SnapshotKind::Player(_)) {
+        if entity.kind == SnapshotKind::Player {
             Some(Focus {
                 pos: to_vec2(entity.pos),
                 size: to_vec2(entity.size),

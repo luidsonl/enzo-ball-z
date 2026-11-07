@@ -76,6 +76,7 @@ pub fn item_frame(kind: ItemKind) -> usize {
         ItemKind::Armor => item::ARMOR,
         ItemKind::Amulet => item::AMULET,
         ItemKind::Potion => item::POTION,
+        ItemKind::NutellaGun => item::BOW, // placeholder visual
     }
 }
 
@@ -168,5 +169,6 @@ mod tests {
         assert_eq!(item_frame(ItemKind::Armor), item::ARMOR);
         assert_eq!(item_frame(ItemKind::Amulet), item::AMULET);
         assert_eq!(item_frame(ItemKind::Potion), item::POTION);
+        assert_eq!(item_frame(ItemKind::NutellaGun), item::BOW);
     }
 }

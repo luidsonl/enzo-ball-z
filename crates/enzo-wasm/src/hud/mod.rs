@@ -1,7 +1,7 @@
 //! HUD e overlays em screen space.
 //!
 //! O HUD tem duas camadas:
-//! - uma barra fixa (vida, aura, XP, Mogar) com os dots que abrem submenus;
+//! - uma barra fixa (vida, aura, XP, Mogging) com os dots que abrem submenus;
 //! - janelas arrastáveis de status, inventário, equipamento e habilidades.
 //!
 //! Tudo aqui é leitura do snapshot e estado de UI do cliente. Nenhuma regra de
@@ -355,7 +355,7 @@ pub(super) fn find_player(snapshot: &WorldSnapshot) -> Option<(&EntitySnapshot, 
         .entities
         .iter()
         .find_map(|entity| match &entity.kind {
-            SnapshotKind::Player(player) => Some((entity, player)),
+            SnapshotKind::Player => entity.player.as_ref().map(|p| (entity, p)),
             _ => None,
         })
 }

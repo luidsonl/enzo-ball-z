@@ -32,7 +32,7 @@ pub(super) fn draw_fixed(
     let x = 16.0 * ui;
     let y = 16.0 * ui;
     let w = 404.0 * ui;
-    let h = 128.0 * ui;
+    let h = 132.0 * ui;
     let pad = 12.0 * ui;
 
     ui::panel(
@@ -69,7 +69,7 @@ pub(super) fn draw_fixed(
     let bar_x = x + pad;
     let bar_w = w - pad * 2.0 - 32.0 * ui;
     let hp_ratio = (entity.health / entity.max_health.max(1.0)).clamp(0.0, 1.0);
-    let aura_ratio = (entity.aura / entity.max_aura.max(1.0)).clamp(0.0, 1.0);
+    let aura_ratio = (player.aura / player.max_aura.max(1.0)).clamp(0.0, 1.0);
     let xp_ratio = (player.xp / player.xp_to_next.max(1.0)).clamp(0.0, 1.0);
 
     draw_bar(
@@ -117,8 +117,8 @@ pub(super) fn draw_fixed(
         &format!(
             "{}  {:.0}/{:.0}",
             i18n.t(Text::Aura),
-            entity.aura,
-            entity.max_aura
+            player.aura,
+            player.max_aura
         ),
         ui,
     );
@@ -146,26 +146,45 @@ pub(super) fn draw_fixed(
         ui,
     );
 
-    let mogar = if player.mogar_cooldown <= 0.0 {
-        i18n.t(Text::MogarReady).to_owned()
-    } else {
-        format!(
-            "{}  {:.2}s",
-            i18n.t(Text::MogarCooldown),
-            player.mogar_cooldown
-        )
-    };
-    ui::shadow_text(
-        &mogar,
-        x + pad,
-        y + 110.0 * ui,
-        (11.0 * ui).max(9.0),
-        if player.mogar_cooldown <= 0.0 {
-            ui::rgba(176, 150, 255, 255)
+    // Barra de slots (simplificada)
+    let slot_y = y + 96.0 * ui;
+    let slot_w = (bar_w - 9.0 * ui) / 4.0;
+    for (i, slot) in player.slots.iter().enumerate() {
+        let sx = bar_x + i as f32 * (slot_w + 3.0 * ui);
+        let ready = slot.skill.is_some()
+            && slot.available
+            && slot.cooldown <= 0.0
+            && slot.aura_cost <= player.aura;
+        let bg = if slot.skill.is_none() {
+            ui::rgba(30, 30, 45, 220)
+        } else if ready {
+            ui::rgba(60, 50, 90, 230)
         } else {
-            ui::rgba(120, 112, 150, 255)
-        },
-    );
+            ui::rgba(35, 32, 50, 220)
+        };
+        draw_rectangle(sx, slot_y, slot_w, 24.0 * ui, bg);
+        draw_rectangle_lines(
+            sx,
+            slot_y,
+            slot_w,
+            24.0 * ui,
+            1.0,
+            ui::rgba(94, 242, 255, 50),
+        );
+        let label = slot.skill.map(|s| i18n.skill(s)).unwrap_or("-");
+        let short: String = label.chars().take(6).collect();
+        ui::center_text(
+            &format!("{} {}", i + 1, short),
+            sx + slot_w * 0.5,
+            slot_y + 16.0 * ui,
+            (9.0 * ui).max(7.0),
+            if ready {
+                WHITE
+            } else {
+                ui::rgba(150, 150, 170, 255)
+            },
+        );
+    }
 
     // Dots de submenu. A coluna fica dentro da barra fixa.
     let dot_x = x + w - 19.0 * ui;

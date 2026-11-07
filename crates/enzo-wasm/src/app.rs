@@ -341,37 +341,42 @@ impl GameSession {
     }
 
     fn handle_events(&mut self, events: &[GameEvent]) {
+        use enzo_core::events::SkillRejectReason;
+        use enzo_core::skills::SkillId;
         for event in events {
             match *event {
-                GameEvent::MeleeHit { target, damage, .. } => {
+                GameEvent::SkillHit {
+                    target,
+                    damage,
+                    skill,
+                    combo,
+                    ..
+                } => {
                     if let Some(pos) = entity_center(&self.current, target) {
-                        self.effects.damage(pos, damage, AURA);
-                        self.effects.sparks(pos, AURA, 6);
-                    }
-                    self.camera.add_shake(2.0);
-                }
-                GameEvent::MogarFired { owner, .. } => {
-                    if let Some(pos) = entity_center(&self.current, owner) {
-                        self.effects.sparks(pos, PURPLE, 10);
+                        let color = match skill {
+                            SkillId::Melee => AURA,
+                            SkillId::Mogging | SkillId::NutellaShot => PURPLE,
+                            _ => STEEL,
+                        };
+                        self.effects.damage(pos, damage, color);
                         self.effects
-                            .text(pos, self.i18n.t(Text::EffectMogar), PURPLE, 12.0);
+                            .sparks(pos, color, if combo >= 3 { 10 } else { 6 });
+                    }
+                    self.camera.add_shake(if matches!(skill, SkillId::Mogging) {
+                        4.0
+                    } else {
+                        2.0
+                    });
+                }
+                GameEvent::SkillProjectileSpawned { owner, skill, .. } => {
+                    if let Some(pos) = entity_center(&self.current, owner) {
+                        let label = self.i18n.skill(skill);
+                        self.effects.sparks(pos, PURPLE, 10);
+                        self.effects.text(pos, label, PURPLE, 12.0);
                     }
                     self.camera.add_shake(1.5);
                 }
-                GameEvent::MogarNoAura { owner } => {
-                    if let Some(pos) = entity_center(&self.current, owner) {
-                        self.effects.no_aura(pos, self.i18n.t(Text::EffectNoAura));
-                    }
-                    self.camera.add_shake(1.0);
-                }
-                GameEvent::MogarHit { target, damage, .. } => {
-                    if let Some(pos) = entity_center(&self.current, target) {
-                        self.effects.damage(pos, damage, PURPLE);
-                        self.effects.sparks(pos, PURPLE, 12);
-                    }
-                    self.camera.add_shake(4.0);
-                }
-                GameEvent::MogarBlocked { owner } => {
+                GameEvent::SkillProjectileBlocked { owner, .. } => {
                     if let Some(pos) = entity_center(&self.current, owner) {
                         self.effects
                             .text(pos, self.i18n.t(Text::EffectBlocked), STEEL, 10.0);
@@ -379,6 +384,30 @@ impl GameSession {
                     }
                     self.camera.add_shake(1.5);
                 }
+                GameEvent::SkillRejected { player, reason, .. } => {
+                    if let Some(pos) = entity_center(&self.current, player) {
+                        match reason {
+                            SkillRejectReason::NoAura => {
+                                self.effects.no_aura(pos, self.i18n.t(Text::EffectNoAura));
+                            }
+                            SkillRejectReason::Cooldown => {
+                                self.effects.text(
+                                    pos,
+                                    self.i18n.t(Text::SkillCooldown),
+                                    STEEL,
+                                    10.0,
+                                );
+                            }
+                            SkillRejectReason::Unavailable(_) => {
+                                self.effects
+                                    .text(pos, self.i18n.t(Text::SkillLocked), STEEL, 10.0);
+                            }
+                            SkillRejectReason::EmptySlot => {}
+                        }
+                    }
+                    self.camera.add_shake(1.0);
+                }
+                GameEvent::SkillActivated { .. } | GameEvent::LoadoutChanged { .. } => {}
                 GameEvent::PlayerDamaged { player, damage, .. } => {
                     if let Some(pos) = entity_center(&self.current, player) {
                         self.effects.hurt(pos);

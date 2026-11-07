@@ -9,7 +9,7 @@
 
 use enzo_core::entities::{EquipSlot, ItemKind};
 use enzo_core::input::Attribute;
-use enzo_core::moves::MoveId;
+use enzo_core::skills::SkillId;
 
 pub const LANGUAGES: [Language; 2] = [Language::PtBr, Language::English];
 
@@ -89,8 +89,8 @@ pub enum Text {
     MenuButton,
     DragHint,
     Close,
-    MogarReady,
-    MogarCooldown,
+    MoggingReady,
+    MoggingCooldown,
     SavedPrefix,
     SaveFailed,
 
@@ -132,7 +132,13 @@ pub enum Text {
     MoveFly,
     MoveSixSeven,
     MoveMelee,
-    MoveMogar,
+    MoveMogging,
+    SkillNutellaShot,
+    SkillShout,
+    SkillEmpty,
+    SkillNoAura,
+    SkillCooldown,
+    SkillLocked,
 
     // Itens
     ItemSword,
@@ -140,6 +146,7 @@ pub enum Text {
     ItemArmor,
     ItemAmulet,
     ItemPotion,
+    ItemNutellaGun,
 
     // Overlays de fase
     PhaseBanner,
@@ -155,7 +162,7 @@ pub enum Text {
     ReturnToMenu,
 
     // Efeitos do mundo
-    EffectMogar,
+    EffectMogging,
     EffectBlocked,
     EffectLevel,
     EffectNoAura,
@@ -266,10 +273,10 @@ impl I18n {
             (Language::English, Text::DragHint) => "Drag by the title",
             (Language::PtBr, Text::Close) => "Fechar",
             (Language::English, Text::Close) => "Close",
-            (Language::PtBr, Text::MogarReady) => "MOGAR PRONTO (25 aura)",
-            (Language::English, Text::MogarReady) => "MOGAR READY (25 aura)",
-            (Language::PtBr, Text::MogarCooldown) => "MOGAR",
-            (Language::English, Text::MogarCooldown) => "MOGAR",
+            (Language::PtBr, Text::MoggingReady) => "MOGGING PRONTO (25 aura)",
+            (Language::English, Text::MoggingReady) => "MOGGING READY (25 aura)",
+            (Language::PtBr, Text::MoggingCooldown) => "MOGGING",
+            (Language::English, Text::MoggingCooldown) => "MOGGING",
             (Language::PtBr, Text::SavedPrefix) => "SALVO",
             (Language::English, Text::SavedPrefix) => "SAVED",
             (Language::PtBr, Text::SaveFailed) => "falha ao salvar",
@@ -292,8 +299,8 @@ impl I18n {
             (Language::English, Text::EffectStrength) => "+2 physical damage",
             (Language::PtBr, Text::EffectHealth) => "+10 vida máxima",
             (Language::English, Text::EffectHealth) => "+10 max health",
-            (Language::PtBr, Text::EffectAura) => "+10 aura / +2 Mogar",
-            (Language::English, Text::EffectAura) => "+10 aura / +2 Mogar",
+            (Language::PtBr, Text::EffectAura) => "+10 aura / +2 Mogging",
+            (Language::English, Text::EffectAura) => "+10 aura / +2 Mogging",
             (Language::PtBr, Text::CurrentValue) => "atual",
             (Language::English, Text::CurrentValue) => "current",
             (Language::PtBr, Text::LevelUpTitle) => "SUBIU DE NÍVEL!",
@@ -344,8 +351,20 @@ impl I18n {
             (Language::English, Text::MoveSixSeven) => "Aura farming",
             (Language::PtBr, Text::MoveMelee) => "Ataque físico",
             (Language::English, Text::MoveMelee) => "Melee attack",
-            (Language::PtBr, Text::MoveMogar) => "Mogar",
-            (Language::English, Text::MoveMogar) => "Mogar",
+            (Language::PtBr, Text::MoveMogging) => "Mogging",
+            (Language::English, Text::MoveMogging) => "Mogging",
+            (Language::PtBr, Text::SkillNutellaShot) => "Tiro de Nutela",
+            (Language::English, Text::SkillNutellaShot) => "Nutella Shot",
+            (Language::PtBr, Text::SkillShout) => "Grito",
+            (Language::English, Text::SkillShout) => "Shout",
+            (Language::PtBr, Text::SkillEmpty) => "Vazio",
+            (Language::English, Text::SkillEmpty) => "Empty",
+            (Language::PtBr, Text::SkillNoAura) => "Sem aura",
+            (Language::English, Text::SkillNoAura) => "No aura",
+            (Language::PtBr, Text::SkillCooldown) => "Recarga",
+            (Language::English, Text::SkillCooldown) => "Cooldown",
+            (Language::PtBr, Text::SkillLocked) => "Bloqueada",
+            (Language::English, Text::SkillLocked) => "Locked",
 
             // Itens
             (Language::PtBr, Text::ItemSword) => "Espada",
@@ -358,15 +377,17 @@ impl I18n {
             (Language::English, Text::ItemAmulet) => "Amulet",
             (Language::PtBr, Text::ItemPotion) => "Poção",
             (Language::English, Text::ItemPotion) => "Potion",
+            (Language::PtBr, Text::ItemNutellaGun) => "Arma de Nutela",
+            (Language::English, Text::ItemNutellaGun) => "Nutella Gun",
 
             // Overlays
             (Language::PtBr, Text::PhaseBanner) => "FASE 1  ·  CHEGUE À BANDEIRA",
             (Language::English, Text::PhaseBanner) => "STAGE 1  ·  REACH THE FLAG",
             (Language::PtBr, Text::ControlsLine1) => {
-                "A/D ou ←/→ mover   ·   ESPAÇO pular   ·   SHIFT dash   ·   J atacar   ·   K Mogar"
+                "A/D ou ←/→ mover   ·   ESPAÇO pular   ·   SHIFT dash   ·   J atacar   ·   K Mogging"
             }
             (Language::English, Text::ControlsLine1) => {
-                "A/D or ←/→ move   ·   SPACE jump   ·   SHIFT dash   ·   J attack   ·   K Mogar"
+                "A/D or ←/→ move   ·   SPACE jump   ·   SHIFT dash   ·   J attack   ·   K Mogging"
             }
             (Language::PtBr, Text::ControlsLine2) => {
                 "Clique nas bolinhas para abrir as janelas   ·   1-4 distribuir pontos   ·   ENTER confirmar   ·   R reiniciar"
@@ -392,8 +413,8 @@ impl I18n {
             (Language::English, Text::ReturnToMenu) => "Return to menu",
 
             // Efeitos
-            (Language::PtBr, Text::EffectMogar) => "MOGAR!",
-            (Language::English, Text::EffectMogar) => "MOGAR!",
+            (Language::PtBr, Text::EffectMogging) => "MOGGING!",
+            (Language::English, Text::EffectMogging) => "MOGGING!",
             (Language::PtBr, Text::EffectBlocked) => "BLOQUEADO",
             (Language::English, Text::EffectBlocked) => "BLOCKED",
             (Language::PtBr, Text::EffectLevel) => "NÍVEL",
@@ -431,19 +452,25 @@ impl I18n {
             ItemKind::Armor => self.t(Text::ItemArmor),
             ItemKind::Amulet => self.t(Text::ItemAmulet),
             ItemKind::Potion => self.t(Text::ItemPotion),
+            ItemKind::NutellaGun => self.t(Text::ItemNutellaGun),
         }
     }
 
-    pub fn movement(self, id: MoveId) -> &'static str {
+    pub fn skill(self, id: SkillId) -> &'static str {
         match id {
-            MoveId::Walk => self.t(Text::MoveWalk),
-            MoveId::Jump => self.t(Text::MoveJump),
-            MoveId::Dash => self.t(Text::MoveDash),
-            MoveId::Fly => self.t(Text::MoveFly),
-            MoveId::SixSeven => self.t(Text::MoveSixSeven),
-            MoveId::Melee => self.t(Text::MoveMelee),
-            MoveId::Mogar => self.t(Text::MoveMogar),
+            SkillId::Jump => self.t(Text::MoveJump),
+            SkillId::Dash => self.t(Text::MoveDash),
+            SkillId::Fly => self.t(Text::MoveFly),
+            SkillId::Melee => self.t(Text::MoveMelee),
+            SkillId::Mogging => self.t(Text::MoveMogging),
+            SkillId::NutellaShot => self.t(Text::SkillNutellaShot),
+            SkillId::Shout => self.t(Text::SkillShout),
         }
+    }
+
+    /// Compat: mapeia nomes antigos usados por HUD legado.
+    pub fn movement_label(self, _label: &str) -> &'static str {
+        ""
     }
 
     pub fn equip_slot(self, slot: EquipSlot) -> &'static str {
@@ -499,8 +526,8 @@ mod tests {
         Text::MenuButton,
         Text::DragHint,
         Text::Close,
-        Text::MogarReady,
-        Text::MogarCooldown,
+        Text::MoggingReady,
+        Text::MoggingCooldown,
         Text::SavedPrefix,
         Text::SaveFailed,
         Text::StatusTitle,
@@ -534,12 +561,19 @@ mod tests {
         Text::MoveFly,
         Text::MoveSixSeven,
         Text::MoveMelee,
-        Text::MoveMogar,
+        Text::MoveMogging,
+        Text::SkillNutellaShot,
+        Text::SkillShout,
+        Text::SkillEmpty,
+        Text::SkillNoAura,
+        Text::SkillCooldown,
+        Text::SkillLocked,
         Text::ItemSword,
         Text::ItemBow,
         Text::ItemArmor,
         Text::ItemAmulet,
         Text::ItemPotion,
+        Text::ItemNutellaGun,
         Text::PhaseBanner,
         Text::ControlsLine1,
         Text::ControlsLine2,
@@ -551,7 +585,7 @@ mod tests {
         Text::ProgressSaved,
         Text::PlayAgain,
         Text::ReturnToMenu,
-        Text::EffectMogar,
+        Text::EffectMogging,
         Text::EffectBlocked,
         Text::EffectLevel,
         Text::EffectNoAura,
@@ -580,7 +614,7 @@ mod tests {
         assert_eq!(i18n.t(Text::Play), "Play");
         assert_eq!(i18n.attribute(Attribute::Speed), "Speed");
         assert_eq!(i18n.item(ItemKind::Sword), "Sword");
-        assert_eq!(i18n.movement(MoveId::Mogar), "Mogar");
+        assert_eq!(i18n.movement(MoveId::Mogging), "Mogging");
         assert_eq!(i18n.equip_slot(EquipSlot::Weapon), "Weapon");
     }
 

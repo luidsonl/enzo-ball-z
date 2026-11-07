@@ -36,9 +36,9 @@ pub(super) fn draw(state: WindowState, player: &PlayerSnapshot, i18n: I18n, ui: 
             ui::rgba(168, 178, 214, 255),
         );
 
-        let item = player.equipped[slot.index()];
+        let item = player.equipped[slot.index()].as_ref();
         let (label, color) = match item {
-            Some(kind) => (i18n.item(kind), ui::STEEL),
+            Some(item) => (i18n.item(item.kind), ui::STEEL),
             None => (i18n.t(Text::NoItem), ui::rgba(120, 112, 150, 255)),
         };
         ui::shadow_text(
