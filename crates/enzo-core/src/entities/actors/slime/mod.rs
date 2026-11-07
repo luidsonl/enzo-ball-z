@@ -5,13 +5,13 @@ use crate::math::Vec2;
 use crate::mechanics::Locomotion;
 use crate::skills::Skills;
 
-use super::attributes::{Attributes, Stats};
-use super::components::{Health, TeamId};
-use super::controller::Controller;
 use super::enemy::{EnemyData, EnemySpecies};
-use super::entity::EntityKind;
-use super::equipment::{EquipSlot, Equipment};
-use super::spec::EntitySpec;
+use crate::entities::base::attributes::{Attributes, Stats};
+use crate::entities::base::components::{Health, TeamId};
+use crate::entities::base::controller::Controller;
+use crate::entities::base::entity::EntityKind;
+use crate::entities::base::equipment::{EquipSlot, Equipment};
+use crate::entities::spec::EntitySpec;
 
 /// Corpo da slime.
 pub const SLIME_SIZE: Vec2 = Vec2::new(26.0, 26.0);

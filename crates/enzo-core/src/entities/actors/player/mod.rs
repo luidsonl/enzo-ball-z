@@ -11,8 +11,8 @@
 
 use crate::math::Vec2;
 
-use super::attributes::Stats;
-use super::item::ItemKind;
+use crate::entities::base::attributes::Stats;
+use crate::entities::item::ItemKind;
 
 pub type PlayerId = u32;
 

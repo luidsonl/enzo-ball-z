@@ -4,12 +4,12 @@ use crate::math::Vec2;
 use crate::mechanics::Locomotion;
 use crate::skills::{SkillId, Skills};
 
-use super::attributes::{Attributes, Stats};
-use super::components::{Health, TeamId};
-use super::controller::Controller;
-use super::entity::{EntityId, EntityKind};
-use super::equipment::{EquipSlot, Equipment};
-use super::projectile::ProjectileData;
+use super::base::attributes::{Attributes, Stats};
+use super::base::components::{Health, TeamId};
+use super::base::controller::Controller;
+use super::base::entity::{EntityId, EntityKind};
+use super::base::equipment::{EquipSlot, Equipment};
+use super::base::projectile::ProjectileData;
 use super::spec::EntitySpec;
 
 pub const MOGGING_SIZE: Vec2 = Vec2::new(24.0, 12.0);

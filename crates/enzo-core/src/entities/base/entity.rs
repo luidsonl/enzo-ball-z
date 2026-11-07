@@ -16,11 +16,11 @@ use crate::skills::{SkillContext, SkillId, Skills};
 use super::attributes::{Attributes, Stats};
 use super::components::{Body, Health, TeamId};
 use super::controller::Controller;
-use super::enemy::EnemyData;
 use super::equipment::{EquipSlot, Equipment, EquippedItem};
-use super::item::{EquipError, ItemData};
-use super::player::PlayerData;
 use super::projectile::ProjectileData;
+use crate::entities::actors::enemy::EnemyData;
+use crate::entities::actors::player::PlayerData;
+use crate::entities::item::{EquipError, ItemData};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

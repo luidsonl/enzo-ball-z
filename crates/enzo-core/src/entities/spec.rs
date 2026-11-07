@@ -7,11 +7,11 @@ use crate::math::Vec2;
 use crate::mechanics::Locomotion;
 use crate::skills::Skills;
 
-use super::attributes::{Attributes, Stats};
-use super::components::{Health, TeamId};
-use super::controller::Controller;
-use super::entity::EntityKind;
-use super::equipment::{EquipSlot, Equipment, EquippedItem};
+use super::base::attributes::{Attributes, Stats};
+use super::base::components::{Health, TeamId};
+use super::base::controller::Controller;
+use super::base::entity::EntityKind;
+use super::base::equipment::{EquipSlot, Equipment, EquippedItem};
 use super::item::{EquipError, ItemData};
 
 /// Especificação de criação. Use os construtores; não monte `Entity` à mão.

@@ -3,11 +3,11 @@
 //! Requisitos de movimento podem exigir tags (`SWORD`, `BOW`) além de atributos.
 //! O `AttributeSet` do equipamento é somado ao do personagem antes da validação.
 //!
-//! Itens equipáveis vivem em [`super::item`] e declaram suas próprias restrições
+//! Itens equipáveis vivem em [`crate::entities::item`] e declaram suas próprias restrições
 //! de tipo de personagem e atributos.
 
 use super::attributes::{AttributeId, AttributeSet};
-use super::item::ItemKind;
+use crate::entities::item::ItemKind;
 
 /// Bitset determinístico de tags de equipamento. Novas tags entram como novas
 /// constantes; requisitos combinam tags com `contains`.

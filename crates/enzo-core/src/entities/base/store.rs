@@ -10,9 +10,9 @@ use crate::math::Rect;
 
 use super::components::{Body, TeamId, TeamRelations};
 use super::entity::{Entity, EntityId, EntityKind};
-use super::item::{EquipError, ItemData};
-use super::player::PlayerId;
-use super::spec::EntitySpec;
+use crate::entities::actors::player::PlayerId;
+use crate::entities::item::{EquipError, ItemData};
+use crate::entities::spec::EntitySpec;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct EntityStore {

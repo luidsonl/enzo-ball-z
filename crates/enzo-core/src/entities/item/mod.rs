@@ -23,11 +23,11 @@ use crate::math::Vec2;
 use crate::mechanics::Locomotion;
 use crate::skills::{EntityType, Skills};
 
-use super::attributes::{AttributeSet, Attributes, Stats};
-use super::components::{Health, TeamId};
-use super::controller::Controller;
-use super::entity::EntityKind;
-use super::equipment::{EquipSlot, Equipment};
+use super::base::attributes::{AttributeSet, Attributes, Stats};
+use super::base::components::{Health, TeamId};
+use super::base::controller::Controller;
+use super::base::entity::EntityKind;
+use super::base::equipment::{EquipSlot, Equipment};
 use super::spec::EntitySpec;
 
 pub const ITEM_SIZE: Vec2 = Vec2::new(20.0, 20.0);
