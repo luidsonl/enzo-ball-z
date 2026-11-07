@@ -50,7 +50,7 @@ enzoballz/
 │   │   │   │   ├── store.rs      # EntityStore
 │   │   │   │   ├── enzo.rs       # entidade jogável do MVP
 │   │   │   │   ├── slime.rs      # inimigo do MVP
-│   │   │   │   ├── mogar.rs      # projétil do especial
+│   │   │   │   ├── mogging.rs      # projétil do especial
 │   │   │   │   ├── player.rs     # PlayerData (progressão/aura)
 │   │   │   │   ├── enemy.rs      # EnemyData
 │   │   │   │   ├── projectile.rs # ProjectileData
@@ -68,7 +68,7 @@ enzoballz/
 │   │   │   ├── attacks/          # movimentos de ataque
 │   │   │   │   ├── mod.rs        # Combat + dano de contato
 │   │   │   │   ├── melee.rs
-│   │   │   │   └── mogar.rs
+│   │   │   │   └── mogging.rs
 │   │   │   ├── ai/               # comportamentos de IA
 │   │   │   │   ├── mod.rs        # Ai + AiBehavior
 │   │   │   │   └── slime.rs
@@ -131,8 +131,8 @@ enzoballz/
 | `moves`       | `MoveId`, `MoveSet`, `Requirements`, `AbilityContext`, validação de atribuição | decidir dano |
 | `movements`   | componentes `Walk`, `Jump`, `Dash`, `Fly`, `SixSeven`; intenção vira velocidade | decidir dano |
 | `physics`     | gravidade, integração, colisão AABB com tiles | decidir dano |
-| `aura`        | saldo de aura: aplica o ganho do SixSeven e gasta no Mogar | desenhar barra |
-| `attacks`     | `MeleeCombo`, `MogarAbility`, dano, i-frames, knockback | input direto |
+| `aura`        | saldo de aura: aplica o ganho do SixSeven e gasta no Mogging | desenhar barra |
+| `attacks`     | `MeleeCombo`, `MoggingAbility`, dano, i-frames, knockback | input direto |
 | `ai`          | comportamentos de inimigos (patrulha etc.) | colisão |
 | `progression` | XP, nível, pontos, atributos e stats derivados | salvar em disco |
 | `world`       | orquestra o passo fixo e mantém o estado | render/IO |
@@ -154,11 +154,11 @@ pub struct Entity {
     pub team: TeamId,          // PLAYERS | ENEMIES | NEUTRAL
     pub body: Body,            // posição, velocidade, tamanho, facing, on_ground
     pub health: Health,        // vida atual + i-frames
-    pub stats: Stats,          // velocidade, força, vida máx., aura máx., dano do Mogar
+    pub stats: Stats,          // velocidade, força, vida máx., aura máx., dano do Mogging
     pub attributes: Attributes,// pontos do personagem
     pub equipment: Equipment,  // soma dos itens equipados
     pub movement: Movement,    // MoveSet + Walk | Jump | Dash | Fly | SixSeven
-    pub combat: Combat,        // MoveSet + MeleeCombo | MogarAbility
+    pub combat: Combat,        // MoveSet + MeleeCombo | MoggingAbility
 }
 
 pub enum EntityKind {
@@ -175,7 +175,7 @@ pub enum EntityKind {
   `spawn(EntitySpec)`, `despawn(id)`, `get`, `get_mut`, `iter`, `players`,
   `enemies`, `in_rect`.
 - `EntitySpec` tem construtores explícitos: `EntitySpec::player`,
-  `EntitySpec::slime`, `EntitySpec::mogar` e `EntitySpec::item`. Cada construtor
+  `EntitySpec::slime`, `EntitySpec::mogging` e `EntitySpec::item`. Cada construtor
   vive no módulo da entidade concreta. Nada de montar `Entity` à mão em sistemas.
 - O store usa `BTreeMap<EntityId, Entity>` para iteração determinística e IDs
   estáveis. IDs não são reutilizados no MVP.
@@ -190,7 +190,7 @@ pub enum EntityKind {
   próprio e declara `REQUIREMENTS`.
 - `SixSeven` é o movimento que farma aura alternando `6`/`7`. O componente guarda
   combo, janela e lentidão; o sistema de aura consome o pedido e aplica o saldo.
-- `Combat` agrupa movimentos de ataque (`MeleeCombo`, `MogarAbility`) em
+- `Combat` agrupa movimentos de ataque (`MeleeCombo`, `MoggingAbility`) em
   `attacks/`. Novos golpes entram como um módulo novo, nunca como lógica solta
   no `World`.
 - `MoveSet` é o conjunto determinístico de movimentos atribuídos. É um bitset
@@ -198,7 +198,7 @@ pub enum EntityKind {
 - Todo movimento declara `Requirements` (tipos de entidade, nível mínimo e
   atributos mínimos). `MoveSet::try_assign` valida o `AbilityContext` da
   entidade antes de inserir. Jogador nasce com andar/pular/dash/SixSeven, além
-  de melee/mogar; inimigo nasce só com andar; projétil não tem movimentos.
+  de melee/mogging; inimigo nasce só com andar; projétil não tem movimentos.
 - `Fly` exige nível 5 e 5 pontos em Aura; o jogador do MVP não nasce com ele.
 - Para adicionar um movimento: crie o componente no diretório correto, declare
   `REQUIREMENTS`, adicione a variante em `MoveId`/`MoveId::requirements`, ligue
@@ -230,7 +230,7 @@ A ordem é parte do contrato: mudá-la muda replay e rede.
    SixSeven) e a intenção vira velocidade.
 4. `physics`: integra e resolve colisão com tiles (X, depois Y).
 5. `attacks::melee`: avança o combo de 3 golpes e aplica hitbox.
-6. `attacks::mogar`: dispara projétil se houver aura e input.
+6. `attacks::mogging`: dispara projétil se houver aura e input.
 7. `projectiles`: move projéteis e resolve colisão com tiles/inimigos.
 8. `ai`: patrulha e dano de contato.
 9. `collisions`: dano em inimigos/jogador, i-frames, knockback.
@@ -252,7 +252,7 @@ pub struct PlayerCommand {
     pub jump_held: bool,     // estado contínuo, para pulo variável
     pub dash: bool,          // pressionado neste tick (edge)
     pub melee: bool,         // pressionado neste tick (edge)
-    pub mogar: bool,         // pressionado neste tick (edge)
+    pub mogging: bool,         // pressionado neste tick (edge)
     pub sixseven: Option<SixSevenKey>, // Six | Seven, pressionado neste tick
     pub allocate: Option<Attribute>, // 1..4 na tela de level-up
 }
@@ -373,7 +373,7 @@ render(previous, current, alpha)
 | Correr           | double-tap na direção (core)    |
 | Dash             | `Shift` (esquerdo ou direito)   |
 | Combo físico     | `J`                             |
-| Mogar            | `K`                             |
+| Mogging            | `K`                             |
 | SixSeven (aura)  | `6` e `7`, alternando           |
 | Distribuir ponto | `1` Velocidade, `2` Força, `3` Vida, `4` Aura |
 | Confirmar level  | `Enter`                         |
@@ -398,7 +398,7 @@ troca de cena, então nenhuma regra de jogo vive na camada de UI.
   menu e HUD. `pointer.rs` concentra o estado do mouse e o hit-testing.
 - `menu/` é uma pilha de telas (`MenuScreen::Main`, `Saves`, `Options`). Novas
   telas entram como variantes e não mudam o loop do `app`.
-- `hud/status.rs` desenha a barra fixa (vida/aura/XP/Mogar) e os dots que
+- `hud/status.rs` desenha a barra fixa (vida/aura/XP/Mogging) e os dots que
   abrem/fecham as janelas. O dot de status pisca enquanto há level-up pendente.
 - `hud/window.rs` desenha a moldura e trata foco, arraste e fechamento. As
   janelas (`status_window`, `inventory`, `equipment`, `skills`) são arrastáveis
@@ -476,7 +476,7 @@ suportado e testado no MVP.
 | Nível            | O que cobre | Onde |
 | ---------------- | ----------- | ---- |
 | Unitário         | math, mapa, aura, progressão, dano | `#[cfg(test)]` por módulo |
-| Cenário          | pulo, colisão, combo, Mogar, morte, bandeira | `crates/enzo-core/tests/` |
+| Cenário          | pulo, colisão, combo, Mogging, morte, bandeira | `crates/enzo-core/tests/` |
 | Determinismo     | mesma entrada + mesma semente = mesmo hash | `tests/determinism.rs` |
 | Headless (manual)| rodar uma sequência de comandos e imprimir snapshots | `enzo-sim` |
 
@@ -489,7 +489,7 @@ suportado e testado no MVP.
    combo expira e a lentidão termina.
 5. **Combo físico:** três `J` dentro da janela aplicam 3 hits; o terceiro
    empurra; fora da janela reinicia.
-6. **Mogar:** sem aura não dispara; com aura consome o custo, acerta inimigo e
+6. **Mogging:** sem aura não dispara; com aura consome o custo, acerta inimigo e
    desaparece no tile sólido.
 7. **Progressão:** XP suficiente sobe de nível, concede 1 ponto e pausa.
 8. **Atributos:** cada ponto altera o stat derivado correto.
@@ -592,7 +592,7 @@ pub struct PlayerCommand {
 }
 ```
 
-- `jump`, `jump_held`, `dash`, `melee` e `mogar` saem do comando.
+- `jump`, `jump_held`, `dash`, `melee` e `mogging` saem do comando.
 - `Entity` troca `movement: Movement`/`combat: Combat` por
   `locomotion: Locomotion` (andar, SixSeven) e `skills: Skills` (tudo que é
   slot).
@@ -615,7 +615,7 @@ pipeline de skills:
 2. sixseven (aura, combo, lentidão);
 3. skills pré-física (andar, buffer de pulo, dash, intenção vertical de voo);
 4. física e colisão;
-5. skills pós-física (soco, Mogar, tiro de nutela, grito);
+5. skills pós-física (soco, Mogging, tiro de nutela, grito);
 6. projéteis;
 7. IA;
 8. colisões e dano de contato;

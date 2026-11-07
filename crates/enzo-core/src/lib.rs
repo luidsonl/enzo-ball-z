@@ -4,7 +4,6 @@
 //! [`input::TickInput`] e avança o mundo em passos fixos de `1/60 s`.
 
 pub mod ai;
-pub mod attacks;
 pub mod aura;
 pub mod entities;
 pub mod events;
@@ -12,11 +11,11 @@ pub mod input;
 pub mod levels;
 pub mod map;
 pub mod math;
-pub mod movements;
-pub mod moves;
+pub mod mechanics;
 pub mod physics;
 pub mod progression;
 pub mod rng;
+pub mod skills;
 pub mod snapshot;
 pub mod state;
 pub mod world;

@@ -4,9 +4,8 @@
 //! desaceleração e colisão continuam em [`crate::physics`].
 
 use crate::entities::{AttributeSet, Body, EquipmentTags, Stats};
-use crate::input::PlayerCommand;
-use crate::moves::{EntityType, Requirements};
 use crate::physics;
+use crate::skills::{EntityType, Requirements};
 
 pub const RUN_TAP_WINDOW: f32 = 0.25;
 
@@ -28,8 +27,18 @@ pub struct Walk {
 }
 
 impl Walk {
-    pub fn apply(&mut self, command: PlayerCommand) {
-        self.intent_x = command.move_x.clamp(-1, 1);
+    pub const fn new() -> Self {
+        Self {
+            intent_x: 0,
+            running: false,
+            last_move_x: 0,
+            last_tap_dir: 0,
+            tap_timer: 0.0,
+        }
+    }
+
+    pub fn apply(&mut self, move_x: i8) {
+        self.intent_x = move_x.clamp(-1, 1);
     }
 
     pub fn tick(&mut self, dt: f32) {

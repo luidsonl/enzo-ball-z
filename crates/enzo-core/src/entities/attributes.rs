@@ -149,7 +149,7 @@ pub struct Stats {
     pub strength: f32,
     pub max_health: f32,
     pub max_aura: f32,
-    pub mogar_damage: f32,
+    pub mogging_damage: f32,
 }
 
 impl Stats {
@@ -162,7 +162,7 @@ impl Stats {
             strength: 2.0 * attributes.strength as f32,
             max_health: 100.0 + 10.0 * attributes.health as f32,
             max_aura: 100.0 + 10.0 * attributes.aura as f32,
-            mogar_damage: 20.0 + 2.0 * attributes.aura as f32,
+            mogging_damage: 20.0 + 2.0 * attributes.aura as f32,
         }
     }
 
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(stats.strength, 6.0);
         assert_eq!(stats.max_health, 110.0);
         assert_eq!(stats.max_aura, 140.0);
-        assert_eq!(stats.mogar_damage, 28.0);
+        assert_eq!(stats.mogging_damage, 28.0);
         assert_eq!(stats.melee_damage(0), 12.0);
         assert_eq!(stats.melee_damage(2), 18.0);
     }

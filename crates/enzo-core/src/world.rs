@@ -1,32 +1,29 @@
 //! Orquestração do mundo e passo fixo.
-//!
-//! [`World::step`] é a única porta de avanço do tempo. A ordem dos sistemas é
-//! parte do contrato (ver `docs/ARCHITECTURE.md`): input, aura, movimentos,
-//! ataques, projéteis, IA, dano de contato, progressão, limpeza e eventos.
 
 use crate::ai;
-use crate::attacks::{self, melee, mogar};
 use crate::aura;
 use crate::entities::{
-    Entity, EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, ENZO_SIZE,
-    SLIME_SIZE,
+    EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, ENZO_SIZE, SLIME_SIZE,
 };
-use crate::events::{GameEvent, TickOutput};
+use crate::events::{GameEvent, SkillRejectReason, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
 use crate::map::{Level, LevelError};
 use crate::math::Vec2;
+use crate::mechanics::{self, Locomotion};
 use crate::progression::{self, SaveData};
+use crate::skills::{
+    melee, mogging, nutella_shot, shout, LoadoutChange, LoadoutError, LoadoutRequest,
+    SkillActivation, SkillId, SkillResult, SkillTiming,
+};
 use crate::snapshot::WorldSnapshot;
 use crate::DT;
 
-// Reexportado para manter `enzo_core::world::GamePhase` estável.
 pub use crate::state::GamePhase;
 
 /// Tempo entre a morte e o respawn automático.
 pub const RESPAWN_DELAY: f32 = 1.2;
 
-/// Distância abaixo do mapa em que a queda vira morte. Evita que o jogador
-/// fique caindo para sempre ao atravessar um buraco.
+/// Distância abaixo do mapa em que a queda vira morte.
 pub const FALL_DEATH_MARGIN: f32 = 64.0;
 
 pub struct World {
@@ -35,10 +32,10 @@ pub struct World {
     tick: u64,
     phase: GamePhase,
     phase_timer: f32,
+    pending_events: Vec<GameEvent>,
 }
 
 impl World {
-    /// Cria a fase 1 a partir do mapa ASCII embutido no core.
     pub fn new(source: &str) -> Result<Self, LevelError> {
         let level = Level::parse(source)?;
         let mut store = EntityStore::new();
@@ -59,6 +56,7 @@ impl World {
             tick: 0,
             phase: GamePhase::Playing,
             phase_timer: 0.0,
+            pending_events: Vec::new(),
         })
     }
 
@@ -90,7 +88,6 @@ impl World {
         self.store.spawn(EntitySpec::item(item, pos))
     }
 
-    /// Equipa um item no jogador, validando as restrições no core.
     pub fn equip(&mut self, player_id: PlayerId, item: &ItemData) -> Result<(), EquipError> {
         let entity_id = self
             .store
@@ -99,9 +96,6 @@ impl World {
         self.store.equip(entity_id, item)
     }
 
-    /// Adiciona um item ao inventário do jogador. A coleta em si (colisão com
-    /// itens do mapa) ainda não faz parte do MVP; a API existe para o HUD e para
-    /// as próximas fases.
     pub fn add_inventory(&mut self, player_id: PlayerId, kind: crate::entities::ItemKind) -> bool {
         let Some(entity) = self.store.player_mut(player_id) else {
             return false;
@@ -120,28 +114,60 @@ impl World {
     }
 
     pub fn load_save(&mut self, save: &SaveData) -> bool {
+        let Some(save) = save.migrate() else {
+            return false;
+        };
         self.store
             .player_mut(0)
             .is_some_and(|entity| save.apply_to(entity))
     }
 
-    /// Avança exatamente um tick de `1/60 s`.
-    pub fn step(&mut self, input: TickInput) -> TickOutput {
-        let mut events = Vec::new();
+    pub fn apply_loadout(
+        &mut self,
+        player_id: PlayerId,
+        request: LoadoutRequest,
+    ) -> Result<LoadoutChange, LoadoutError> {
+        let Some(entity_id) = self.store.player_entity_id(player_id) else {
+            return Err(LoadoutError::NoPlayer);
+        };
+        let Some(entity) = self.store.get_mut(entity_id) else {
+            return Err(LoadoutError::NoPlayer);
+        };
+        if !entity.health.is_alive() {
+            return Err(LoadoutError::NoPlayer);
+        }
+        let context = entity.skill_context();
+        let change = match request {
+            LoadoutRequest::Assign { slot, skill } => {
+                if let Err(lock) = skill.def().requirements.check(context) {
+                    return Err(LoadoutError::Unavailable { skill, lock });
+                }
+                entity.skills.loadout.assign(slot, skill)
+            }
+            LoadoutRequest::Clear { slot } => match entity.skills.loadout.clear(slot) {
+                Some(skill) => LoadoutChange::Cleared { slot, skill },
+                None => return Err(LoadoutError::EmptySlot),
+            },
+        };
+        self.pending_events.push(GameEvent::LoadoutChanged {
+            player: entity_id,
+            change,
+        });
+        self.pending_events.push(GameEvent::SaveRequested);
+        Ok(change)
+    }
 
-        // 1. Input: traduz comandos em intenção e edges.
+    pub fn step(&mut self, input: TickInput) -> TickOutput {
+        let mut events = std::mem::take(&mut self.pending_events);
+
         for index in 0..crate::MAX_PLAYERS {
             let Some(command) = input.command(index) else {
                 continue;
             };
             let player_id = index as PlayerId;
             match self.phase {
-                GamePhase::Playing => {
-                    self.apply_playing_command(player_id, command);
-                }
-                GamePhase::LevelUp => {
-                    self.apply_level_up_command(player_id, command, &mut events);
-                }
+                GamePhase::Playing => self.apply_playing_command(player_id, command),
+                GamePhase::LevelUp => self.apply_level_up_command(player_id, command, &mut events),
                 GamePhase::Dead | GamePhase::Victory => {
                     if command.restart {
                         self.respawn(&mut events);
@@ -152,10 +178,7 @@ impl World {
 
         match self.phase {
             GamePhase::Playing => self.step_playing(&mut events),
-            GamePhase::Dead => {
-                // Sem respawn automático: aguarda o comando de reinício do jogador.
-            }
-            GamePhase::LevelUp | GamePhase::Victory => {}
+            GamePhase::Dead | GamePhase::LevelUp | GamePhase::Victory => {}
         }
 
         self.clear_input_edges();
@@ -170,12 +193,11 @@ impl World {
         if !entity.health.is_alive() {
             return;
         }
-
         if let Some(controller) = entity.controller.player_controller_mut() {
             controller.apply(command);
         }
-
-        entity.movement.apply_command(command);
+        entity.locomotion.apply_command(command);
+        // intenção de slots pré-física será lida do controller/input no step.
     }
 
     fn apply_level_up_command(
@@ -208,65 +230,83 @@ impl World {
     }
 
     fn step_playing(&mut self, events: &mut Vec<GameEvent>) {
-        // 2. Aura: consome o pedido do movimento SixSeven e aplica o ganho.
-        // O componente SixSeven avança o tempo junto do movimento (etapa 3).
+        // 1. SixSeven
         for entity in self.store.players_mut() {
-            let Entity {
-                kind,
-                movement,
-                stats,
-                ..
-            } = entity;
-            let Some(player) = kind.player_mut() else {
-                continue;
-            };
-            let max_aura = stats.max_aura;
-            if let Some(key) = movement.sixseven.take_request() {
-                aura::apply_sixseven(player, &mut movement.sixseven, key, max_aura);
+            let max_aura = entity.stats.max_aura;
+            let key = entity.locomotion.take_sixseven_request();
+            if let Some(key) = key {
+                let sixseven = &mut entity.locomotion.sixseven;
+                if let Some(player) = entity.kind.player_mut() {
+                    aura::apply_sixseven(player, sixseven, key, max_aura);
+                }
             }
         }
 
-        // 3. Movimentos + 4. física: a intenção vira velocidade e o corpo é
-        // integrado contra o tilemap. A lentidão do SixSeven é calculada pelo
-        // próprio componente.
+        // 2-4. Intent pré-física + física
         let level = &self.level;
         let fall_limit = level.height_px() + FALL_DEATH_MARGIN;
         for entity in self.store.iter_mut() {
             if !entity.is_actor() || !entity.health.is_alive() {
                 continue;
             }
-            entity
-                .movement
-                .update(&mut entity.body, &entity.stats, level, DT);
-            // Cair fora do mapa conta como morte (SPEC §11).
+            // Pré-física: intenção de walk já está no locomotion; skills leem controller.
+            let command = entity
+                .controller
+                .player_controller()
+                .map(|c| PlayerCommand {
+                    move_x: c.input.move_x,
+                    move_y: c.input.move_y,
+                    slots: c.input.slots,
+                    ..PlayerCommand::none()
+                })
+                .unwrap_or_else(PlayerCommand::none);
+            entity.skills.apply_intent(command, &entity.body);
+            let speed_factor = entity.locomotion.speed_factor();
+            let mut locomotion = entity.locomotion;
+            entity.skills.step_physics(
+                &mut entity.body,
+                &entity.stats,
+                level,
+                speed_factor,
+                DT,
+                &mut locomotion,
+            );
+            entity.locomotion = locomotion;
+
             if entity.is_player() && entity.body.pos.y > fall_limit {
                 entity.health.current = 0.0;
             }
         }
 
-        // 5. Combo físico e 6. disparo do Mogar.
+        // 5. Skills pós-física
         for index in 0..crate::MAX_PLAYERS {
             let player_id = index as PlayerId;
-            if let Some(entity_id) = self.store.player_entity_id(player_id) {
-                melee::update(&mut self.store, entity_id, events);
-            }
-            mogar::fire(&mut self.store, player_id, events);
+            let Some(entity_id) = self.store.player_entity_id(player_id) else {
+                continue;
+            };
+            self.activate_post_physics(entity_id, events);
         }
 
-        // 7. Projéteis: movimento, dano e colisão com tiles.
-        mogar::update_projectiles(&mut self.store, &self.level, DT, events);
+        // 6. Projéteis
+        mogging::update_projectiles(&mut self.store, &self.level, DT, events);
 
-        // 8. IA: cada inimigo decide sua intenção no componente `Ai`.
+        // 7. IA
         ai::update(&mut self.store, &self.level);
 
-        // 9. Colisões: dano de contato respeitando times e i-frames.
-        attacks::contact_damage(&mut self.store, events);
-        attacks::tick_timers(&mut self.store, DT);
+        // 8. Colisões
+        mechanics::combat::contact_damage(&mut self.store, events);
+        mechanics::combat::tick_timers(&mut self.store, DT);
 
-        // 10. Progressão: XP, level-up e pedido de save.
+        // 9. Timers de skills
+        for entity in self.store.iter_mut() {
+            entity.skills.tick(DT);
+            entity.locomotion.tick(DT);
+        }
+
+        // 10. Progressão
         progression::process_kills(&mut self.store, events);
 
-        // 11. Limpeza: inimigos mortos saem depois de conceder XP.
+        // 11. Limpeza
         let dead: Vec<EntityId> = self
             .store
             .enemies()
@@ -307,6 +347,139 @@ impl World {
         }
     }
 
+    fn activate_post_physics(&mut self, entity_id: EntityId, events: &mut Vec<GameEvent>) {
+        let Some(snapshot) = self.store.get(entity_id) else {
+            return;
+        };
+        if !snapshot.health.is_alive() || !snapshot.is_player() {
+            return;
+        }
+        let Some(controller) = snapshot.controller.player_controller().copied() else {
+            return;
+        };
+        let context = snapshot.skill_context();
+        let loadout = snapshot.skills.loadout;
+        let cooldowns = snapshot.skills.cooldowns;
+        let stats = snapshot.stats;
+        let rect = snapshot.rect();
+        let facing = snapshot.body.facing;
+        let team = snapshot.team;
+        let player_aura = snapshot.aura();
+
+        for (slot, skill) in loadout.iter() {
+            let def = skill.def();
+            if def.timing != SkillTiming::PostPhysics {
+                continue;
+            }
+            let input = controller.input.slots[slot.index()];
+            let wants = crate::skills::should_activate(def.activation, input);
+            if !wants {
+                continue;
+            }
+            if let Err(lock) = def.requirements.check(context) {
+                events.push(GameEvent::SkillRejected {
+                    player: entity_id,
+                    slot,
+                    skill,
+                    reason: SkillRejectReason::Unavailable(lock),
+                });
+                continue;
+            }
+            if cooldowns[skill.index()] > 0.0 {
+                events.push(GameEvent::SkillRejected {
+                    player: entity_id,
+                    slot,
+                    skill,
+                    reason: SkillRejectReason::Cooldown,
+                });
+                continue;
+            }
+            if player_aura < def.aura_cost {
+                events.push(GameEvent::SkillRejected {
+                    player: entity_id,
+                    slot,
+                    skill,
+                    reason: SkillRejectReason::NoAura,
+                });
+                continue;
+            }
+
+            let act = SkillActivation {
+                entity_id,
+                slot,
+                input,
+                move_x: controller.input.move_x,
+                move_y: controller.input.move_y,
+                rect,
+                facing,
+                aura: player_aura,
+                stats: &stats,
+                team,
+            };
+
+            let result = match skill {
+                SkillId::Melee => {
+                    let Some(entity) = self.store.get_mut(entity_id) else {
+                        return;
+                    };
+                    let mut state = entity.skills.melee;
+                    let r = melee::activate(&mut state, act, &mut self.store, events);
+                    if let Some(entity) = self.store.get_mut(entity_id) {
+                        entity.skills.melee = state;
+                    }
+                    r
+                }
+                SkillId::Mogging => {
+                    let Some(entity) = self.store.get_mut(entity_id) else {
+                        return;
+                    };
+                    let mut state = entity.skills.mogging;
+                    let r = mogging::activate(&mut state, act, &mut self.store, events);
+                    if let Some(entity) = self.store.get_mut(entity_id) {
+                        entity.skills.mogging = state;
+                    }
+                    r
+                }
+                SkillId::NutellaShot => {
+                    let Some(entity) = self.store.get_mut(entity_id) else {
+                        return;
+                    };
+                    let mut state = entity.skills.nutella_shot;
+                    let r = nutella_shot::activate(&mut state, act, &mut self.store, events);
+                    if let Some(entity) = self.store.get_mut(entity_id) {
+                        entity.skills.nutella_shot = state;
+                    }
+                    r
+                }
+                SkillId::Shout => {
+                    let Some(entity) = self.store.get_mut(entity_id) else {
+                        return;
+                    };
+                    let mut state = entity.skills.shout;
+                    let r = shout::activate(&mut state, act, &mut self.store, events);
+                    if let Some(entity) = self.store.get_mut(entity_id) {
+                        entity.skills.shout = state;
+                    }
+                    r
+                }
+                _ => SkillResult::Idle,
+            };
+
+            if matches!(result, SkillResult::Started) {
+                if let Some(entity) = self.store.get_mut(entity_id) {
+                    if let Some(player) = entity.player_mut() {
+                        if def.aura_cost > 0.0 {
+                            let _ = aura::spend(player, def.aura_cost);
+                        }
+                    }
+                    if def.cooldown > 0.0 {
+                        entity.skills.cooldowns[skill.index()] = def.cooldown + DT;
+                    }
+                }
+            }
+        }
+    }
+
     fn clear_input_edges(&mut self) {
         for entity in self.store.players_mut() {
             if let Some(controller) = entity.controller.player_controller_mut() {
@@ -333,7 +506,10 @@ impl World {
             if let Some(player) = entity.player_mut() {
                 player.aura = max_aura;
                 player.pending_level_up = false;
+                player.respawn = spawn;
             }
+            entity.locomotion = Locomotion::player();
+            entity.skills.reset();
             if let Some(controller) = entity.controller.player_controller_mut() {
                 *controller = Default::default();
             }
@@ -377,9 +553,6 @@ impl World {
         snapshot
     }
 
-    /// Preenche um snapshot já existente, reaproveitando a capacidade do vetor
-    /// de entidades. O cliente usa dois buffers alternados para não alocar a
-    /// cada tick.
     pub fn write_snapshot(&self, out: &mut WorldSnapshot) {
         out.version = crate::snapshot::SNAPSHOT_VERSION;
         out.tick = self.tick;
@@ -402,5 +575,38 @@ impl World {
             .player(0)
             .map(|entity| entity.body.pos)
             .unwrap_or(Vec2::ZERO)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::levels::LEVEL_1;
+
+    #[test]
+    fn apply_loadout_swaps_skills() {
+        let mut world = World::new(LEVEL_1).unwrap();
+        let change = world
+            .apply_loadout(
+                0,
+                LoadoutRequest::Assign {
+                    slot: ActionSlot::Slot1,
+                    skill: SkillId::Mogging,
+                },
+            )
+            .unwrap();
+        assert!(matches!(
+            change,
+            LoadoutChange::Swapped { .. } | LoadoutChange::Assigned { .. }
+        ));
+        let entity = world.store().player(0).unwrap();
+        assert_eq!(
+            entity.skills.loadout.slot_of(SkillId::Mogging),
+            Some(ActionSlot::Slot1)
+        );
+        assert_eq!(
+            entity.skills.loadout.slot_of(SkillId::Jump),
+            Some(ActionSlot::Slot4)
+        );
     }
 }

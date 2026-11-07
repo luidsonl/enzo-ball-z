@@ -1,6 +1,6 @@
 //! Componentes compartilhados por todas as entidades.
 //!
-//! Jogável, Capanga e Mogar usam os mesmos componentes de base. O que muda é o
+//! Jogável, Capanga e Mogging usam os mesmos componentes de base. O que muda é o
 //! [`crate::entities::EntityKind`], o controlador, o time e os componentes
 //! opcionais (como IA e equipamento).
 

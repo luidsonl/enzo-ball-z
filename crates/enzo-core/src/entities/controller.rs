@@ -2,54 +2,42 @@
 //!
 //! O core nunca lê teclado. [`Controller::Player`] guarda a última intenção
 //! recebida do cliente; [`Controller::Ai`] guarda o comportamento e o estado da
-//! IA. Ambos produzem intenção no mesmo contrato (`movement.walk.intent_x` e
-//! edges), então os sistemas de movimento/ataque não sabem quem controla.
+//! IA. Ambos produzem intenção no mesmo contrato (`locomotion.walk.intent_x` e
+//! slots), então os sistemas não sabem quem controla.
 //!
 //! Entidades sem controle (projéteis e itens) usam [`Controller::None`].
 
 use crate::ai::Ai;
-use crate::input::PlayerCommand;
+use crate::input::{ActionSlot, PlayerCommand, SlotInput};
 
 /// Última intenção contínua e edges de um jogador.
 ///
-/// `move_x` e `jump_held` são estados; os demais campos são edges consumidos no
-/// tick em que a tecla foi pressionada.
+/// `move_x`/`move_y` e `slots[*].held` são estados; `slots[*].pressed` é edge.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlayerInput {
     pub move_x: i8,
-    pub jump_pressed: bool,
-    pub jump_held: bool,
-    pub dash_pressed: bool,
-    pub melee_pressed: bool,
-    pub mogar_pressed: bool,
+    pub move_y: i8,
+    pub slots: [SlotInput; ActionSlot::COUNT],
 }
 
 impl PlayerInput {
     pub fn from_command(command: PlayerCommand) -> Self {
         Self {
             move_x: command.move_x.clamp(-1, 1),
-            jump_pressed: command.jump,
-            jump_held: command.jump_held,
-            dash_pressed: command.dash,
-            melee_pressed: command.melee,
-            mogar_pressed: command.mogar,
+            move_y: command.move_y.clamp(-1, 1),
+            slots: command.slots,
         }
     }
 
-    /// Descarta os edges. Usado quando um frame produz mais de um tick.
+    /// Zera apenas os edges. O estado contínuo permanece até o próximo frame.
     pub fn clear_edges(&mut self) {
-        self.jump_pressed = false;
-        self.dash_pressed = false;
-        self.melee_pressed = false;
-        self.mogar_pressed = false;
+        for slot in &mut self.slots {
+            slot.pressed = false;
+        }
     }
 }
 
-/// Controlador de uma entidade jogável.
-///
-/// O controlador guarda o input traduzido; a execução continua nos componentes
-/// de movimento e ataque. `PlayerData` fica só com progressão e recurso de aura.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlayerController {
@@ -66,7 +54,6 @@ impl PlayerController {
     }
 }
 
-/// Quem decide a intenção da entidade.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Controller {
@@ -84,12 +71,20 @@ impl Controller {
         Self::Ai(ai)
     }
 
+    pub fn is_player(&self) -> bool {
+        matches!(self, Self::Player(_))
+    }
+
     pub fn is_playable(&self) -> bool {
         matches!(self, Self::Player(_))
     }
 
     pub fn is_ai(&self) -> bool {
         matches!(self, Self::Ai(_))
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
     }
 
     pub fn player_controller(&self) -> Option<&PlayerController> {
@@ -104,6 +99,10 @@ impl Controller {
             Self::Player(controller) => Some(controller),
             _ => None,
         }
+    }
+
+    pub fn player_input(&self) -> Option<PlayerInput> {
+        self.player_controller().map(|controller| controller.input)
     }
 
     pub fn ai(&self) -> Option<&Ai> {
@@ -124,49 +123,46 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::Attribute;
+    use crate::input::{ActionSlot, PlayerCommand, SlotInput};
 
     #[test]
     fn player_controller_translates_command() {
+        let mut slots = [SlotInput::default(); ActionSlot::COUNT];
+        slots[ActionSlot::Slot1.index()] = SlotInput::pressed();
         let command = PlayerCommand {
             move_x: 2,
-            jump: true,
-            jump_held: true,
-            dash: true,
-            melee: true,
-            mogar: true,
-            sixseven: None,
-            allocate: Some(Attribute::Speed),
-            confirm: true,
-            restart: false,
+            move_y: -1,
+            slots,
+            ..PlayerCommand::none()
         };
         let mut controller = Controller::player();
         controller.player_controller_mut().unwrap().apply(command);
 
         let input = controller.player_controller().unwrap().input;
         assert_eq!(input.move_x, 1);
-        assert!(input.jump_pressed);
-        assert!(input.jump_held);
-        assert!(input.dash_pressed);
-        assert!(input.melee_pressed);
-        assert!(input.mogar_pressed);
+        assert_eq!(input.move_y, -1);
+        assert!(input.slots[ActionSlot::Slot1.index()].pressed);
     }
 
     #[test]
     fn clearing_edges_keeps_continuous_state() {
         let mut controller = PlayerController::default();
+        let mut slots = [SlotInput::default(); ActionSlot::COUNT];
+        slots[0] = SlotInput {
+            pressed: true,
+            held: true,
+        };
         controller.apply(PlayerCommand {
             move_x: -1,
-            jump: true,
-            jump_held: true,
+            slots,
             ..PlayerCommand::none()
         });
 
         controller.clear_edges();
 
         assert_eq!(controller.input.move_x, -1);
-        assert!(controller.input.jump_held);
-        assert!(!controller.input.jump_pressed);
+        assert!(controller.input.slots[0].held);
+        assert!(!controller.input.slots[0].pressed);
     }
 
     #[test]

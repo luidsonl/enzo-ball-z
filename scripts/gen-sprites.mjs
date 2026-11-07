@@ -751,10 +751,10 @@ function buildTilesSheet() {
 }
 
 // ---------------------------------------------------------------------------
-// FX: 8 frames de 32x32 (Mogar, slash, faíscas, poeira)
+// FX: 8 frames de 32x32 (Mogging, slash, faíscas, poeira)
 // ---------------------------------------------------------------------------
 
-function drawMogar(canvas, ox, oy) {
+function drawMogging(canvas, ox, oy) {
   const cx = 16;
   const cy = 16;
 
@@ -821,7 +821,7 @@ function drawDust(canvas, ox, oy) {
 
 function buildFxSheet() {
   const canvas = new Canvas(32 * 8, 32);
-  drawMogar(canvas, 0, 0);
+  drawMogging(canvas, 0, 0);
   drawSlash(canvas, 32, 0, 9, 3, "#bffcff", "#5ef2ff55");
   drawSlash(canvas, 64, 0, 11, 4, "#7ef0ff", "#5ef2ff66");
   drawSlash(canvas, 96, 0, 13, 4, "#5ef2ff", "#3a7bd588");

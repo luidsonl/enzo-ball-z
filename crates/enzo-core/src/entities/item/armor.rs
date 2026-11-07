@@ -1,6 +1,6 @@
 //! Armadura: item passivo que exige Vida.
 
-use crate::moves::EntityType;
+use crate::skills::EntityType;
 
 use super::{ItemCategory, ItemData, ItemKind, ItemRequirements};
 use crate::entities::{AttributeId, AttributeSet, Equipment, EquipmentTags};

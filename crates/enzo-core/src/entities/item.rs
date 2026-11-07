@@ -15,13 +15,13 @@
 pub mod amulet;
 pub mod armor;
 pub mod bow;
+pub mod nutella_gun;
 pub mod potion;
 pub mod sword;
 
-use crate::attacks::Combat;
 use crate::math::Vec2;
-use crate::movements::Movement;
-use crate::moves::EntityType;
+use crate::mechanics::Locomotion;
+use crate::skills::{EntityType, Skills};
 
 use super::attributes::{AttributeSet, Attributes, Stats};
 use super::components::{Health, TeamId};
@@ -81,6 +81,7 @@ pub enum ItemKind {
     Armor,
     Amulet,
     Potion,
+    NutellaGun,
 }
 
 /// Restrições para equipar/usar um item. Só atributos do personagem contam;
@@ -181,7 +182,7 @@ impl Stats {
             strength: 0.0,
             max_health: 1.0,
             max_aura: 0.0,
-            mogar_damage: 0.0,
+            mogging_damage: 0.0,
         }
     }
 }
@@ -201,8 +202,8 @@ impl EntitySpec {
             attributes: Attributes::ZERO,
             equipment: Equipment::NONE,
             equipped: [None; EquipSlot::COUNT],
-            movement: Movement::none(),
-            combat: Combat::none(),
+            locomotion: Locomotion::none(),
+            skills: Skills::none(),
             velocity: Vec2::ZERO,
         }
     }

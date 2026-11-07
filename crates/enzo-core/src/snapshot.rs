@@ -1,28 +1,23 @@
 //! Snapshot serializável do mundo.
-//!
-//! O snapshot é o contrato entre o core e o render/save/rede. Ele contém apenas
-//! estado derivado; nenhuma regra de jogo vive aqui. Os tiles estáticos do mapa
-//! ficam em [`crate::map::Level`] e são lidos pelo render via `World::level()`.
 
 use crate::entities::{
     Attributes, EnemySpecies, Entity, EntityId, EntityKind, EquipSlot, Equipment, ItemCategory,
     ItemKind, ItemUsage, PlayerId,
 };
+use crate::input::{ActionSlot, SixSevenKey};
 use crate::math::{Rect, Vec2};
-use crate::moves::MoveId;
 use crate::progression;
+use crate::skills::{Loadout, SkillId, SkillLock};
 use crate::state::GamePhase;
 
-pub const SNAPSHOT_VERSION: u16 = 2;
+pub const SNAPSHOT_VERSION: u16 = 3;
 
-/// Fotografia do mundo em um tick. Não contém lógica.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WorldSnapshot {
     pub version: u16,
     pub tick: u64,
     pub phase: GamePhase,
-    /// Tempo restante de respawn quando a fase é `Dead`; zero nas demais.
     pub phase_timer: f32,
     pub entities: Vec<EntitySnapshot>,
     pub level_width: f32,
@@ -37,27 +32,43 @@ pub struct EntitySnapshot {
     pub id: EntityId,
     pub kind: SnapshotKind,
     pub pos: Vec2,
-    pub size: Vec2,
     pub vel: Vec2,
+    pub size: Vec2,
     pub facing: i8,
     pub on_ground: bool,
+    pub dashing: bool,
+    pub running: bool,
+    pub team: u8,
     pub health: f32,
     pub max_health: f32,
-    pub aura: f32,
-    pub max_aura: f32,
-    pub combo: u32,
-    pub running: bool,
-    pub dashing: bool,
     pub iframes: f32,
+    pub player: Option<PlayerSnapshot>,
+    pub enemy: Option<EnemySnapshot>,
+    pub projectile: Option<ProjectileSnapshot>,
+    pub item: Option<ItemSnapshot>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum SnapshotKind {
-    Player(PlayerSnapshot),
-    Enemy(EnemySnapshot),
-    Projectile(ProjectileSnapshot),
-    Item(ItemSnapshot),
+pub struct SkillSlotSnapshot {
+    pub skill: Option<SkillId>,
+    pub available: bool,
+    pub lock: Option<SkillLock>,
+    pub cooldown: f32,
+    pub cooldown_max: f32,
+    pub aura_cost: f32,
+    pub active: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SkillCatalogEntry {
+    pub skill: SkillId,
+    pub available: bool,
+    pub lock: Option<SkillLock>,
+    pub equipped_slot: Option<ActionSlot>,
+    pub aura_cost: f32,
+    pub cooldown_max: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -68,21 +79,30 @@ pub struct PlayerSnapshot {
     pub xp: f32,
     pub xp_to_next: f32,
     pub points: u32,
+    pub aura: f32,
+    pub max_aura: f32,
     pub attributes: Attributes,
     pub equipment: Equipment,
-    /// Itens instalados por slot, na ordem de [`EquipSlot`].
-    pub equipped: [Option<ItemKind>; EquipSlot::COUNT],
-    /// Itens coletados e ainda não equipados.
+    pub equipped: [Option<EquippedItemSnapshot>; EquipSlot::COUNT],
     pub inventory: Vec<ItemKind>,
-    /// Movimentos atribuídos, na ordem de [`MoveId::ALL`].
-    pub moves: Vec<MoveId>,
     pub pending_level_up: bool,
     pub farming: bool,
+    pub sixseven_last: Option<SixSevenKey>,
+    pub sixseven_combo: u32,
+    pub sixseven_window: f32,
+    pub loadout: Loadout,
+    pub slots: [SkillSlotSnapshot; ActionSlot::COUNT],
+    pub catalog: Vec<SkillCatalogEntry>,
     pub combo_window: f32,
     pub melee_step: u8,
     pub melee_timer: f32,
-    pub mogar_cooldown: f32,
-    pub respawn: Vec2,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EquippedItemSnapshot {
+    pub slot: EquipSlot,
+    pub kind: ItemKind,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -91,13 +111,13 @@ pub struct EnemySnapshot {
     pub species: EnemySpecies,
     pub patrol_dir: i8,
     pub stun: f32,
-    pub xp_reward: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProjectileSnapshot {
     pub owner: EntityId,
+    pub skill: SkillId,
     pub damage: f32,
     pub lifetime: f32,
 }
@@ -106,81 +126,160 @@ pub struct ProjectileSnapshot {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ItemSnapshot {
     pub kind: ItemKind,
-    pub usage: ItemUsage,
     pub category: ItemCategory,
+    pub usage: ItemUsage,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SnapshotKind {
+    Player,
+    Enemy,
+    Projectile,
+    Item,
 }
 
 impl EntitySnapshot {
     pub fn from_entity(entity: &Entity) -> Self {
-        let kind = match &entity.kind {
-            EntityKind::Player(data) => SnapshotKind::Player(PlayerSnapshot {
-                player_id: data.player_id,
-                level: data.level,
-                xp: data.xp,
-                xp_to_next: progression::xp_to_next(data.level),
-                points: data.points,
-                attributes: entity.attributes,
-                equipment: entity.equipment,
-                equipped: entity.equipped.map(|item| item.map(|item| item.kind)),
-                inventory: data.inventory.clone(),
-                moves: entity
-                    .movement
-                    .moves
-                    .iter()
-                    .chain(entity.combat.moves.iter())
-                    .collect(),
-                pending_level_up: data.pending_level_up,
-                farming: entity.movement.sixseven.is_active(),
-                combo_window: entity.movement.sixseven.window,
-                melee_step: entity.combat.melee.step,
-                melee_timer: entity.combat.melee.anim_timer,
-                mogar_cooldown: entity.combat.mogar.cooldown,
-                respawn: data.respawn,
-            }),
-            EntityKind::Enemy(data) => SnapshotKind::Enemy(EnemySnapshot {
-                species: data.species,
-                patrol_dir: entity.ai().map(|ai| ai.patrol_dir()).unwrap_or(0),
-                stun: data.stun,
-                xp_reward: data.xp_reward,
-            }),
-            EntityKind::Projectile(data) => SnapshotKind::Projectile(ProjectileSnapshot {
-                owner: data.owner,
-                damage: data.damage,
-                lifetime: data.lifetime,
-            }),
-            EntityKind::Item(data) => SnapshotKind::Item(ItemSnapshot {
-                kind: data.kind,
-                usage: data.usage(),
-                category: data.category,
-            }),
-        };
-
-        let (aura, max_aura, combo) = match &entity.kind {
-            EntityKind::Player(data) => (
-                data.aura,
-                entity.stats.max_aura,
-                entity.movement.sixseven.combo,
-            ),
-            _ => (0.0, entity.stats.max_aura, 0),
+        let kind = match entity.kind {
+            EntityKind::Player(_) => SnapshotKind::Player,
+            EntityKind::Enemy(_) => SnapshotKind::Enemy,
+            EntityKind::Projectile(_) => SnapshotKind::Projectile,
+            EntityKind::Item(_) => SnapshotKind::Item,
         };
 
         Self {
             id: entity.id,
             kind,
             pos: entity.body.pos,
-            size: entity.body.size,
             vel: entity.body.vel,
+            size: entity.body.size,
             facing: entity.body.facing,
             on_ground: entity.body.on_ground,
+            dashing: entity.skills.is_active(SkillId::Dash),
+            running: entity.locomotion.walk.running,
+            team: entity.team.0,
             health: entity.health.current,
             max_health: entity.stats.max_health,
-            aura,
-            max_aura,
-            combo,
-            running: entity.movement.walk.running,
-            dashing: entity.movement.is_dashing(),
             iframes: entity.health.iframes,
+            player: entity
+                .player()
+                .map(|player| PlayerSnapshot::from_player(player, entity)),
+            enemy: entity.enemy().map(|enemy| EnemySnapshot {
+                species: enemy.species,
+                patrol_dir: entity
+                    .ai()
+                    .map(|ai| ai.patrol_dir())
+                    .unwrap_or(if entity.body.facing >= 0 { 1 } else { -1 }),
+                stun: enemy.stun,
+            }),
+            projectile: entity.projectile().map(|projectile| ProjectileSnapshot {
+                owner: projectile.owner,
+                skill: projectile.skill,
+                damage: projectile.damage,
+                lifetime: projectile.lifetime,
+            }),
+            item: entity.item().map(|item| ItemSnapshot {
+                kind: item.kind,
+                category: item.category,
+                usage: item.usage(),
+            }),
         }
+    }
+}
+
+impl PlayerSnapshot {
+    pub fn from_player(player: &crate::entities::PlayerData, entity: &Entity) -> Self {
+        let context = entity.skill_context();
+        let mut slots = std::array::from_fn(|_| SkillSlotSnapshot {
+            skill: None,
+            available: false,
+            lock: None,
+            cooldown: 0.0,
+            cooldown_max: 0.0,
+            aura_cost: 0.0,
+            active: false,
+        });
+        for (index, slot) in ActionSlot::ALL.iter().copied().enumerate() {
+            let skill = entity.skills.loadout.get(slot);
+            let (available, lock, cooldown_max, aura_cost, active, cooldown) =
+                if let Some(skill) = skill {
+                    let def = skill.def();
+                    let lock = def.requirements.check(context).err();
+                    (
+                        lock.is_none(),
+                        lock,
+                        def.cooldown,
+                        def.aura_cost,
+                        entity.skills.is_active(skill),
+                        entity.skills.cooldown(skill),
+                    )
+                } else {
+                    (false, None, 0.0, 0.0, false, 0.0)
+                };
+            slots[index] = SkillSlotSnapshot {
+                skill,
+                available,
+                lock,
+                cooldown,
+                cooldown_max,
+                aura_cost,
+                active,
+            };
+        }
+        let catalog = SkillId::ALL
+            .iter()
+            .copied()
+            .map(|skill| {
+                let def = skill.def();
+                let lock = def.requirements.check(context).err();
+                SkillCatalogEntry {
+                    skill,
+                    available: lock.is_none(),
+                    lock,
+                    equipped_slot: entity.skills.loadout.slot_of(skill),
+                    aura_cost: def.aura_cost,
+                    cooldown_max: def.cooldown,
+                }
+            })
+            .collect();
+        Self {
+            player_id: player.player_id,
+            level: player.level,
+            xp: player.xp,
+            xp_to_next: progression::xp_to_next(player.level),
+            points: player.points,
+            aura: player.aura,
+            max_aura: entity.stats.max_aura,
+            attributes: entity.attributes,
+            equipment: entity.equipment,
+            equipped: std::array::from_fn(|index| {
+                entity.equipped[index].map(|item| EquippedItemSnapshot {
+                    slot: item.slot,
+                    kind: item.kind,
+                })
+            }),
+            inventory: player.inventory.clone(),
+            pending_level_up: player.pending_level_up,
+            farming: entity.locomotion.sixseven.is_active(),
+            sixseven_last: entity.locomotion.sixseven.last_key,
+            sixseven_combo: entity.locomotion.sixseven.combo,
+            sixseven_window: entity.locomotion.sixseven.window,
+            loadout: entity.skills.loadout,
+            slots,
+            catalog,
+            combo_window: entity.skills.melee.window,
+            melee_step: entity.skills.melee.step,
+            melee_timer: entity.skills.melee.anim_timer,
+        }
+    }
+}
+
+impl WorldSnapshot {
+    pub fn player(&self) -> Option<&EntitySnapshot> {
+        self.entities
+            .iter()
+            .find(|entity| entity.kind == SnapshotKind::Player)
     }
 }
 
@@ -191,24 +290,26 @@ mod tests {
     use crate::world::World;
 
     #[test]
-    fn snapshot_exposes_inventory_equipment_and_moves() {
-        let mut world = World::new(LEVEL_1).unwrap();
-        assert!(world.add_inventory(0, ItemKind::Potion));
-
+    fn snapshot_captures_player_and_enemies() {
+        let world = World::new(LEVEL_1).unwrap();
         let snapshot = world.snapshot();
         assert_eq!(snapshot.version, SNAPSHOT_VERSION);
-
-        let player = snapshot
+        assert!(snapshot.player().is_some());
+        let enemies = snapshot
             .entities
             .iter()
-            .find_map(|entity| match &entity.kind {
-                SnapshotKind::Player(player) => Some(player),
-                _ => None,
-            })
-            .unwrap();
+            .filter(|entity| entity.kind == SnapshotKind::Enemy)
+            .count();
+        assert!(enemies >= 1, "level deve ter inimigos");
+    }
 
-        assert_eq!(player.inventory, vec![ItemKind::Potion]);
-        assert!(player.moves.contains(&MoveId::Walk));
-        assert!(player.equipped.iter().all(Option::is_none));
+    #[test]
+    fn player_snapshot_has_default_loadout() {
+        let world = World::new(LEVEL_1).unwrap();
+        let snapshot = world.snapshot();
+        let player = snapshot.player().unwrap().player.as_ref().unwrap();
+        assert_eq!(player.loadout, Loadout::player_default());
+        assert_eq!(player.slots.len(), ActionSlot::COUNT);
+        assert_eq!(player.catalog.len(), SkillId::COUNT);
     }
 }

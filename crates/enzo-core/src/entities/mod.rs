@@ -4,15 +4,7 @@
 //! via [`EntityStore::spawn`] com um [`EntitySpec`].
 //!
 //! Componentes comuns: [`Body`], [`Health`], [`Stats`], [`Attributes`],
-//! [`TeamId`], [`Controller`], [`Movement`], [`Combat`], [`Equipment`].
-//! Componentes opcionais: os itens equipados.
-//!
-//! Cada entidade concreta tem seu arquivo: `enzo.rs` (jogável), `slime.rs`
-//! (inimigo), `mogar.rs` (projétil) e `item/` (itens). Os módulos genéricos
-//! (`player`, `enemy`, `projectile`, `item`) guardam só componentes e contratos.
-//!
-//! Requisitos de movimento enxergam personagem + equipamento; requisitos de item
-//! enxergam só o personagem, como descrito em [`item`].
+//! [`TeamId`], [`Controller`], [`Locomotion`], [`Skills`], [`Equipment`].
 
 pub mod attributes;
 pub mod components;
@@ -22,7 +14,7 @@ pub mod entity;
 pub mod enzo;
 pub mod equipment;
 pub mod item;
-pub mod mogar;
+pub mod mogging;
 pub mod player;
 pub mod projectile;
 pub mod slime;
@@ -39,13 +31,13 @@ pub use equipment::{EquipSlot, Equipment, EquipmentTags, EquippedItem};
 pub use item::{
     EquipError, ItemCategory, ItemData, ItemKind, ItemRequirements, ItemUsage, ITEM_SIZE,
 };
-pub use mogar::{MOGAR_LIFETIME, MOGAR_SIZE, MOGAR_SPEED};
+pub use mogging::{MOGGING_LIFETIME, MOGGING_SIZE, MOGGING_SPEED};
 pub use player::{PlayerData, PlayerId};
 pub use projectile::ProjectileData;
 pub use slime::{SLIME_CONTACT_DAMAGE, SLIME_SIZE, SLIME_XP_REWARD};
 pub use spec::EntitySpec;
 pub use store::EntityStore;
 
-// Reexporta o tipo de movimento para quem consome `entities`.
-pub use crate::attacks::Combat;
-pub use crate::movements::Movement;
+// Reexporta tipos usados por consumidores.
+pub use crate::mechanics::Locomotion;
+pub use crate::skills::{EntityType, SkillContext, Skills};

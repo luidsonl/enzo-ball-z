@@ -13,7 +13,7 @@
 
 Um jogo de plataforma 2D estilo Mario, em Rust compilado para WebAssembly, onde
 o Enzo corre, pula, luta e farma aura alternando as teclas `6` e `7`. A aura é
-mana para o golpe especial **Mogar**. Inimigos dão XP; XP sobe de nível e concede
+mana para o golpe especial **Mogging**. Inimigos dão XP; XP sobe de nível e concede
 pontos para distribuir entre Velocidade, Força, Vida e Aura.
 
 ## 2. Escopo
@@ -23,7 +23,7 @@ pontos para distribuir entre Velocidade, Força, Vida e Aura.
 - Movimento estilo Mario, incluindo corrida por double-tap.
 - Farming de aura com `6`/`7` alternados, combo e lentidão.
 - Combo físico de 3 golpes.
-- Um golpe especial: **Mogar** (projétil instantâneo).
+- Um golpe especial: **Mogging** (projétil instantâneo).
 - Um tipo de inimigo patrulhador.
 - XP, level-up, pontos e quatro atributos.
 - Vida, aura, morte com respawn e vitória por bandeira.
@@ -46,7 +46,7 @@ pontos para distribuir entre Velocidade, Força, Vida e Aura.
 Os itens abaixo saíram do não-objetivo e passaram a ser **evolução planejada**,
 não implementada no código atual:
 
-- Catálogo amplo de skills além do Mogar (voo, tiro de nutela, grito etc.), com
+- Catálogo amplo de skills além do Mogging (voo, tiro de nutela, grito etc.), com
   troca de skill equipada em 4 slots genéricos.
 - Remapeamento de teclas e controles mobile/touch.
 - HUD e menus em HTML por cima do canvas.
@@ -60,7 +60,7 @@ Explorar e enfrentar inimigos
         │
         ├─ farmar aura (6/7) ──▶ enche a barra, mas deixa o Enzo lento
         │
-        └─ Mogar (K) ─────────▶ gasta aura, dano à distância
+        └─ Mogging (K) ─────────▶ gasta aura, dano à distância
                                   │
                                   ▼
                          inimigo morre ──▶ XP
@@ -84,7 +84,7 @@ Explorar e enfrentar inimigos
 | Correr | double-tap na direção | segurar a direção mantém a corrida |
 | Dash | `Shift` | impulso horizontal curto, com cooldown |
 | Ataque físico | `J` | combo de 3 |
-| Mogar | `K` | custa aura |
+| Mogging | `K` | custa aura |
 | Farmar aura | `6` e `7` | alternância obrigatória |
 | Distribuir ponto | `1` `2` `3` `4` ou clique | na janela de status |
 | Confirmar | `Enter` ou clique | fecha a janela de level-up |
@@ -94,7 +94,7 @@ Explorar e enfrentar inimigos
 
 ### 5.1 Alvo: 4 action slots (planejado)
 
-O alvo substitui os campos fixos de input (`jump`, `dash`, `melee`, `mogar`) por
+O alvo substitui os campos fixos de input (`jump`, `dash`, `melee`, `mogging`) por
 quatro slots genéricos. Qualquer skill disponível pode ocupar qualquer slot, e a
 mesma skill nunca pode estar em dois slots.
 
@@ -103,7 +103,7 @@ mesma skill nunca pode estar em dois slots.
 | 1 | `Espaço` | Pulo |
 | 2 | `Shift` | Dash |
 | 3 | `J` | Soco (combo físico) |
-| 4 | `K` | Mogar |
+| 4 | `K` | Mogging |
 
 - Movimento: `A`/`D` ou `←`/`→`; vertical: `W`/`S` ou `↑`/`↓`.
 - `W`/`↑` deixam de ser pulo no alvo: viram a ação semântica “subir”, usada pelo
@@ -142,7 +142,7 @@ movimento declara requisitos (tipos de entidade, nível e atributos mínimos) e 
 entra no `MoveSet` da entidade quando eles são cumpridos.
 
 > **Alvo (não implementado):** andar e SixSeven continuam mecânicas fora dos
-> slots; pulo, dash, voo, soco e Mogar viram `SkillId` equipáveis em
+> slots; pulo, dash, voo, soco e Mogging viram `SkillId` equipáveis em
 > `Loadout`. `Movement`/`Combat` dão lugar a `Locomotion`/`Skills`. Ver
 > [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md).
 
@@ -157,7 +157,7 @@ entra no `MoveSet` da entidade quando eles são cumpridos.
 - Janela do combo: `0,9 s` sem acerto → combo volta a zero.
 - Enquanto o combo está ativo, a velocidade do Enzo cai para `45%`.
 - A aura não regenera sozinha. Só o SixSeven recompõe.
-- A aura é gasta apenas no Mogar.
+- A aura é gasta apenas no Mogging.
 
 ## 8. Combate
 
@@ -171,7 +171,7 @@ entra no `MoveSet` da entidade quando eles são cumpridos.
 - Se a janela expirar, o combo reinicia no primeiro golpe.
 - O Enzo pode andar durante o ataque.
 
-### 8.2 Mogar (`K`)
+### 8.2 Mogging (`K`)
 
 - Projétil instantâneo, horizontal, na direção em que o Enzo olha.
 - Custo: `25` de aura.
@@ -195,10 +195,10 @@ entra no `MoveSet` da entidade quando eles são cumpridos.
 
 ### 9.1 Modelo comum de entidades
 
-Jogador, Capanga e projétil Mogar são instâncias do mesmo `Entity`, com os
+Jogador, Capanga e projétil Mogging são instâncias do mesmo `Entity`, com os
 mesmos componentes de base:
 
-| Componente | Jogador | Capanga | Mogar |
+| Componente | Jogador | Capanga | Mogging |
 | ---------- | ------- | ------- | ----- |
 | `Body` (posição, velocidade, tamanho) | sim | sim | sim |
 | `Health` (vida atual, i-frames) | sim | sim | 1 de vida |
@@ -206,12 +206,12 @@ mesmos componentes de base:
 | `TeamId` | `PLAYERS` | `ENEMIES` | `PLAYERS` |
 | `Controller` | `Player(PlayerController)` | `Ai(SlimeAi)` | `None` |
 | `Movement` (`Walk`/`Jump`/`Dash`/`Fly`/`SixSeven`) | andar, pular, dash, SixSeven | andar | nenhum |
-| `Combat` (`Melee`/`Mogar`) | combo e Mogar | nenhum | nenhum |
+| `Combat` (`Melee`/`Mogging`) | combo e Mogging | nenhum | nenhum |
 | `MoveSet` | movimentos atribuídos e validados | idem | vazio |
 | Dados específicos | nível, XP, pontos, aura | patrulha, XP | dono, dano |
 
 Cada entidade concreta tem seu arquivo (`entities/enzo.rs`, `slime.rs`,
-`mogar.rs` e `item/`). Os módulos genéricos guardam só componentes e contratos.
+`mogging.rs` e `item/`). Os módulos genéricos guardam só componentes e contratos.
 
 A criação é centralizada em `EntityStore::spawn(EntitySpec)`. Nenhum sistema
 monta uma entidade à mão nem duplica atributos. Movimentos e ataques só são
@@ -236,7 +236,7 @@ estado, sem campos paralelos no `Entity`.
 | Velocidade | `+10 px/s` caminhada e `+6 px/s` corrida |
 | Força | `+2` de dano em cada golpe do combo físico |
 | Vida | `+10` de vida máxima (e cura `+10`) |
-| Aura | `+10` de aura máxima e `+2` de dano no Mogar |
+| Aura | `+10` de aura máxima e `+2` de dano no Mogging |
 
 - A tela de level-up mostra os quatro atributos e permite gastar vários pontos
   antes de confirmar com `Enter`.
@@ -288,7 +288,7 @@ estado, sem campos paralelos no `Entity`.
 - A tela de saves permite iniciar um jogo novo, carregar ou apagar um slot; a
   exclusão pede confirmação em um modal.
 - HUD fixa com barra de vida (vermelha), aura (ciano), XP (amarela), nível,
-  pontos, Mogar e o botão de menu.
+  pontos, Mogging e o botão de menu.
 - Quatro dots abrem/fecham janelas arrastáveis: status, inventário, equipamento
   e habilidades. O dot de status pisca enquanto houver level-up pendente.
 - As janelas são arrastáveis pelo título, têm foco/empilhamento e botão de
@@ -299,7 +299,7 @@ estado, sem campos paralelos no `Entity`.
   morte e vitória com botões de reiniciar e voltar ao menu.
 - Todos os textos vêm de um sistema de i18n com pt-BR e inglês.
 
-> **Alvo (não implementado):** a barra fixa troca o indicador único de Mogar por
+> **Alvo (não implementado):** a barra fixa troca o indicador único de Mogging por
 > uma action bar com os 4 slots (ícone, tecla, custo, cooldown e bloqueio). A
 > janela de habilidades vira o editor de loadout: clicar no slot e depois na
 > skill, com troca automática se a skill já estiver em outro slot. O menu abre
@@ -320,7 +320,7 @@ estado, sem campos paralelos no `Entity`.
 - Enzo: idle (2 frames), corrida (4), pulo (1), ataque (2).
 - Capanga: caminhada (2).
 - Tiles: chão, bloco, plataforma.
-- Bandeira, projétil Mogar, partículas simples.
+- Bandeira, projétil Mogging, partículas simples.
 - Paleta limitada e consistente; nada copiado de obras existentes.
 
 ## 16. Critérios de sucesso do MVP
@@ -331,7 +331,7 @@ estado, sem campos paralelos no `Entity`.
 3. `6`/`7` alternados enchem a aura; repetir a tecla zera o combo.
 4. Farmar deixa o Enzo lento e vulnerável.
 5. O combo de 3 golpes funciona e o terceiro empurra.
-6. O Mogar consome aura, acerta inimigos e desaparece em paredes.
+6. O Mogging consome aura, acerta inimigos e desaparece em paredes.
 7. Capangas patrulham, dão dano de contato e concedem XP ao morrer.
 8. Level-up concede ponto, pausa e permite distribuir nos quatro atributos.
 9. Morrer respawna mantendo progressão; tocar a bandeira vence.
@@ -346,7 +346,7 @@ estado, sem campos paralelos no `Entity`.
 ## 17. Premissas a confirmar
 
 1. **Teclas de movimento/pulo:** `A`/`D` ou setas + `Espaço`/`W`.
-2. **Mogar atravessa inimigos** (cada um leva dano uma vez) até bater em parede.
+2. **Mogging atravessa inimigos** (cada um leva dano uma vez) até bater em parede.
 3. **Inimigos renascem apenas quando o jogador morre**, não por tempo.
 4. **Level-up pausa o jogo** e a distribuição aceita `1`–`4`/clique + `Enter`.
 5. **Sem áudio no MVP.**
@@ -362,7 +362,7 @@ entrega proposta; cada fase tem plano, contratos e critérios de aceite em
 1. **Input por ação:** teclado vira `InputAction`/`KeyBindings`; o
    `PlayerCommand` passa a ter `move_x`, `move_y` e `slots[4]`.
 2. **Skills modulares:** `MoveId`/`MoveSet` viram `SkillId`/`SkillDef`/`Loadout`;
-   pulo, dash, voo, soco, Mogar, tiro de nutela e grito ganham módulo próprio,
+   pulo, dash, voo, soco, Mogging, tiro de nutela e grito ganham módulo próprio,
    requisitos, ícone e estado tipado.
 3. **Loadout persistente:** troca de skill no core, save v2, snapshot v3 e menu
    de habilidades com troca/clear e bloqueio por requisito.

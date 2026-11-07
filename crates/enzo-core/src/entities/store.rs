@@ -47,8 +47,8 @@ impl EntityStore {
             attributes: spec.attributes,
             equipment: spec.equipment,
             equipped: spec.equipped,
-            movement: spec.movement,
-            combat: spec.combat,
+            locomotion: spec.locomotion,
+            skills: spec.skills,
         };
         self.entities.insert(id, entity);
         id
@@ -184,23 +184,24 @@ impl EntityStore {
 mod tests {
     use super::*;
     use crate::entities::{
-        AttributeId, Attributes, Controller, EquipSlot, EquipmentTags, ItemData, ENZO_SIZE,
-        MOGAR_SPEED, SLIME_SIZE,
+        AttributeId, Attributes, EquipSlot, EquipmentTags, ItemData, ENZO_SIZE, MOGGING_SPEED,
+        SLIME_SIZE,
     };
+    use crate::math::Rect;
     use crate::math::Vec2;
 
     fn store_with_actors() -> (EntityStore, EntityId, EntityId, EntityId) {
         let mut store = EntityStore::new();
         let player = store.spawn(EntitySpec::player(0, Vec2::new(0.0, 0.0)));
         let enemy = store.spawn(EntitySpec::slime(Vec2::new(100.0, 0.0)));
-        let mogar = store.spawn(EntitySpec::mogar(
+        let mogging = store.spawn(EntitySpec::mogging(
             player,
             Vec2::new(200.0, 10.0),
             1,
             20.0,
             TeamId::PLAYERS,
         ));
-        (store, player, enemy, mogar)
+        (store, player, enemy, mogging)
     }
 
     #[test]
@@ -225,24 +226,25 @@ mod tests {
 
     #[test]
     fn ids_are_sequential_and_stable() {
-        let (store, player, enemy, mogar) = store_with_actors();
+        let (store, player, enemy, mogging) = store_with_actors();
         assert_eq!(player, EntityId(0));
         assert_eq!(enemy, EntityId(1));
-        assert_eq!(mogar, EntityId(2));
+        assert_eq!(mogging, EntityId(2));
         assert_eq!(store.player_entity_id(0), Some(player));
         assert_eq!(store.player(0).unwrap().id, player);
     }
 
     #[test]
-    fn mogar_carries_owner_team_and_velocity() {
-        let (store, player, _, mogar) = store_with_actors();
-        let projectile = store.get(mogar).unwrap();
+    fn mogging_carries_owner_team_and_velocity() {
+        let (store, player, _, mogging) = store_with_actors();
+        let projectile = store.get(mogging).unwrap();
         let data = projectile.projectile().unwrap();
         assert_eq!(data.owner, player);
         assert_eq!(data.damage, 20.0);
-        assert_eq!(projectile.body.vel.x, MOGAR_SPEED);
+        assert_eq!(data.skill, crate::skills::SkillId::Mogging);
+        assert_eq!(projectile.body.vel.x, MOGGING_SPEED);
         assert_eq!(projectile.team, TeamId::PLAYERS);
-        assert_eq!(projectile.controller, Controller::None);
+        assert!(projectile.controller.is_none());
     }
 
     #[test]

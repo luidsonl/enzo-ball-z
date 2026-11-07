@@ -1,12 +1,11 @@
 //! Recurso de aura.
 //!
-//! O ganho por `6`/`7` é decidido pelo movimento
-//! [`crate::movements::SixSeven`]; aqui ficam só as operações sobre o saldo do
-//! jogador: aplicar o ganho do movimento e gastar no Mogar.
+//! O ganho por `6`/`7` é decidido pela mecânica SixSeven; aqui ficam só as
+//! operações sobre o saldo do jogador.
 
 use crate::entities::PlayerData;
 use crate::input::SixSevenKey;
-use crate::movements::{sixseven, SixSeven};
+use crate::mechanics::{sixseven, SixSeven};
 
 /// Aplica a tecla de SixSeven ao saldo de aura do jogador. Retorna a aura
 /// efetivamente ganha.

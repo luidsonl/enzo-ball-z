@@ -2,8 +2,7 @@
 //!
 //! Cada entidade com IA carrega um componente [`Ai`] com o comportamento e o
 //! estado daquele comportamento. O despachante [`update`] só traduz estado em
-//! intenção (`movement.walk.intent_x`); física e colisão continuam em
-//! `movements`/`physics`.
+//! intenção (`locomotion.walk.intent_x`); física continua em `mechanics`/`physics`.
 //!
 //! Para adicionar um inimigo novo: crie `ai/<especie>.rs`, adicione uma variante
 //! em [`AiBehavior`], um construtor em [`Ai`] e ligue no `EntitySpec`.
@@ -78,7 +77,7 @@ pub fn update(store: &mut EntityStore, level: &Level) {
         };
 
         if !ai.enabled || !entity.health.is_alive() {
-            entity.movement.walk.intent_x = 0;
+            entity.locomotion.walk.intent_x = 0;
             continue;
         }
 
@@ -116,7 +115,7 @@ mod tests {
         let enemy = store.spawn(EntitySpec::slime(Vec2::new(32.0, 6.0)));
         {
             let entity = store.get_mut(enemy).unwrap();
-            entity.movement.walk.intent_x = 1;
+            entity.locomotion.walk.intent_x = 1;
             if let Some(ai) = entity.ai_mut() {
                 ai.enabled = false;
             }
@@ -124,6 +123,6 @@ mod tests {
 
         update(&mut store, &level);
 
-        assert_eq!(store.get(enemy).unwrap().movement.walk.intent_x, 0);
+        assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, 0);
     }
 }

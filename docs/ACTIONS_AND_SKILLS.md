@@ -12,9 +12,9 @@
 
 Hoje o input é acoplado a habilidades específicas:
 
-- `PlayerCommand` tem `jump`, `jump_held`, `dash`, `melee` e `mogar`.
+- `PlayerCommand` tem `jump`, `jump_held`, `dash`, `melee` e `mogging`.
 - `Movement::apply_command` traduz cada campo para um componente fixo.
-- `World::step` chama `melee::update` e `mogar::fire` diretamente.
+- `World::step` chama `melee::update` e `mogging::fire` diretamente.
 - O HUD de habilidades lista `MoveId`, mas não existe noção de “slot equipado”.
 - Trocar a habilidade de um botão exigiria mexer no input, no core e no HUD.
 
@@ -25,7 +25,7 @@ O alvo é separar quatro coisas que hoje estão misturadas:
 3. **Slot equipado** (regra do core): qual `SkillId` está no slot 1–4.
 4. **Habilidade** (módulo do core): requisitos, estado, ativação, custo e assets.
 
-Assim, o jogador pode trocar pulo, dash, soco, Mogar, voo, arma de nutela ou
+Assim, o jogador pode trocar pulo, dash, soco, Mogging, voo, arma de nutela ou
 grito de slot sem que o teclado, o HUD ou a rede conheçam a habilidade.
 
 ## 2. Decisões fechadas
@@ -41,7 +41,7 @@ grito de slot sem que o teclado, o HUD ou a rede conheçam a habilidade.
 | Traits | Sem `Box<dyn Skill>`; sem alocação por skill |
 | Movimento base | Andar e SixSeven continuam mecânicas fora dos slots |
 | SixSeven | Continua em `6`/`7`, fora dos slots e do loadout |
-| Defaults | Slot 1 = Pulo (`Espaço`), 2 = Dash (`Shift`), 3 = Soco (`J`), 4 = Mogar (`K`) |
+| Defaults | Slot 1 = Pulo (`Espaço`), 2 = Dash (`Shift`), 3 = Soco (`J`), 4 = Mogging (`K`) |
 | Movimento | `A`/`D` ou `←`/`→`; `W`/`S` ou `↑`/`↓` para subir/descer (voo) |
 | Atributos | `1`–`4` continuam distribuindo pontos na tela de level-up |
 | Assets | `assets/skills/<id>/` com ícone obrigatório e arte opcional de entidade/partículas |
@@ -57,8 +57,8 @@ por habilidades que aceitem movimento vertical. Para usar `W`/`↑` como slot, o
 jogador precisa liberar a ação “subir” no editor: conflito de tecla é rejeitado
 por padrão.
 
-Essa mudança é intencional: se o slot 1 tiver Mogar em vez de Pulo, apertar
-`W`/`↑` não pode disparar Mogar sem querer.
+Essa mudança é intencional: se o slot 1 tiver Mogging em vez de Pulo, apertar
+`W`/`↑` não pode disparar Mogging sem querer.
 
 ## 3. Vocabulário e camadas
 
@@ -288,7 +288,7 @@ pub struct PlayerInput {
 - O cliente não aplica o mesmo edge duas vezes: `without_edges()` limpa apenas
   `pressed`.
 - Skills que usam os dois (pulo variável) leem `pressed` para iniciar e `held`
-  para sustentar. Skills de toque (dash, soco, Mogar) leem só `pressed`. Skills
+  para sustentar. Skills de toque (dash, soco, Mogging) leem só `pressed`. Skills
   contínuas (voo) leem `held` e `move_y`.
 - O core nunca recebe “tecla repetida” do navegador. Auto-repeat é filtrado no
   cliente.
@@ -337,7 +337,7 @@ impl KeyBindings {
 | `Slot1` | `Espaço` | skill padrão: Pulo |
 | `Slot2` | `Shift` esquerdo/direito | skill padrão: Dash |
 | `Slot3` | `J` | skill padrão: Soco |
-| `Slot4` | `K` | skill padrão: Mogar |
+| `Slot4` | `K` | skill padrão: Mogging |
 | `Six` | `6` | SixSeven, fora dos slots |
 | `Seven` | `7` | SixSeven, fora dos slots |
 | `AllocateSpeed` | `1` | só na tela de level-up |
@@ -432,7 +432,7 @@ impl Loadout {
         slots[ActionSlot::Slot1.index()] = Some(SkillId::Jump);
         slots[ActionSlot::Slot2.index()] = Some(SkillId::Dash);
         slots[ActionSlot::Slot3.index()] = Some(SkillId::Melee);
-        slots[ActionSlot::Slot4.index()] = Some(SkillId::Mogar);
+        slots[ActionSlot::Slot4.index()] = Some(SkillId::Mogging);
         Self { slots }
     }
 
@@ -455,7 +455,7 @@ impl Loadout {
 JSON do save:
 
 ```json
-"loadout": ["jump", "dash", "melee", "mogar"]
+"loadout": ["jump", "dash", "melee", "mogging"]
 ```
 
 Slot vazio é `null`. `SkillId` usa `snake_case` estável.
@@ -606,7 +606,7 @@ pub enum SkillId {
     Dash,
     Fly,
     Melee,
-    Mogar,
+    Mogging,
     NutellaShot,
     Shout,
 }
@@ -617,7 +617,7 @@ impl SkillId {
         SkillId::Dash,
         SkillId::Fly,
         SkillId::Melee,
-        SkillId::Mogar,
+        SkillId::Mogging,
         SkillId::NutellaShot,
         SkillId::Shout,
     ];
@@ -681,7 +681,7 @@ pub enum Activation {
 pub enum SkillTiming {
     /// Antes da física: define velocidade/intenção (pulo, dash, voo).
     PrePhysics,
-    /// Depois da física: hitbox/projétil na posição atual (soco, Mogar).
+    /// Depois da física: hitbox/projétil na posição atual (soco, Mogging).
     PostPhysics,
 }
 
@@ -698,12 +698,12 @@ pub struct SkillAssets {
 Exemplo de módulo:
 
 ```rust
-// crates/enzo-core/src/skills/mogar.rs
+// crates/enzo-core/src/skills/mogging.rs
 pub const COST: f32 = 25.0;
 pub const COOLDOWN: f32 = 0.35;
 
 pub const DEF: SkillDef = SkillDef {
-    id: SkillId::Mogar,
+    id: SkillId::Mogging,
     category: SkillCategory::Attack,
     source: SkillSource::Innate,
     activation: Activation::Press,
@@ -717,17 +717,17 @@ pub const DEF: SkillDef = SkillDef {
     cooldown: COOLDOWN,
     timing: SkillTiming::PostPhysics,
     assets: SkillAssets {
-        icon: "assets/skills/mogar/icon.png",
-        entity: Some("assets/skills/mogar/projectile.png"),
-        particles: Some("assets/skills/mogar/impact.png"),
+        icon: "assets/skills/mogging/icon.png",
+        entity: Some("assets/skills/mogging/projectile.png"),
+        particles: Some("assets/skills/mogging/impact.png"),
     },
 };
 ```
 
 Regras de módulo:
 
-- Um arquivo por skill (`skills/mogar.rs`); se crescer, vira diretório
-  (`skills/mogar/mod.rs`, `state.rs`, ...).
+- Um arquivo por skill (`skills/mogging.rs`); se crescer, vira diretório
+  (`skills/mogging/mod.rs`, `state.rs`, ...).
 - O módulo declara `DEF`, o estado tipado, funções puras e testes.
 - O módulo não importa `macroquad`, `wasm-bindgen`, arquivos, relógio ou rede.
 - Entidades/partículas são criadas via `EntitySpec` + `EntityStore::spawn`.
@@ -742,7 +742,7 @@ Regras de módulo:
 | Dash (`Dash`) | Movimento | Press | jogável, nível 1 | 0 | 0,70 s | Pré-física | migrar |
 | Voo (`Fly`) | Movimento | Hold | jogável, nível 5, Aura 5 | 0 | 0 | Pré-física | migrar |
 | Soco (`Melee`) | Ataque | Press | jogável, nível 1 | 0 | janela de combo | Pós-física | migrar |
-| Mogar (`Mogar`) | Ataque | Press | jogável, nível 1 | 25 | 0,35 s | Pós-física | migrar |
+| Mogging (`Mogging`) | Ataque | Press | jogável, nível 1 | 25 | 0,35 s | Pós-física | migrar |
 | Tiro de Nutela (`NutellaShot`) | Ataque | Press | jogável, nível 1, `NUTELLA_GUN` | 0 | 0,25 s | Pós-física | primeiro novo |
 | Grito (`Shout`) | Utilidade | Press | jogável, nível 1 | 10 | 2,0 s | Pós-física | primeiro novo |
 
@@ -774,7 +774,7 @@ pub struct Skills {
     pub dash: dash::State,
     pub fly: fly::State,
     pub melee: melee::State,
-    pub mogar: mogar::State,
+    pub mogging: mogging::State,
     pub nutella_shot: nutella_shot::State,
     pub shout: shout::State,
 }
@@ -842,7 +842,7 @@ de skills, mantendo o resto:
 4. **physics**: integra o corpo e resolve colisão com tiles. Dash sobrescreve
    a velocidade horizontal; voo sobrescreve a gravidade; SixSeven aplica a
    lentidão.
-5. **skills::activate** (pós-física): soco, Mogar, tiro de nutela, grito e
+5. **skills::activate** (pós-física): soco, Mogging, tiro de nutela, grito e
    qualquer skill `PostPhysics`. Hitboxes/projéteis usam a posição já
    integrada.
 6. **projectiles**: move projéteis e resolve tile/inimigos.
@@ -875,7 +875,7 @@ assets/
     ├── melee/
     │   ├── icon.png
     │   └── impact.png
-    ├── mogar/
+    ├── mogging/
     │   ├── icon.png
     │   ├── projectile.png    # entidade gerada
     │   └── impact.png
@@ -900,7 +900,7 @@ assets/
   - Dash: linhas de velocidade horizontais.
   - Voo: asas/aura vertical.
   - Soco: punho + estrela de impacto.
-  - Mogar: orbe/feixe de energia.
+  - Mogging: orbe/feixe de energia.
   - Tiro de Nutela: pote/arma com projétil marrom.
   - Grito: ondas concêntricas saindo da boca.
 - Nada copiado de obras existentes; o gerador versionado é a fonte.
@@ -919,9 +919,9 @@ Cada módulo declara seus caminhos completos:
 
 ```rust
 pub const ASSETS: SkillAssets = SkillAssets {
-    icon: "assets/skills/mogar/icon.png",
-    entity: Some("assets/skills/mogar/projectile.png"),
-    particles: Some("assets/skills/mogar/impact.png"),
+    icon: "assets/skills/mogging/icon.png",
+    entity: Some("assets/skills/mogging/projectile.png"),
+    particles: Some("assets/skills/mogging/impact.png"),
 };
 ```
 
@@ -991,7 +991,7 @@ pub struct SkillCatalogEntry {
 - `melee_step`/`melee_timer` continuam como estado visual específico do soco;
   quando existir um segundo golpe corpo a corpo, generalizar para estado por
   slot.
-- `moves: Vec<MoveId>` e `mogar_cooldown` saem; o HUD passa a ler os slots.
+- `moves: Vec<MoveId>` e `mogging_cooldown` saem; o HUD passa a ler os slots.
 - `SNAPSHOT_VERSION` sobe para 3. Snapshots não são persistidos, então não há
   migração; todos os consumidores devem compilar contra a versão nova.
 
@@ -1082,7 +1082,7 @@ pub enum SkillRejectReason {
 ```
 
 - O cliente mapeia `SkillId` para efeitos/partículas e para o toast.
-- `MogarNoAura`/`MogarFired`/`MogarHit` podem ser substituídos pelos eventos
+- `MoggingNoAura`/`MoggingFired`/`MoggingHit` podem ser substituídos pelos eventos
   genéricos; se a migração for incremental, os antigos ficam como alias
   temporário e saem no mesmo commit da limpeza.
 - `SaveRequested` continua existindo e é emitido após `LoadoutChanged`.
@@ -1103,13 +1103,13 @@ pub enum SkillRejectReason {
 
 ### 9.1 Barra de ações (HUD)
 
-Substitui o indicador fixo de Mogar por uma barra com os 4 slots:
+Substitui o indicador fixo de Mogging por uma barra com os 4 slots:
 
 ```text
 ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
 │ [1]  │ │ [2]  │ │ [3]  │ │ [4]  │
 │  ⤒   │ │  »   │ │  ✊  │ │  ◉   │
-│ Pulo │ │ Dash │ │ Soco │ │Mogar │
+│ Pulo │ │ Dash │ │ Soco │ │Mogging │
 └──────┘ └──────┘ └──────┘ └──────┘
 ```
 
@@ -1142,8 +1142,8 @@ Overlay modal aberto por `OpenSkills` (ou pelo dot “Habilidades” do HUD):
 │ [1] Espaço   [⤒] Pulo      │ MOVIMENTO                       │
 │ [2] Shift    [»] Dash      │ [⤒] Pulo      [»] Dash          │
 │ [3] J        [✊] Soco     │ [✈] Voo 🔒 Nível 5 / Aura 5     │
-│ [4] K        [◉] Mogar     │ ATAQUE                          │
-│                            │ [✊] Soco     [◉] Mogar         │
+│ [4] K        [◉] Mogging     │ ATAQUE                          │
+│                            │ [✊] Soco     [◉] Mogging         │
 │ [Limpar slot]              │ [🥜] Tiro de Nutela 🔒 Arma      │
 │                            │ UTILIDADE                       │
 │                            │ [📣] Grito                      │
@@ -1196,7 +1196,7 @@ reutilizando o `paused` do `GameSession` (o mesmo usado pelo menu de Escape).
 
 ### 9.4 Feedback e erros
 
-- Sucesso: toast “Mogar movido para o Slot 1”, “Soco trocado com Mogar”,
+- Sucesso: toast “Mogging movido para o Slot 1”, “Soco trocado com Mogging”,
   “Slot 3 limpo”.
 - Falha: toast curto com o motivo (`Nível insuficiente`, `Aura insuficiente`,
   `Em cooldown`) e vibração/realce no slot quando a tecla é apertada.
@@ -1209,7 +1209,7 @@ reutilizando o `paused` do `GameSession` (o mesmo usado pelo menu de Escape).
 - Cadeado + texto, não só cor.
 - Alvos de toque ≥ 44 px no mobile; contraste alto; foco visível no teclado.
 - Novas chaves de `Text` (cliente):
-  - `SkillJump`, `SkillDash`, `SkillFly`, `SkillMelee`, `SkillMogar`,
+  - `SkillJump`, `SkillDash`, `SkillFly`, `SkillMelee`, `SkillMogging`,
     `SkillNutellaShot`, `SkillShout`;
   - `SkillCategoryMovement`, `SkillCategoryAttack`, `SkillCategoryUtility`;
   - `SkillSlotLabel`, `SkillSlotEmpty`, `SkillClearSlot`;
@@ -1280,7 +1280,7 @@ crates/enzo-core/src/
 │   ├── dash.rs
 │   ├── fly.rs
 │   ├── melee.rs
-│   ├── mogar.rs
+│   ├── mogging.rs
 │   ├── nutella_shot.rs
 │   └── shout.rs
 ├── entities/
@@ -1296,10 +1296,10 @@ crates/enzo-core/src/
 O que sai:
 
 - `moves.rs` (`MoveId`, `MoveSet`, `MoveCategory`, `AbilityContext`);
-- `attacks/` (melee/mogar viram `skills/melee.rs` e `skills/mogar.rs`);
+- `attacks/` (melee/mogging viram `skills/melee.rs` e `skills/mogging.rs`);
 - `movements/jump.rs`, `dash.rs`, `fly.rs` (viram skills);
 - `Movement` e `Combat` (substituídos por `Locomotion` + `Skills`);
-- `moves`/`mogar_cooldown` do snapshot.
+- `moves`/`mogging_cooldown` do snapshot.
 
 O que fica:
 
@@ -1334,7 +1334,7 @@ grande, então a ordem abaixo evita misturar refatoração estrutural com featur
 | 1 | `docs: plan action slots and modular skills` | este documento + atualizações em ARCHITECTURE/SPEC/AGENTS/README | links e build de docs |
 | 2 | `refactor(core): add action slots and slot input` | `ActionSlot`, `SlotInput`, novo `PlayerCommand`, `without_edges` | edge/held, slots |
 | 3 | `refactor(core): introduce SkillId and SkillDef registry` | renomeia `MoveId` → `SkillId`, `SkillDef`/`Requirements`, catálogo | requisitos, unicidade do catálogo |
-| 4 | `refactor(core): replace Movement/Combat with Skills/Locomotion` | move módulos, `Skills`, `Locomotion`, `Entity`, `EntitySpec`, dispatch | pulo/dash/voo/soco/Mogar |
+| 4 | `refactor(core): replace Movement/Combat with Skills/Locomotion` | move módulos, `Skills`, `Locomotion`, `Entity`, `EntitySpec`, dispatch | pulo/dash/voo/soco/Mogging |
 | 5 | `feat(core): add validated skill loadout` | `Loadout`, `LoadoutRequest`, `World::apply_loadout`, eventos | swap/move/clear/sanitize |
 | 6 | `feat(core): persist loadout and expose skill catalog` | `SaveData` v2 + migração; snapshot v3 | save v1→v2, snapshot slots |
 | 7 | `feat(wasm): map keys to InputAction` | `KeyBindings`, defaults, persistência; sem tela de rebind | teclas default, conflitos |
@@ -1381,7 +1381,7 @@ Observações:
 - [ ] Existem 4 slots genéricos; qualquer `SkillId` disponível pode ocupar
       qualquer slot.
 - [ ] `PlayerCommand` não tem mais `jump`, `jump_held`, `dash`, `melee` ou
-      `mogar`; tem `move_x`, `move_y`, `slots[4]`, `sixseven`, `allocate`,
+      `mogging`; tem `move_x`, `move_y`, `slots[4]`, `sixseven`, `allocate`,
       `confirm`, `restart`.
 - [ ] `InputAction` é a única camada que conhece teclas; o core não lê teclado.
 - [ ] O loadout é validado no core, persiste no save v2 e aparece no snapshot
@@ -1393,7 +1393,7 @@ Observações:
 - [ ] Skill bloqueada por nível/atributo/item mostra o motivo e não ativa.
 - [ ] Toda `SkillId` tem ícone em `assets/skills/<id>/icon.png`; skills que
       geram entidade/partículas declaram os caminhos.
-- [ ] Mogar, Soco, Pulo e Dash têm ícone próprio.
+- [ ] Mogging, Soco, Pulo e Dash têm ícone próprio.
 - [ ] SixSeven continua funcionando em `6`/`7`, fora dos slots.
 - [ ] A ordem de `World::step` está documentada e coberta por teste de
       determinismo.

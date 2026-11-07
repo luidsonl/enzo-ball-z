@@ -19,6 +19,7 @@ impl EquipmentTags {
     pub const NONE: Self = Self(0);
     pub const SWORD: Self = Self(1 << 0);
     pub const BOW: Self = Self(1 << 1);
+    pub const NUTELLA_GUN: Self = Self(1 << 2);
 
     pub const fn new(bits: u16) -> Self {
         Self(bits)

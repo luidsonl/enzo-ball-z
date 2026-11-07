@@ -1,30 +1,49 @@
 //! Eventos do tick. São dados, não estado persistente.
 
 use crate::entities::{EntityId, PlayerId};
-use crate::input::Attribute;
+use crate::input::{ActionSlot, Attribute};
+use crate::skills::{LoadoutChange, SkillId, SkillLock};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SkillRejectReason {
+    Unavailable(SkillLock),
+    Cooldown,
+    NoAura,
+    EmptySlot,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GameEvent {
-    MeleeHit {
+    SkillActivated {
+        player: EntityId,
+        slot: ActionSlot,
+        skill: SkillId,
+    },
+    SkillRejected {
+        player: EntityId,
+        slot: ActionSlot,
+        skill: SkillId,
+        reason: SkillRejectReason,
+    },
+    SkillProjectileSpawned {
+        owner: EntityId,
+        skill: SkillId,
+        projectile: EntityId,
+    },
+    SkillProjectileBlocked {
+        owner: EntityId,
+        skill: SkillId,
+    },
+    SkillHit {
         attacker: EntityId,
         target: EntityId,
+        skill: SkillId,
         damage: f32,
         combo: u8,
     },
-    MogarFired {
-        owner: EntityId,
-        projectile: EntityId,
-    },
-    MogarNoAura {
-        owner: EntityId,
-    },
-    MogarHit {
-        owner: EntityId,
-        target: EntityId,
-        damage: f32,
-    },
-    MogarBlocked {
-        owner: EntityId,
+    LoadoutChanged {
+        player: EntityId,
+        change: LoadoutChange,
     },
     PlayerDamaged {
         player: EntityId,

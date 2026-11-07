@@ -3,17 +3,15 @@
 //! Jogável, inimigo e projétil são o mesmo [`Entity`]. O que muda é o
 //! [`EntityKind`] (payload específico) e o [`Controller`] (quem decide a
 //! intenção). Componentes comuns (`Body`, `Health`, `Stats`, `Attributes`,
-//! `TeamId`, `Movement`, `Combat`) existem em todas as entidades; `Equipment` e
-//! os itens equipados são opcionais.
+//! `TeamId`, `Locomotion`, `Skills`) existem em todas as entidades.
 //!
 //! Toda criação passa por [`crate::entities::EntityStore::spawn`] com um
 //! [`crate::entities::EntitySpec`].
 
 use crate::ai::Ai;
-use crate::attacks::Combat;
 use crate::math::{Rect, Vec2};
-use crate::movements::Movement;
-use crate::moves::{AbilityContext, AssignError, EntityType, MoveCategory, MoveId};
+use crate::mechanics::Locomotion;
+use crate::skills::{SkillContext, SkillId, Skills};
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Body, Health, TeamId};
@@ -28,8 +26,7 @@ use super::projectile::ProjectileData;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EntityId(pub u32);
 
-/// Payload específico de cada tipo de entidade. Os componentes comuns ficam no
-/// [`Entity`], nunca duplicados aqui.
+/// Payload específico de cada tipo de entidade.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EntityKind {
     Player(PlayerData),
@@ -111,12 +108,12 @@ impl EntityKind {
         }
     }
 
-    pub fn entity_type(&self) -> EntityType {
+    pub fn entity_type(&self) -> crate::skills::EntityType {
         match self {
-            Self::Player(_) => EntityType::Playable,
-            Self::Enemy(_) => EntityType::Enemy,
-            Self::Projectile(_) => EntityType::Projectile,
-            Self::Item(_) => EntityType::Item,
+            Self::Player(_) => crate::skills::EntityType::Playable,
+            Self::Enemy(_) => crate::skills::EntityType::Enemy,
+            Self::Projectile(_) => crate::skills::EntityType::Projectile,
+            Self::Item(_) => crate::skills::EntityType::Item,
         }
     }
 
@@ -137,14 +134,11 @@ pub struct Entity {
     pub body: Body,
     pub health: Health,
     pub stats: Stats,
-    /// Pontos de atributo do personagem (sem equipamento).
     pub attributes: Attributes,
-    /// Soma dos itens equipados, usada por requisitos de movimento.
     pub equipment: Equipment,
-    /// Itens instalados por slot. A agregação em `equipment` é derivada daqui.
     pub equipped: [Option<EquippedItem>; EquipSlot::COUNT],
-    pub movement: Movement,
-    pub combat: Combat,
+    pub locomotion: Locomotion,
+    pub skills: Skills,
 }
 
 impl Entity {
@@ -212,25 +206,19 @@ impl Entity {
         self.kind.item_mut()
     }
 
-    pub fn entity_type(&self) -> EntityType {
+    pub fn entity_type(&self) -> crate::skills::EntityType {
         self.kind.entity_type()
     }
 
-    /// Atributos só do personagem. É o que os requisitos de itens enxergam.
     pub fn character_attribute_set(&self) -> super::attributes::AttributeSet {
         self.attributes.to_set()
     }
 
-    /// Atributos efetivos: personagem + equipamento. É o que os requisitos de
-    /// movimento enxergam.
     pub fn attribute_set(&self) -> super::attributes::AttributeSet {
         self.character_attribute_set()
             .merged(self.equipment.modifiers)
     }
 
-    /// Equipa um item se o tipo de personagem e os atributos do personagem
-    /// cumprirem as restrições declaradas pelo item. Itens de consumo não são
-    /// equipáveis.
     pub fn try_equip(&mut self, item: &ItemData) -> Result<(), EquipError> {
         let slot = item.slot().ok_or(EquipError::NotEquippable)?;
         item.requirements
@@ -250,14 +238,12 @@ impl Entity {
         removed
     }
 
-    /// Recalcula a agregação a partir dos slots. Chamado após qualquer mudança
-    /// de equipamento.
     pub fn refresh_equipment(&mut self) {
         self.equipment = Equipment::from_equipped(&self.equipped);
     }
 
-    pub fn ability_context(&self) -> AbilityContext {
-        AbilityContext::new(
+    pub fn skill_context(&self) -> SkillContext {
+        SkillContext::new(
             self.entity_type(),
             self.kind.level(),
             self.attribute_set(),
@@ -265,20 +251,8 @@ impl Entity {
         )
     }
 
-    pub fn has_move(&self, id: MoveId) -> bool {
-        match id.category() {
-            MoveCategory::Movement => self.movement.has(id),
-            MoveCategory::Attack => self.combat.has(id),
-        }
-    }
-
-    /// Atribui um movimento em runtime, revalidando os requisitos.
-    pub fn try_assign_move(&mut self, id: MoveId) -> Result<(), AssignError> {
-        let context = self.ability_context();
-        match id.category() {
-            MoveCategory::Movement => self.movement.try_assign(id, context),
-            MoveCategory::Attack => self.combat.try_assign(id, context),
-        }
+    pub fn has_skill(&self, id: SkillId) -> bool {
+        self.skills.has(id)
     }
 
     pub fn max_health(&self) -> f32 {

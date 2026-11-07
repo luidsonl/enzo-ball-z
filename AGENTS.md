@@ -10,7 +10,7 @@ que trabalharem neste repositório. Leia também:
 
 EnzoBallZ é um jogo de plataforma 2D estilo Mario, escrito em Rust e compilado
 para WebAssembly. O Enzo corre, pula, faz combo físico, farma aura alternando
-`6`/`7` e gasta aura no golpe **Mogar**. Inimigos dão XP; o level-up distribui
+`6`/`7` e gasta aura no golpe **Mogging**. Inimigos dão XP; o level-up distribui
 pontos entre Velocidade, Força, Vida e Aura.
 
 O MVP é single-player, mas o core é desenhado para N jogadores e para um futuro
@@ -95,7 +95,7 @@ e justificar no commit.
     via `EntityStore::spawn(EntitySpec)`; não crie structs paralelas com
     atributos duplicados nem monte `Entity` à mão nos sistemas.
 11. **Movimentos são componentes e têm requisitos.** Andar, pular, dash e voar
-    ficam em `movements/`; combo, Mogar e futuros especiais ficam em `attacks/`.
+    ficam em `movements/`; combo, Mogging e futuros especiais ficam em `attacks/`.
     Cada movimento declara `REQUIREMENTS` (tipo de entidade, nível e atributos) e
     só entra no `MoveSet` via `try_assign`. O `World` orquestra sistemas, não
     implementa movimento nem ataque inline.
@@ -137,7 +137,7 @@ Toda mudança de regra de jogo precisa de teste. O mínimo:
 - **Unitário:** funções de `math`, `map`, `aura`, `progression`, `moves`,
   `movements` e `attacks`. Após a refatoração: `mechanics` e `skills`
   (incluindo `Loadout::assign`, `sanitize` e requisitos).
-- **Cenário:** pulo, colisão, double-tap, combo de 3, Mogar, morte, bandeira.
+- **Cenário:** pulo, colisão, double-tap, combo de 3, Mogging, morte, bandeira.
   Após a refatoração: troca/movimentação de skill entre slots e bloqueio por
   nível/atributo/item.
 - **Determinismo:** mesma semente + mesmos comandos = mesmo snapshot.
@@ -166,7 +166,7 @@ Não use `sleep` em teste. Avance ticks explicitamente com `World::step`.
 - Sprites devem ser originais, pixel-art e gerados por
   `scripts/gen-sprites.mjs`.
 - Não copie personagens, sprites, músicas ou nomes de obras existentes
-  (Dragon Ball, Mario etc.). O nome "Mogar" é do projeto.
+  (Dragon Ball, Mario etc.). O nome "Mogging" é do projeto.
 - Novos assets entram em `assets/` com o script que os gera versionado.
 - Se trocar um PNG, mantenha o atlas e as dimensões documentados.
 - Assets de skill planejados ficam em `assets/skills/<id>/`: `icon.png`

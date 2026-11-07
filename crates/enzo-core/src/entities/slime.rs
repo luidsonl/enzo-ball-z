@@ -1,13 +1,9 @@
 //! Entidade **slime**.
-//!
-//! Inimigo inicial: anda em linha reta, vira em paredes/beiradas e causa dano
-//! por contato. O comportamento fica em [`crate::ai::slime`]; aqui ficam os
-//! números da espécie e a construção da entidade.
 
 use crate::ai::Ai;
-use crate::attacks::Combat;
 use crate::math::Vec2;
-use crate::movements::Movement;
+use crate::mechanics::Locomotion;
+use crate::skills::Skills;
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Health, TeamId};
@@ -31,35 +27,22 @@ impl Stats {
             strength: 0.0,
             max_health: 30.0,
             max_aura: 0.0,
-            mogar_damage: 0.0,
+            mogging_damage: 0.0,
         }
-    }
-}
-
-impl EnemyData {
-    pub fn slime() -> Self {
-        Self {
-            species: EnemySpecies::Slime,
-            xp_reward: SLIME_XP_REWARD,
-            contact_damage: SLIME_CONTACT_DAMAGE,
-            stun: 0.0,
-            xp_awarded: false,
-        }
-    }
-}
-
-impl Default for EnemyData {
-    fn default() -> Self {
-        Self::slime()
     }
 }
 
 impl EntitySpec {
-    /// Cria uma slime com IA de patrulha e dano por contato.
     pub fn slime(pos: Vec2) -> Self {
         let stats = Stats::slime();
         Self {
-            kind: EntityKind::Enemy(EnemyData::slime()),
+            kind: EntityKind::Enemy(EnemyData {
+                species: EnemySpecies::Slime,
+                xp_reward: SLIME_XP_REWARD,
+                contact_damage: SLIME_CONTACT_DAMAGE,
+                stun: 0.0,
+                xp_awarded: false,
+            }),
             controller: Controller::from_ai(Ai::slime()),
             team: TeamId::ENEMIES,
             pos,
@@ -69,9 +52,9 @@ impl EntitySpec {
             attributes: Attributes::ZERO,
             equipment: Equipment::NONE,
             equipped: [None; EquipSlot::COUNT],
-            movement: Movement::enemy(),
-            combat: Combat::none(),
-            velocity: Vec2::new(-stats.walk_speed, 0.0),
+            locomotion: Locomotion::enemy(),
+            skills: Skills::enemy(),
+            velocity: Vec2::ZERO,
         }
     }
 }
@@ -79,27 +62,20 @@ impl EntitySpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moves::MoveId;
+    use crate::entities::EntityStore;
 
     #[test]
-    fn slime_spec_has_ai_and_no_player_moves() {
-        let spec = EntitySpec::slime(Vec2::ZERO);
-        assert!(spec.controller.is_ai());
-        assert_eq!(spec.team, TeamId::ENEMIES);
-        assert_eq!(spec.size, SLIME_SIZE);
-        assert!(spec.controller.ai().is_some());
-        assert!(spec.movement.has(MoveId::Walk));
-        assert!(!spec.movement.has(MoveId::Jump));
-        assert!(!spec.combat.has(MoveId::Melee));
-    }
+    fn slime_has_slime_components() {
+        let mut store = EntityStore::new();
+        let id = store.spawn(EntitySpec::slime(Vec2::ZERO));
+        let entity = store.get(id).unwrap();
 
-    #[test]
-    fn slime_data_carries_species_numbers() {
-        let slime = EnemyData::slime();
-        assert_eq!(slime.species, EnemySpecies::Slime);
-        assert_eq!(slime.xp_reward, SLIME_XP_REWARD);
-        assert_eq!(slime.contact_damage, SLIME_CONTACT_DAMAGE);
-        assert_eq!(slime.stun, 0.0);
-        assert!(!slime.xp_awarded);
+        assert_eq!(entity.body.size, SLIME_SIZE);
+        assert_eq!(entity.enemy().unwrap().xp_reward, SLIME_XP_REWARD);
+        assert_eq!(entity.stats, Stats::slime());
+        assert!(entity.locomotion.has_walk());
+        assert!(!entity.locomotion.has_sixseven());
+        assert!(entity.skills.loadout.is_empty());
+        assert!(entity.ai().is_some());
     }
 }

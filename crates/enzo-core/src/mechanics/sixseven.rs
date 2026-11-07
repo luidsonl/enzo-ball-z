@@ -10,7 +10,7 @@
 
 use crate::entities::{AttributeSet, EquipmentTags};
 use crate::input::SixSevenKey;
-use crate::moves::{EntityType, Requirements};
+use crate::skills::{EntityType, Requirements};
 
 pub const AURA_PER_HIT: f32 = 2.0;
 pub const COMBO_MULTIPLIER_STEP: f32 = 0.15;
@@ -41,6 +41,16 @@ pub struct SixSeven {
 }
 
 impl SixSeven {
+    pub const fn new() -> Self {
+        Self {
+            last_key: None,
+            combo: 0,
+            window: 0.0,
+            total: 0.0,
+            pending: None,
+        }
+    }
+
     /// Registra a tecla pressionada. A aplicação na aura acontece no sistema de
     /// aura, não no input.
     pub fn request(&mut self, key: SixSevenKey) {

@@ -2,7 +2,7 @@
 
 Plataforma 2D estilo Mario, em Rust compilado para WebAssembly. O Enzo corre,
 pula, faz combo físico, farma aura alternando `6`/`7` e gasta aura no golpe
-**Mogar**.
+**Mogging**.
 
 ## Status
 

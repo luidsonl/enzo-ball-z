@@ -1,13 +1,12 @@
 //! Progressão: XP, nível, pontos, atributos e save.
-//!
-//! O core decide quanto XP sobe de nível e como cada ponto altera os stats. O
-//! cliente apenas persiste o [`SaveData`] no `localStorage`.
 
 use crate::entities::{Attributes, Entity, EntityId, EntityStore, Stats};
 use crate::events::GameEvent;
 use crate::input::Attribute;
+use crate::skills::Loadout;
 
-pub const SAVE_VERSION: u16 = 1;
+pub const SAVE_VERSION: u16 = 2;
+pub const SAVE_VERSION_V1: u16 = 1;
 
 /// XP necessário para sair do nível atual.
 pub fn xp_to_next(level: u32) -> f32 {
@@ -136,6 +135,8 @@ pub struct SaveData {
     pub xp: f32,
     pub points: u32,
     pub attributes: Attributes,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub loadout: Loadout,
 }
 
 impl SaveData {
@@ -147,10 +148,24 @@ impl SaveData {
             xp: player.xp,
             points: player.points,
             attributes: entity.attributes,
+            loadout: entity.skills.loadout,
         })
     }
 
-    /// Aplica o save se a versão for compatível. Restaura vida e aura cheias.
+    /// Migra saves legados para a versão atual.
+    pub fn migrate(mut self) -> Option<Self> {
+        if self.version == SAVE_VERSION_V1 {
+            self.version = SAVE_VERSION;
+            self.loadout = Loadout::player_default();
+        }
+        if self.version != SAVE_VERSION {
+            return None;
+        }
+        self.loadout.sanitize();
+        Some(self)
+    }
+
+    /// Aplica o save se a versão for compatível (já migrado). Restaura vida/aura.
     pub fn apply_to(&self, entity: &mut Entity) -> bool {
         if self.version != SAVE_VERSION || entity.player().is_none() {
             return false;
@@ -169,6 +184,9 @@ impl SaveData {
 
         entity.stats = stats;
         entity.health.current = stats.max_health;
+        let mut loadout = self.loadout;
+        loadout.sanitize();
+        entity.skills.loadout = loadout;
         true
     }
 }
@@ -177,7 +195,9 @@ impl SaveData {
 mod tests {
     use super::*;
     use crate::entities::EntitySpec;
+    use crate::input::ActionSlot;
     use crate::math::Vec2;
+    use crate::skills::SkillId;
 
     fn player() -> Entity {
         let mut store = EntityStore::new();
@@ -256,12 +276,12 @@ mod tests {
     }
 
     #[test]
-    fn allocating_aura_raises_max_and_mogar_damage() {
+    fn allocating_aura_raises_max_and_mogging_damage() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
         assert!(allocate_point(&mut entity, Attribute::Aura));
         assert_eq!(entity.stats.max_aura, 110.0);
-        assert_eq!(entity.stats.mogar_damage, 22.0);
+        assert_eq!(entity.stats.mogging_damage, 22.0);
     }
 
     #[test]
@@ -274,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn save_roundtrip_preserves_progress() {
+    fn save_roundtrip_preserves_progress_and_loadout() {
         let mut entity = player();
         {
             let data = entity.player_mut().unwrap();
@@ -288,6 +308,11 @@ mod tests {
             health: 3,
             aura: 4,
         };
+        entity.skills.loadout.clear(ActionSlot::Slot4);
+        entity
+            .skills
+            .loadout
+            .assign(ActionSlot::Slot4, SkillId::Shout);
 
         let save = SaveData::from_entity(&entity).unwrap();
         assert_eq!(save.version, SAVE_VERSION);
@@ -300,6 +325,26 @@ mod tests {
         assert_eq!(data.points, 3);
         assert_eq!(loaded.attributes, save.attributes);
         assert_eq!(loaded.stats, Stats::player(save.attributes));
+        assert_eq!(
+            loaded.skills.loadout.get(ActionSlot::Slot4),
+            Some(SkillId::Shout)
+        );
+    }
+
+    #[test]
+    fn v1_save_migrates_to_default_loadout() {
+        let save = SaveData {
+            version: SAVE_VERSION_V1,
+            level: 2,
+            xp: 10.0,
+            points: 1,
+            attributes: Attributes::default(),
+            loadout: Loadout::EMPTY,
+        }
+        .migrate()
+        .unwrap();
+        assert_eq!(save.version, SAVE_VERSION);
+        assert_eq!(save.loadout, Loadout::player_default());
     }
 
     #[test]
@@ -311,6 +356,7 @@ mod tests {
             xp: 0.0,
             points: 9,
             attributes: Attributes::default(),
+            loadout: Loadout::player_default(),
         };
         assert!(!save.apply_to(&mut entity));
         assert_eq!(entity.player().unwrap().level, 1);

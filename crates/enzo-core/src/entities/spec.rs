@@ -1,18 +1,11 @@
 //! Especificação genérica de criação de entidades.
 //!
-//! Nada de montar [`Entity`] à mão nos sistemas: use um construtor concreto
-//! (`EntitySpec::player`, `slime`, `mogar`, `item`) e
+//! Nada de montar [`Entity`] à mão nos sistemas: use um construtor concreto e
 //! [`crate::entities::EntityStore::spawn`].
-//!
-//! Os construtores concretos vivem junto da entidade correspondente
-//! (`enzo.rs`, `slime.rs`, `mogar.rs`, `item.rs`). Este módulo guarda só o
-//! formato comum e os builders que qualquer entidade pode usar.
 
-use crate::ai::Ai;
-use crate::attacks::Combat;
 use crate::math::Vec2;
-use crate::movements::Movement;
-use crate::moves::{AbilityContext, AssignError, MoveCategory, MoveId};
+use crate::mechanics::Locomotion;
+use crate::skills::Skills;
 
 use super::attributes::{Attributes, Stats};
 use super::components::{Health, TeamId};
@@ -34,8 +27,8 @@ pub struct EntitySpec {
     pub attributes: Attributes,
     pub equipment: Equipment,
     pub equipped: [Option<EquippedItem>; EquipSlot::COUNT],
-    pub movement: Movement,
-    pub combat: Combat,
+    pub locomotion: Locomotion,
+    pub skills: Skills,
     pub velocity: Vec2,
 }
 
@@ -50,13 +43,13 @@ impl EntitySpec {
         self
     }
 
-    pub fn with_movement(mut self, movement: Movement) -> Self {
-        self.movement = movement;
+    pub fn with_locomotion(mut self, locomotion: Locomotion) -> Self {
+        self.locomotion = locomotion;
         self
     }
 
-    pub fn with_combat(mut self, combat: Combat) -> Self {
-        self.combat = combat;
+    pub fn with_skills(mut self, skills: Skills) -> Self {
+        self.skills = skills;
         self
     }
 
@@ -65,8 +58,7 @@ impl EntitySpec {
         self
     }
 
-    /// Anexa um controlador de IA, substituindo o controlador atual.
-    pub fn with_ai(mut self, ai: Ai) -> Self {
+    pub fn with_ai(mut self, ai: crate::ai::Ai) -> Self {
         self.controller = Controller::from_ai(ai);
         self
     }
@@ -85,48 +77,20 @@ impl EntitySpec {
         Ok(self)
     }
 
-    pub fn ability_context(&self) -> AbilityContext {
-        AbilityContext::new(
+    pub fn skill_context(&self) -> crate::skills::SkillContext {
+        crate::skills::SkillContext::new(
             self.kind.entity_type(),
             self.kind.level(),
             self.attributes.to_set().merged(self.equipment.modifiers),
             self.equipment.tags,
         )
     }
-
-    /// Atribui um movimento ao spec se a entidade cumprir os requisitos.
-    pub fn with_move(mut self, id: MoveId) -> Result<Self, AssignError> {
-        let context = self.ability_context();
-        match id.category() {
-            MoveCategory::Movement => self.movement.try_assign(id, context)?,
-            MoveCategory::Attack => self.combat.try_assign(id, context)?,
-        }
-        Ok(self)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::moves::EntityType;
-
-    #[test]
-    fn spec_rejects_move_without_requirements() {
-        let player = EntitySpec::player(0, Vec2::ZERO);
-        assert!(matches!(
-            player.with_move(MoveId::Fly),
-            Err(AssignError::LevelTooLow {
-                required: 5,
-                current: 1,
-            })
-        ));
-
-        let enemy = EntitySpec::slime(Vec2::ZERO);
-        assert!(matches!(
-            enemy.with_move(MoveId::Jump),
-            Err(AssignError::WrongEntityType { .. })
-        ));
-    }
+    use crate::skills::{EntityType, SkillId};
 
     #[test]
     fn item_requirements_are_validated_on_creation() {
@@ -141,10 +105,14 @@ mod tests {
         let armed = strong.with_item(&ItemData::SWORD).unwrap();
         assert!(armed.equipment.has(crate::entities::EquipmentTags::SWORD));
         assert_eq!(
-            armed.ability_context().equipment,
+            armed.skill_context().equipment,
             ItemData::SWORD.equipment.tags
         );
-        assert_eq!(armed.ability_context().entity_type, EntityType::Playable);
+        assert_eq!(armed.skill_context().entity_type, EntityType::Playable);
+        assert_eq!(
+            armed.skills.loadout.get(crate::input::ActionSlot::Slot1),
+            Some(SkillId::Jump)
+        );
     }
 
     #[test]

@@ -29,12 +29,12 @@ impl Default for SlimeAi {
 /// Calcula a intenção do tick e devolve o estado atualizado.
 pub fn update(entity: &mut Entity, level: &Level, state: SlimeAi) -> SlimeAi {
     let Some(enemy) = entity.enemy().copied() else {
-        entity.movement.walk.intent_x = 0;
+        entity.locomotion.walk.intent_x = 0;
         return state;
     };
 
     if enemy.stun > 0.0 {
-        entity.movement.walk.intent_x = 0;
+        entity.locomotion.walk.intent_x = 0;
         return state;
     }
 
@@ -59,7 +59,7 @@ pub fn update(entity: &mut Entity, level: &Level, state: SlimeAi) -> SlimeAi {
         direction = -direction;
     }
 
-    entity.movement.walk.intent_x = direction;
+    entity.locomotion.walk.intent_x = direction;
     entity.body.facing = direction;
 
     SlimeAi {
@@ -101,11 +101,11 @@ mod tests {
 
         // Anda para a direita; parede no tile 2 (x >= 64).
         crate::ai::update(&mut store, &level);
-        assert_eq!(store.get(enemy).unwrap().movement.walk.intent_x, 1);
+        assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, 1);
 
         store.get_mut(enemy).unwrap().body.pos.x = 58.0;
         crate::ai::update(&mut store, &level);
-        assert_eq!(store.get(enemy).unwrap().movement.walk.intent_x, -1);
+        assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, -1);
         assert_eq!(patrol_dir(&store, enemy), -1);
     }
 
@@ -117,7 +117,7 @@ mod tests {
         store.get_mut(enemy).unwrap().body.on_ground = true;
 
         crate::ai::update(&mut store, &level);
-        assert_eq!(store.get(enemy).unwrap().movement.walk.intent_x, -1);
+        assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, -1);
     }
 
     #[test]
@@ -130,7 +130,7 @@ mod tests {
         }
 
         crate::ai::update(&mut store, &level);
-        assert_eq!(store.get(enemy).unwrap().movement.walk.intent_x, 0);
+        assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, 0);
         assert_eq!(patrol_dir(&store, enemy), 1);
     }
 }
