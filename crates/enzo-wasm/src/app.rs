@@ -29,6 +29,7 @@ use crate::save;
 use crate::sprites::Sprites;
 use crate::tiles::TileRenderer;
 use crate::ui;
+use crate::ui_bridge;
 
 /// Limite de tempo de frame aceito de uma vez. Evita "espiral da morte" quando
 /// a aba fica em segundo plano e o navegador entrega um delta enorme.
@@ -75,6 +76,9 @@ impl App {
         };
 
         ui::set_interface_scale(save::load_interface_scale());
+        ui_bridge::set_mobile_controls_mode(
+            save::load_mobile_controls_mode().bridge_code(),
+        );
 
         app
     }

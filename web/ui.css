@@ -1,0 +1,60 @@
+/* DOM UI overlay: flexible mobile controls. Canvas remains the game surface. */
+
+:root {
+  --ui-btn: rgba(18, 20, 34, 0.72);
+  --ui-btn-active: rgba(80, 180, 255, 0.75);
+  --ui-btn-border: rgba(255, 255, 255, 0.18);
+  --ui-text: #e8e8ff;
+}
+
+#dom-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  font: 14px/1.2 system-ui, sans-serif;
+  color: var(--ui-text);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#dom-controls-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ui-btn {
+  pointer-events: auto;
+  touch-action: none;
+  border: 1px solid var(--ui-btn-border);
+  border-radius: 14px;
+  background: var(--ui-btn);
+  color: var(--ui-text);
+  font: inherit;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(4px);
+  padding: 0;
+}
+
+.ui-btn.active,
+.ui-btn:active {
+  background: var(--ui-btn-active);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.ui-label {
+  pointer-events: none;
+  line-height: 1;
+}
+
+.ui-btn[data-kind="slot"] .ui-label {
+  font-size: 18px;
+}
+
+@media (pointer: fine) and (min-width: 1100px) {
+  #dom-controls-root { opacity: 0.9; }
+}

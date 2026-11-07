@@ -66,6 +66,10 @@ pub enum Text {
     Cancel,
     Language,
     InterfaceSize,
+    MobileControls,
+    MobileControlsOn,
+    MobileControlsOff,
+    MobileControlsAuto,
     SlotLabel,
     SlotDeleted,
     LevelLoadFailed,
@@ -229,6 +233,14 @@ impl I18n {
             (Language::English, Text::Language) => "Language",
             (Language::PtBr, Text::InterfaceSize) => "Tamanho da interface",
             (Language::English, Text::InterfaceSize) => "Interface size",
+            (Language::PtBr, Text::MobileControls) => "Controles mobile",
+            (Language::English, Text::MobileControls) => "Mobile controls",
+            (Language::PtBr, Text::MobileControlsOn) => "Ligado",
+            (Language::English, Text::MobileControlsOn) => "On",
+            (Language::PtBr, Text::MobileControlsOff) => "Desligado",
+            (Language::English, Text::MobileControlsOff) => "Off",
+            (Language::PtBr, Text::MobileControlsAuto) => "Automático",
+            (Language::English, Text::MobileControlsAuto) => "Auto",
             (Language::PtBr, Text::SlotLabel) => "Slot",
             (Language::English, Text::SlotLabel) => "Slot",
             (Language::PtBr, Text::SlotDeleted) => "Slot apagado",
@@ -486,9 +498,8 @@ impl I18n {
 mod tests {
     use super::*;
 
-    /// Lista de chaves para o teste de cobertura. Mantenha em sincronia com o
-    /// enum: novas chaves devem entrar aqui.
-    const ALL_TEXT: [Text; 105] = [
+    /// List of keys for coverage testing. Keep in sync with the enum.
+    const ALL_TEXT: [Text; 109] = [
         Text::MenuSubtitle,
         Text::Play,
         Text::Resume,
@@ -505,6 +516,10 @@ mod tests {
         Text::Cancel,
         Text::Language,
         Text::InterfaceSize,
+        Text::MobileControls,
+        Text::MobileControlsOn,
+        Text::MobileControlsOff,
+        Text::MobileControlsAuto,
         Text::SlotLabel,
         Text::SlotDeleted,
         Text::LevelLoadFailed,

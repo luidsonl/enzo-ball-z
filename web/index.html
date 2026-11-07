@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>EnzoBallZ</title>
+    <link rel="stylesheet" href="ui.css" />
     <style>
       html,
       body,
@@ -31,20 +32,26 @@
   </head>
   <body>
     <canvas id="glcanvas" tabindex="1"></canvas>
-    <div id="loading">Carregando EnzoBallZ…</div>
+    <div id="loading">Loading EnzoBallZ…</div>
+
+    <div id="dom-ui" aria-hidden="false">
+      <div id="dom-controls-root"></div>
+    </div>
+
     <script>
-      // O bundle inclui o plugin quad_net, que referencia `register_plugin`
-      // antes de sapp_jsutils.js defini-lo. O jogo não usa rede; o stub evita
-      // um erro inofensivo no console.
+      // The bundle includes the quad_net plugin, which references register_plugin
+      // before sapp_jsutils.js defines it. The game does not use networking; this
+      // stub avoids a harmless console error.
       var register_plugin = function () {};
     </script>
     <script src="mq_js_bundle.js"></script>
     <script src="sapp_jsutils.js"></script>
     <script src="quad-storage.js"></script>
+    <script src="ui.js"></script>
     <script>
-      // O macroquad não avisa o HTML quando o primeiro frame está pronto. O
-      // canvas começa em 300x150 e é redimensionado pelo wasm ao iniciar; usar
-      // isso como sinal evita deixar o overlay "Carregando" por cima do jogo.
+      // Macroquad does not notify the HTML when the first frame is ready. The
+      // canvas starts at 300x150 and is resized by wasm at startup; use that as
+      // a signal to remove the loading overlay.
       const loading = document.getElementById("loading");
       const gameCanvas = document.getElementById("glcanvas");
       const startedAt = performance.now();
@@ -56,7 +63,7 @@
         }
         if (performance.now() - startedAt > 15000) {
           loading.textContent =
-            "O jogo demorou para carregar. Verifique o console do navegador.";
+            "The game took too long to load. Check the browser console.";
           return;
         }
         requestAnimationFrame(hideWhenReady);

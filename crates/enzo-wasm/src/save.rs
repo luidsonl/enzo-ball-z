@@ -10,6 +10,48 @@ pub const LEGACY_KEY: &str = "enzoballz.save.v1";
 pub const SLOT_KEY_PREFIX: &str = "enzoballz.save.slot";
 pub const LANGUAGE_KEY: &str = "enzoballz.language";
 pub const INTERFACE_SCALE_KEY: &str = "enzoballz.interface_scale";
+pub const MOBILE_CONTROLS_KEY: &str = "enzoballz.mobile_controls";
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MobileControlsMode {
+    On,
+    Off,
+    #[default]
+    Auto,
+}
+
+impl MobileControlsMode {
+    pub const ALL: [MobileControlsMode; 3] = [
+        MobileControlsMode::On,
+        MobileControlsMode::Off,
+        MobileControlsMode::Auto,
+    ];
+
+    pub fn code(self) -> &'static str {
+        match self {
+            MobileControlsMode::On => "on",
+            MobileControlsMode::Off => "off",
+            MobileControlsMode::Auto => "auto",
+        }
+    }
+
+    pub fn from_code(code: &str) -> Option<Self> {
+        match code {
+            "on" => Some(MobileControlsMode::On),
+            "off" => Some(MobileControlsMode::Off),
+            "auto" => Some(MobileControlsMode::Auto),
+            _ => None,
+        }
+    }
+
+    pub fn bridge_code(self) -> u8 {
+        match self {
+            MobileControlsMode::Off => 0,
+            MobileControlsMode::On => 1,
+            MobileControlsMode::Auto => 2,
+        }
+    }
+}
 
 pub fn slot_key(slot: usize) -> String {
     format!("{SLOT_KEY_PREFIX}.{slot}.v2")
@@ -95,9 +137,19 @@ pub fn load_interface_scale() -> f32 {
 
 pub fn store_interface_scale(interface_scale: f32) -> Result<(), String> {
     if !(0.75..=2.0).contains(&interface_scale) {
-        return Err("escala de interface fora do intervalo válido".to_owned());
+        return Err("interface scale out of valid range".to_owned());
     }
     write_key(INTERFACE_SCALE_KEY, &interface_scale.to_string())
+}
+
+pub fn load_mobile_controls_mode() -> MobileControlsMode {
+    read_key(MOBILE_CONTROLS_KEY)
+        .and_then(|code| MobileControlsMode::from_code(&code))
+        .unwrap_or_default()
+}
+
+pub fn store_mobile_controls_mode(mode: MobileControlsMode) -> Result<(), String> {
+    write_key(MOBILE_CONTROLS_KEY, mode.code())
 }
 
 fn parse_save(raw: &str) -> Option<SaveData> {

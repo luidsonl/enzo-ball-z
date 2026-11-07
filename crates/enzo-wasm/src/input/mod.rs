@@ -13,6 +13,8 @@ use enzo_core::input::{
 };
 use macroquad::prelude::{is_key_down, is_key_pressed, KeyCode};
 
+use crate::ui_bridge;
+
 pub use bindings::{EmulatedControlView, KeyBindings};
 
 #[derive(Clone, Debug)]
@@ -66,31 +68,51 @@ impl InputState {
     }
 
     pub fn poll(&mut self) {
-        self.left = self.action_down(InputAction::MoveLeft);
-        self.right = self.action_down(InputAction::MoveRight);
-        self.up = self.action_down(InputAction::MoveUp);
-        self.down = self.action_down(InputAction::MoveDown);
+        self.left = self.action_active(InputAction::MoveLeft).1;
+        self.right = self.action_active(InputAction::MoveRight).1;
+        self.up = self.action_active(InputAction::MoveUp).1;
+        self.down = self.action_active(InputAction::MoveDown).1;
 
         for (index, slot) in ActionSlot::ALL.iter().copied().enumerate() {
             let Some(action) = input_action_for_slot(slot) else {
                 continue;
             };
-            self.slots_held[index] = self.action_down(action);
-            self.slots_pressed[index] |= self.action_pressed(action);
+            let (pressed, held) = self.action_active(action);
+            self.slots_held[index] = held;
+            self.slots_pressed[index] |= pressed;
         }
 
-        self.six |= self.action_pressed(InputAction::Six);
-        self.seven |= self.action_pressed(InputAction::Seven);
-        self.confirm |= self.action_pressed(InputAction::Confirm);
-        self.restart |= self.action_pressed(InputAction::Restart);
-        self.menu |= self.action_pressed(InputAction::OpenMenu);
-        self.open_skills |= self.action_pressed(InputAction::OpenSkills);
+        self.six |= self.action_active(InputAction::Six).0;
+        self.seven |= self.action_active(InputAction::Seven).0;
+        self.confirm |= self.action_active(InputAction::Confirm).0;
+        self.restart |= self.action_active(InputAction::Restart).0;
+        self.menu |= self.action_active(InputAction::OpenMenu).0;
+        self.open_skills |= self.action_active(InputAction::OpenSkills).0;
 
         if self.allocate.is_none() {
             self.allocate = InputAction::ALL
                 .into_iter()
-                .find(|action| action.attribute().is_some() && self.action_pressed(*action))
+                .find(|action| {
+                    action.attribute().is_some() && self.action_active(*action).0
+                })
                 .and_then(|action| action.attribute());
+        }
+
+        self.consume_virtual_edges();
+    }
+
+    /// Returns `(pressed_edge, held)` merged from keyboard bindings and virtual (DOM/mobile) input.
+    fn action_active(&self, action: InputAction) -> (bool, bool) {
+        let virtual_state = ui_bridge::peek_virtual_action(action);
+        let held = self.action_down(action) || virtual_state.held;
+        let pressed = self.action_pressed(action) || virtual_state.pressed;
+        (pressed, held)
+    }
+
+    fn consume_virtual_edges(&self) {
+        for action in InputAction::ALL {
+            // Clear only pressed edges; held state remains owned by the bridge until action_up.
+            ui_bridge::clear_virtual_pressed(action);
         }
     }
 

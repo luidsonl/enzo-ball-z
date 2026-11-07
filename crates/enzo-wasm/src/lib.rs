@@ -18,6 +18,7 @@ pub mod save;
 pub mod sprites;
 pub mod tiles;
 pub mod ui;
+pub mod ui_bridge;
 
 use macroquad::prelude::Conf;
 
