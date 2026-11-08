@@ -1,0 +1,16 @@
+{
+  "framework": "pixel-forge",
+  "id": "valentina",
+  "sheet": "sheet.png",
+  "atlas": "atlas.json",
+  "clips": [
+    "idle",
+    "walk",
+    "jump",
+    "kick",
+    "cast",
+    "sixseven_a",
+    "sixseven_b",
+    "hurt"
+  ]
+}
