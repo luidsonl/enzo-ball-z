@@ -19,15 +19,6 @@ pub fn draw(
     let center = pos + size * 0.5;
     let anim = entity.animation;
 
-    draw_ellipse(
-        pos.x + size.x * 0.5,
-        pos.y + size.y - 2.0,
-        size.x * 0.475,
-        3.5,
-        0.0,
-        Color::from_rgba(12, 10, 22, 70),
-    );
-
     if anim.farming || anim.is_sixseven() {
         let pulse = 0.5 + 0.5 * (time * 8.0).sin();
         draw_circle(

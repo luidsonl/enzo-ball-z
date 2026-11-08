@@ -16,16 +16,6 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
     let size = vec2(entity.size.x, entity.size.y);
     let anim = entity.animation;
 
-    // Shadow
-    draw_ellipse(
-        pos.x + size.x * 0.5,
-        pos.y + size.y - 2.0,
-        size.x * 0.475,
-        3.5,
-        0.0,
-        Color::from_rgba(12, 10, 22, 70),
-    );
-
     let blink = entity.iframes > 0.0 && (time * 24.0) as i32 % 2 == 0 && !anim.is_dead();
     let tint = if blink {
         Color::from_rgba(255, 255, 255, 90)
