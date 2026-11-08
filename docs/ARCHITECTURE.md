@@ -7,7 +7,7 @@
 >
 > **Audit note (2026):** The core has migrated to action slots and modular
 > skills (`Locomotion` + `Skills`, `PlayerCommand` with `slots[4]`,
-> `SNAPSHOT_VERSION = 3`, `SAVE_VERSION = 2`). The client has been adapted and
+> `SNAPSHOT_VERSION = 4`, `SAVE_VERSION = 2`). The client has been adapted and
 > render has been modularized. A DOM UI layer now exists (`web/ui/*`) backed by
 > Rust `ui_bridge`/`ui_controller` (`UiState` + semantic actions/loadout actions),
 > covering menus, in-game HUD tabs/panels (including Status point distribution and
@@ -16,6 +16,12 @@
 > loadout/action-bar UX (locks/toasts/icons/pause polish), and a possible migration
 > of the DOM UI implementation to Vue/Vite. Where this document describes planned
 > work, it is labeled explicitly.
+>
+> **Humanoid visuals/customization:** see
+> [`HUMANOID_RIG_AND_CUSTOMIZATION.md`](HUMANOID_RIG_AND_CUSTOMIZATION.md) for the
+> state-driven humanoid rig, per-state clip/frame lists, and layered customization/
+> equipment overlays. Core exposes logical animation/customization IDs; assets and
+> rendering compose layers.
 
 ## 1. Principles
 
@@ -147,9 +153,12 @@ pub struct Entity {
 
 Playable character data (`PlayerData`) also carries stable identity and
 customization: `PlayableCharacter` (`Enzo`/`Valentina`) and `VisualProfile`
-(skin, hair, face, outfit slot IDs). These are persisted in snapshot/save with
-backward-compatible defaults and resolved to assets by the client/pixel-forge
-manifests (no texture paths in core).
+(stable IDs for skin, hair, face, outfit/pants/shoes and future physical traits).
+These are persisted in snapshot/save with backward-compatible defaults and
+resolved to assets by the client/pixel-forge manifests (no texture paths in core).
+Humanoid rendering uses a state-driven rig with per-state clip/frame lists and
+layered overlays for customization and equipped items (see
+`HUMANOID_RIG_AND_CUSTOMIZATION.md`).
 ```
 
 Key rules:

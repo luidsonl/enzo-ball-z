@@ -24,7 +24,9 @@ face, and outfit colors/slots) through stable visual profile IDs.
 - Playable character selection: **Enzo** or **Valentina** (implemented as
   separate playable entities; Valentina can have different animations/visuals).
 - Character customization via stable visual profile IDs (skin, hair style/color,
-  face, outfit slots) — data model functional; full UI/layer compositor pending.
+  face, outfit top/pants/shoes and future physical traits) — data model and
+  authoritative update API are functional; rig-aligned layer compositor/UI editor
+  is being implemented (see `docs/HUMANOID_RIG_AND_CUSTOMIZATION.md`).
 - Mario-style movement, including running via double-tap.
 - Aura farming with alternating `6`/`7`, combo, and slowdown.
 - 3-hit physical combo.
