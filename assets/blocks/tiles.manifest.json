@@ -15,7 +15,12 @@
     "PLATFORM": 3,
     "CRATE": 4,
     "CRATE_DAMAGED_1": 5,
-    "CRATE_DAMAGED_2": 6
+    "CRATE_DAMAGED_2": 6,
+    "FLAG_BOTTOM": 7,
+    "FLAG_TOP": 8,
+    "BREAKABLE_STONE": 9,
+    "BREAKABLE_STONE_DAMAGED_1": 10,
+    "BREAKABLE_STONE_DAMAGED_2": 11
   },
   "blocks": [
     {
@@ -120,6 +125,75 @@
       "resistance": "Hits(3)",
       "special": "destructible",
       "symbol": "D",
+      "width": 1,
+      "core": {
+        "collision": "solid",
+        "resistance": "Hits(3)",
+        "special": "destructible"
+      }
+    },
+    {
+      "collision": "passable",
+      "height": 1,
+      "id": "flag_bottom",
+      "name": "flag_bottom",
+      "render": {
+        "sheet": "tiles",
+        "frames": [
+          7
+        ],
+        "note": "2-tile goal flag marker (bottom/pole)"
+      },
+      "resistance": "None",
+      "special": "goaltrigger",
+      "symbol": null,
+      "width": 1,
+      "core": {
+        "collision": "passable",
+        "resistance": "None",
+        "special": "goaltrigger"
+      }
+    },
+    {
+      "collision": "passable",
+      "height": 1,
+      "id": "flag_top",
+      "name": "flag_top",
+      "render": {
+        "sheet": "tiles",
+        "frames": [
+          8
+        ],
+        "note": "2-tile goal flag marker (top/banner)"
+      },
+      "resistance": "None",
+      "special": "goaltrigger",
+      "symbol": null,
+      "width": 1,
+      "core": {
+        "collision": "passable",
+        "resistance": "None",
+        "special": "goaltrigger"
+      }
+    },
+    {
+      "collision": "solid",
+      "height": 1,
+      "id": "breakable_stone",
+      "name": "breakable_stone",
+      "render": {
+        "sheet": "tiles",
+        "states": {
+          "intact": 9,
+          "damaged_1": 10,
+          "damaged_2": 11,
+          "broken": null
+        },
+        "note": "destructible stone; state chosen from block damage"
+      },
+      "resistance": "Hits(3)",
+      "special": "destructible",
+      "symbol": "S",
       "width": 1,
       "core": {
         "collision": "solid",

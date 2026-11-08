@@ -54,6 +54,39 @@
       "special": "destructible",
       "symbol": "D",
       "width": 1
+    },
+    {
+      "collision": "passable",
+      "height": 1,
+      "id": "flag_bottom",
+      "name": "flag_bottom",
+      "render": "flagbottom",
+      "resistance": "None",
+      "special": "goaltrigger",
+      "symbol": null,
+      "width": 1
+    },
+    {
+      "collision": "passable",
+      "height": 1,
+      "id": "flag_top",
+      "name": "flag_top",
+      "render": "flagtop",
+      "resistance": "None",
+      "special": "goaltrigger",
+      "symbol": null,
+      "width": 1
+    },
+    {
+      "collision": "solid",
+      "height": 1,
+      "id": "breakable_stone",
+      "name": "breakable_stone",
+      "render": "breakablestone",
+      "resistance": "Hits(3)",
+      "special": "destructible",
+      "symbol": "S",
+      "width": 1
     }
   ],
   "source": "enzo-core"

@@ -24,6 +24,9 @@ const RENDER_SPECS = {
     states: { intact: 4, damaged_1: 5, damaged_2: 6, broken: null },
     note: 'broken removes the tile (empty); state chosen from block damage',
   },
+  flag_bottom: { sheet: 'tiles', frames: [7], note: '2-tile goal flag marker (bottom/pole)' },
+  flag_top: { sheet: 'tiles', frames: [8], note: '2-tile goal flag marker (top/banner)' },
+  breakable_stone: { sheet: 'tiles', states: { intact: 9, damaged_1: 10, damaged_2: 11, broken: null }, note: 'destructible stone; state chosen from block damage' },
 };
 
 function fallbackContract() {
@@ -65,6 +68,11 @@ export const TILE_FRAMES = {
   CRATE: 4,
   CRATE_DAMAGED_1: 5,
   CRATE_DAMAGED_2: 6,
+  FLAG_BOTTOM: 7,
+  FLAG_TOP: 8,
+  BREAKABLE_STONE: 9,
+  BREAKABLE_STONE_DAMAGED_1: 10,
+  BREAKABLE_STONE_DAMAGED_2: 11,
 };
 
 function drawGroundTop(canvas, ox) {
@@ -151,8 +159,43 @@ function drawCrate(canvas, ox, damage = 0) {
   }
 }
 
+
+function drawFlagBottom(canvas, ox) {
+  // transparent base feel: leave mostly empty, draw pole/base
+  canvas.rect(ox + 6, 0, 3, 16, '#8a6a3a');
+  canvas.rect(ox + 7, 0, 1, 16, '#b89258');
+  canvas.rect(ox + 4, 13, 7, 3, '#6f5533');
+  canvas.rect(ox + 5, 14, 5, 1, '#8a6a3a');
+}
+function drawFlagTop(canvas, ox) {
+  canvas.rect(ox + 6, 0, 3, 16, '#8a6a3a');
+  canvas.rect(ox + 7, 0, 1, 16, '#b89258');
+  // banner
+  canvas.rect(ox + 8, 2, 7, 8, P.gold);
+  canvas.rect(ox + 9, 3, 5, 6, '#ffd84d');
+  canvas.rect(ox + 10, 4, 3, 4, '#fff3a8');
+  canvas.set(ox + 14, 3, '#e7b63a');
+  canvas.set(ox + 14, 8, '#e7b63a');
+}
+
+
+function drawBreakableStone(canvas, ox, damage = 0) {
+  canvas.rect(ox,0,16,16,P.stoneDark);
+  canvas.rect(ox+1,1,14,14,P.stone);
+  canvas.rect(ox+1,1,14,2,P.stoneLight);
+  canvas.rect(ox+1,1,2,14,P.stoneLight);
+  canvas.rect(ox+1,13,14,2,P.stoneDark);
+  canvas.rect(ox+13,1,2,14,P.stoneDark);
+  canvas.rect(ox+4,5,3,1,P.stoneDark); canvas.rect(ox+9,4,1,3,P.stoneDark);
+  canvas.rect(ox+6,9,4,1,P.stoneDark); canvas.rect(ox+3,10,2,1,P.stoneLight);
+  canvas.rect(ox+10,11,2,1,P.stoneLight);
+  const cracks = [[[5,4],[6,6],[7,5]],[[10,5],[9,7],[8,8]],[[4,11],[6,10],[8,9]],[[11,11],[10,10],[9,11]],[[8,4],[8,6]]];
+  if (damage >= 1) for (let i=0;i<Math.min(damage*2,cracks.length);i++) for (const [x,y] of cracks[i]) canvas.set(ox+x,y,i%2?P.crackLight:P.crack);
+  if (damage >= 2) { canvas.rect(ox+5,6,2,2,P.stoneDark); canvas.set(ox+11,6,P.crack); }
+}
+
 export function buildTilesSheet() {
-  const canvas = new Canvas(TILE_CELL * 7, TILE_CELL);
+  const canvas = new Canvas(TILE_CELL * 12, TILE_CELL);
   drawGroundTop(canvas, TILE_FRAMES.GROUND_TOP * TILE_CELL);
   drawGroundFill(canvas, TILE_FRAMES.GROUND_FILL * TILE_CELL);
   drawBlock(canvas, TILE_FRAMES.BLOCK * TILE_CELL);
@@ -160,6 +203,11 @@ export function buildTilesSheet() {
   drawCrate(canvas, TILE_FRAMES.CRATE * TILE_CELL, 0);
   drawCrate(canvas, TILE_FRAMES.CRATE_DAMAGED_1 * TILE_CELL, 1);
   drawCrate(canvas, TILE_FRAMES.CRATE_DAMAGED_2 * TILE_CELL, 2);
+  drawFlagBottom(canvas, TILE_FRAMES.FLAG_BOTTOM * TILE_CELL);
+  drawFlagTop(canvas, TILE_FRAMES.FLAG_TOP * TILE_CELL);
+  drawBreakableStone(canvas, TILE_FRAMES.BREAKABLE_STONE * TILE_CELL, 0);
+  drawBreakableStone(canvas, TILE_FRAMES.BREAKABLE_STONE_DAMAGED_1 * TILE_CELL, 1);
+  drawBreakableStone(canvas, TILE_FRAMES.BREAKABLE_STONE_DAMAGED_2 * TILE_CELL, 2);
   return canvas;
 }
 
@@ -197,6 +245,9 @@ export function writePerBlockSprites() {
         ['damaged_2.png', (c) => drawCrate(c, 0, 2)],
       ],
     },
+    { id: 'flag_bottom', files: [['default.png', (c) => drawFlagBottom(c, 0)]] },
+    { id: 'flag_top', files: [['default.png', (c) => drawFlagTop(c, 0)]] },
+    { id: 'breakable_stone', files: [['intact.png', (c) => drawBreakableStone(c, 0, 0)], ['damaged_1.png', (c) => drawBreakableStone(c, 0, 1)], ['damaged_2.png', (c) => drawBreakableStone(c, 0, 2)]] },
   ];
   for (const def of defs) {
     const dir = join(ROOT, 'assets/blocks', def.id);

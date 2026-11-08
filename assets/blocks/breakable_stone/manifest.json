@@ -1,0 +1,10 @@
+{
+  "id": "breakable_stone",
+  "sprites": [
+    "intact.png",
+    "damaged_1.png",
+    "damaged_2.png"
+  ],
+  "sheet": "assets/blocks/tiles.png",
+  "contract": "assets/definitions/generated/blocks.json"
+}

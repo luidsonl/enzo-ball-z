@@ -26,7 +26,7 @@ export function validateGeneratedSheet() {
   if (sheet.w % TILE_CELL !== 0 || sheet.h !== TILE_CELL) {
     errors.push(`invalid tiles sheet size: ${sheet.w}x${sheet.h}, expected Nx${TILE_CELL}`);
   }
-  if (sheet.w < TILE_CELL * 7) {
+  if (sheet.w < TILE_CELL * 12) {
     errors.push(`tiles sheet too small for expected frames: ${sheet.w / TILE_CELL}`);
   }
   return { errors, sheet };
