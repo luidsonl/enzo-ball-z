@@ -48,6 +48,21 @@ impl PlayableHumanoidConfig {
         self.attributes = attributes;
         self
     }
+
+    pub fn with_locomotion(mut self, locomotion: Locomotion) -> Self {
+        self.locomotion = locomotion;
+        self
+    }
+
+    pub fn with_skills(mut self, skills: Skills) -> Self {
+        self.skills = skills;
+        self
+    }
+
+    pub fn with_size(mut self, size: Vec2) -> Self {
+        self.size = size;
+        self
+    }
 }
 
 impl EntitySpec {
@@ -79,5 +94,26 @@ impl EntitySpec {
             skills: config.skills,
             velocity: Vec2::ZERO,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn playable_humanoid_builder_applies_character_identity_and_defaults() {
+        let pos = Vec2::new(10.0, 20.0);
+        let spec = EntitySpec::playable_humanoid(
+            7,
+            pos,
+            PlayableHumanoidConfig::new(PlayableCharacter::Valentina, Vec2::new(23.0, 30.0)),
+        );
+        assert_eq!(spec.pos, pos);
+        assert_eq!(spec.size, Vec2::new(23.0, 30.0));
+        assert_eq!(spec.team, TeamId::PLAYERS);
+        let player = spec.kind.player().expect("player");
+        assert_eq!(player.player_id, 7);
+        assert_eq!(player.character, PlayableCharacter::Valentina);
     }
 }

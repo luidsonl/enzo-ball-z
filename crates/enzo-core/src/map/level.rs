@@ -99,7 +99,8 @@ impl Level {
     }
 
     /// Builds a level from an explicit block-id grid (supports map editor / block-id incorporation).
-    /// `cells` is row-major with length `width * height`. Out-of-range indices default to empty.
+    /// `cells` is row-major. Missing cells default to empty; extra cells are ignored.
+    /// Spawn/enemy markers outside bounds are ignored. At least one in-bounds spawn is required.
     pub fn from_block_ids(
         width: usize,
         height: usize,
@@ -111,13 +112,24 @@ impl Level {
         if width == 0 || height == 0 {
             return Err(LevelError::Empty);
         }
-        if spawn_tiles.is_empty() {
-            return Err(LevelError::NoSpawn);
-        }
         let mut tiles = vec![Tile::EMPTY; width * height];
         for (i, id) in cells.into_iter().take(tiles.len()).enumerate() {
             tiles[i] = Tile::new(id);
         }
+        let in_bounds = |&(x, y): &(usize, usize)| x < width && y < height;
+        let spawn_tiles: Vec<_> = spawn_tiles.into_iter().filter(in_bounds).collect();
+        if spawn_tiles.is_empty() {
+            return Err(LevelError::NoSpawn);
+        }
+        let enemy_tiles: Vec<_> = enemy_tiles.into_iter().filter(in_bounds).collect();
+        let flag = flag.filter(|rect| {
+            rect.w > 0.0
+                && rect.h > 0.0
+                && rect.left() < width as f32 * TILE_SIZE
+                && rect.top() < height as f32 * TILE_SIZE
+                && rect.right() > 0.0
+                && rect.bottom() > 0.0
+        });
         Ok(Self {
             width,
             height,
@@ -518,5 +530,37 @@ mod tests {
         .unwrap();
         assert_eq!(level.tile(1, 1), Tile::CRATE);
         assert_eq!(level.width(), 3);
+    }
+
+    #[test]
+    fn from_block_ids_ignores_out_of_bounds_markers_and_short_cells() {
+        let level = Level::from_block_ids(
+            2,
+            2,
+            vec![crate::map::BlockId::Ground], // short -> rest empty
+            vec![(0, 0), (9, 9)],
+            vec![(1, 1), (8, 8)],
+            Some(Rect::new(0.0, 0.0, 16.0, 32.0)),
+        )
+        .unwrap();
+        assert_eq!(level.tile(0, 0), Tile::GROUND);
+        assert_eq!(level.tile(1, 1), Tile::EMPTY);
+        assert_eq!(level.spawn_tiles, vec![(0, 0)]);
+        assert_eq!(level.enemy_tiles, vec![(1, 1)]);
+        assert!(level.flag.is_some());
+    }
+
+    #[test]
+    fn from_block_ids_requires_in_bounds_spawn() {
+        let error = Level::from_block_ids(
+            2,
+            2,
+            vec![crate::map::BlockId::Empty; 4],
+            vec![(5, 5)],
+            vec![],
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(error, LevelError::NoSpawn);
     }
 }

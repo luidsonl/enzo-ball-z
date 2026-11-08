@@ -131,6 +131,10 @@ canvas.addEventListener('mousemove', ev=>{ if(!state.down) return; const [x,y]=p
 canvas.addEventListener('contextmenu', ev=>ev.preventDefault());
 
 function exportJson(){
+  if (!state.spawns.length) {
+    $('io').value = JSON.stringify({ error: 'Add at least one Spawn (P) before exporting a playable map.' }, null, 2);
+    return;
+  }
   const data = { version:1, format:'block-id-grid', width:state.w, height:state.h, cells:state.cells, spawns:state.spawns, enemies:state.enemies, flag:state.flag, contract:'assets/definitions/generated/blocks.json' };
   $('io').value = JSON.stringify(data, null, 2);
 }
@@ -142,14 +146,39 @@ function exportAscii(){
   for(const [x,y] of state.spawns) if(inBounds(x,y)) grid[y][x]='P';
   $('io').value = grid.map(r=>r.join('')).join('\n');
 }
+function clampInt(v, min, max, fallback){
+  const n = Number.parseInt(v, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+function normalizeMarkers(markers, w, h){
+  if (!Array.isArray(markers)) return [];
+  const out = [];
+  for (const m of markers) {
+    if (!Array.isArray(m) || m.length < 2) continue;
+    const x = clampInt(m[0], 0, w - 1, -1), y = clampInt(m[1], 0, h - 1, -1);
+    if (x >= 0 && y >= 0) out.push([x, y]);
+  }
+  return out;
+}
 function importJson(){
   try{
     const data = JSON.parse($('io').value);
-    state.w = data.width||state.w; state.h=data.height||state.h;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected a JSON object.');
+    state.w = clampInt(data.width, 1, 400, state.w);
+    state.h = clampInt(data.height, 1, 200, state.h);
     $('w').value=state.w; $('h').value=state.h;
     canvas.width=state.w*CELL; canvas.height=state.h*CELL;
-    state.cells = Array.isArray(data.cells) && data.cells.length===state.w*state.h ? data.cells : Array.from({length:state.w*state.h},()=>'empty');
-    state.spawns = data.spawns||[]; state.enemies=data.enemies||[]; state.flag=data.flag||null;
+    const total = state.w * state.h;
+    state.cells = Array.isArray(data.cells)
+      ? Array.from({length: total}, (_, i) => typeof data.cells[i] === 'string' ? data.cells[i] : 'empty')
+      : Array.from({length: total}, ()=>'empty');
+    state.spawns = normalizeMarkers(data.spawns, state.w, state.h);
+    state.enemies = normalizeMarkers(data.enemies, state.w, state.h);
+    if (Array.isArray(data.flag) && data.flag.length >= 2) {
+      const fx = clampInt(data.flag[0], 0, state.w - 1, -1), fy = clampInt(data.flag[1], 0, state.h - 1, -1);
+      state.flag = (fx >= 0 && fy >= 0) ? [fx, fy] : null;
+    } else state.flag = null;
     draw();
   }catch(e){ alert('Invalid JSON: '+e.message); }
 }
