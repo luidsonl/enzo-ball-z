@@ -13,7 +13,7 @@ pub enum SymbolAction {
     PlayerSpawn,
     /// Marker: records an enemy spawn point and leaves an empty tile.
     EnemySpawn,
-    /// Marker: records the first flag trigger and leaves an empty tile.
+    /// Marker: places a 2-tile goal flag (bottom+top blocks) and records the trigger.
     Flag,
 }
 

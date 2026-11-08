@@ -9,6 +9,12 @@ pub enum BlockId {
     Block = 2,
     Platform = 3,
     Crate = 4,
+    /// Lower part of the 2-tile goal flag marker.
+    FlagBottom = 5,
+    /// Upper part of the 2-tile goal flag marker.
+    FlagTop = 6,
+    /// Solid stone block that can be damaged and destroyed.
+    BreakableStone = 7,
 }
 
 /// How a block participates in movement/collision.
@@ -58,7 +64,9 @@ pub enum RenderKind {
     Crate,
     Water,
     Ladder,
-    Flag,
+    FlagBottom,
+    FlagTop,
+    BreakableStone,
 }
 
 /// Static definition for a block kind.

@@ -1,10 +1,11 @@
-//! Level grid, collision queries, and dynamic block state.
+//! Level grid, collision queries, dynamic block state, and map metadata.
 
 use crate::events::{BlockPos, GameEvent};
 use crate::math::{Rect, Vec2};
 
 use super::block::BlockId;
-use super::parse::{symbol_action, LevelError, SymbolAction};
+use super::format::{parse_map_text, EnemySpawnDef, Legend, LegendTarget, MapMetadata};
+use super::parse::LevelError;
 use super::tile::Tile;
 
 pub const TILE_SIZE: f32 = 32.0;
@@ -15,23 +16,22 @@ pub struct Level {
     height: usize,
     tiles: Vec<Tile>,
     damage: Vec<u16>,
+    pub metadata: MapMetadata,
     pub spawn_tiles: Vec<(usize, usize)>,
-    pub enemy_tiles: Vec<(usize, usize)>,
+    pub enemy_spawns: Vec<EnemySpawnDef>,
     pub flag: Option<Rect>,
 }
 
 impl Level {
-    /// Parse an ASCII map.
-    ///
-    /// Block symbols come from the block registry (currently `#`, `B`, `=`, `.`, `D`).
-    /// Marker symbols: `P` player spawn, `E` enemy spawn, `F` flag trigger.
+    /// Parse an ASCII map. Supports the new metadata/legend/grid format and the legacy plain grid.
     pub fn parse(source: &str) -> Result<Self, LevelError> {
-        let source = source.trim_end_matches(['\n', '\r']);
-        if source.trim().is_empty() {
+        let parsed = parse_map_text(source);
+        let grid = parsed.grid.trim_end_matches(['\n', '\r']);
+        if grid.trim().is_empty() {
             return Err(LevelError::Empty);
         }
 
-        let lines: Vec<&str> = source.lines().collect();
+        let lines: Vec<&str> = grid.lines().collect();
         let width = lines[0].chars().count();
         if width == 0 {
             return Err(LevelError::Empty);
@@ -40,8 +40,13 @@ impl Level {
         let height = lines.len();
         let mut tiles = vec![Tile::EMPTY; width * height];
         let mut spawn_tiles = Vec::new();
-        let mut enemy_tiles = Vec::new();
+        let mut enemy_spawns = Vec::new();
         let mut flag = None;
+        let legend = if parsed.used_new_format {
+            parsed.legend
+        } else {
+            Legend::defaults()
+        };
 
         for (row, line) in lines.iter().enumerate() {
             let found = line.chars().count();
@@ -54,29 +59,43 @@ impl Level {
             }
 
             for (col, symbol) in line.chars().enumerate() {
-                let Some(action) = symbol_action(symbol) else {
+                let Some(target) = legend.get(symbol).cloned() else {
                     return Err(LevelError::UnknownTile { row, col, symbol });
                 };
-                let tile = match action {
-                    SymbolAction::Place(id) => Tile::new(id),
-                    SymbolAction::PlayerSpawn => {
+                let tile = match target {
+                    LegendTarget::Block(id) => Tile::new(id),
+                    LegendTarget::PlayerSpawn => {
                         spawn_tiles.push((col, row));
                         Tile::EMPTY
                     }
-                    SymbolAction::EnemySpawn => {
-                        enemy_tiles.push((col, row));
+                    LegendTarget::Enemy(kind) => {
+                        enemy_spawns.push(EnemySpawnDef {
+                            tile: (col, row),
+                            kind,
+                        });
                         Tile::EMPTY
                     }
-                    SymbolAction::Flag => {
+                    LegendTarget::Flag => {
+                        // 2-tile-tall flag: top + bottom blocks (2 parts).
+                        // Bottom is placed at the marker row; top goes one row above when safe.
+                        let has_top = row > 0
+                            && !spawn_tiles.contains(&(col, row - 1))
+                            && !enemy_spawns.iter().any(|e| e.tile == (col, row - 1))
+                            && tiles[(row - 1) * width + col] == Tile::EMPTY;
+                        if has_top {
+                            tiles[(row - 1) * width + col] = Tile::FLAG_TOP;
+                        }
+                        // Trigger rect covers the flag's visual tiles for victory detection.
                         if flag.is_none() {
+                            let top_row = if has_top { row - 1 } else { row };
                             flag = Some(Rect::new(
                                 col as f32 * TILE_SIZE + 8.0,
-                                row as f32 * TILE_SIZE,
+                                top_row as f32 * TILE_SIZE,
                                 16.0,
                                 64.0,
                             ));
                         }
-                        Tile::EMPTY
+                        Tile::FLAG_BOTTOM
                     }
                 };
                 tiles[row * width + col] = tile;
@@ -92,15 +111,15 @@ impl Level {
             height,
             damage: vec![0; tiles.len()],
             tiles,
+            metadata: parsed.metadata,
             spawn_tiles,
-            enemy_tiles,
+            enemy_spawns,
             flag,
         })
     }
 
     /// Builds a level from an explicit block-id grid (supports map editor / block-id incorporation).
     /// `cells` is row-major. Missing cells default to empty; extra cells are ignored.
-    /// Spawn/enemy markers outside bounds are ignored. At least one in-bounds spawn is required.
     pub fn from_block_ids(
         width: usize,
         height: usize,
@@ -108,6 +127,32 @@ impl Level {
         spawn_tiles: Vec<(usize, usize)>,
         enemy_tiles: Vec<(usize, usize)>,
         flag: Option<Rect>,
+    ) -> Result<Self, LevelError> {
+        Self::from_block_ids_with_meta(
+            width,
+            height,
+            cells,
+            spawn_tiles,
+            enemy_tiles
+                .into_iter()
+                .map(|tile| EnemySpawnDef {
+                    tile,
+                    kind: "slime".to_owned(),
+                })
+                .collect(),
+            flag,
+            MapMetadata::default(),
+        )
+    }
+
+    pub fn from_block_ids_with_meta(
+        width: usize,
+        height: usize,
+        cells: Vec<BlockId>,
+        spawn_tiles: Vec<(usize, usize)>,
+        enemy_spawns: Vec<EnemySpawnDef>,
+        flag: Option<Rect>,
+        metadata: MapMetadata,
     ) -> Result<Self, LevelError> {
         if width == 0 || height == 0 {
             return Err(LevelError::Empty);
@@ -121,7 +166,10 @@ impl Level {
         if spawn_tiles.is_empty() {
             return Err(LevelError::NoSpawn);
         }
-        let enemy_tiles: Vec<_> = enemy_tiles.into_iter().filter(in_bounds).collect();
+        let enemy_spawns: Vec<_> = enemy_spawns
+            .into_iter()
+            .filter(|e| in_bounds(&e.tile))
+            .collect();
         let flag = flag.filter(|rect| {
             rect.w > 0.0
                 && rect.h > 0.0
@@ -135,8 +183,9 @@ impl Level {
             height,
             damage: vec![0; tiles.len()],
             tiles,
+            metadata,
             spawn_tiles,
-            enemy_tiles,
+            enemy_spawns,
             flag,
         })
     }
@@ -226,8 +275,7 @@ impl Level {
     }
 
     /// Damages destructible blocks overlapping `rect`. Returns true if any solid
-    /// collision remains relevant for blocking the source (unbreakable solid hit,
-    /// or a destructible block was hit).
+    /// collision remains relevant for blocking the source.
     pub fn damage_solid_blocks_in_rect(
         &mut self,
         rect: Rect,
@@ -295,10 +343,15 @@ impl Level {
             .collect()
     }
 
+    /// Backward-compatible: enemy spawn tile positions (no type info).
+    pub fn enemy_tiles(&self) -> Vec<(usize, usize)> {
+        self.enemy_spawns.iter().map(|e| e.tile).collect()
+    }
+
     pub fn enemy_points(&self, size: Vec2) -> Vec<Vec2> {
-        self.enemy_tiles
+        self.enemy_spawns
             .iter()
-            .map(|&(tx, ty)| tile_anchor(tx, ty, size))
+            .map(|e| tile_anchor(e.tile.0, e.tile.1, size))
             .collect()
     }
 
@@ -368,9 +421,10 @@ mod tests {
         assert_eq!(level.width(), 6);
         assert_eq!(level.height(), 4);
         assert_eq!(level.tile(0, 3), Tile::GROUND);
-        assert_eq!(level.tile(2, 1), Tile::EMPTY);
+        assert_eq!(level.tile(2, 1), Tile::EMPTY); // player spawn remains empty
+        assert_eq!(level.tile(2, 2), Tile::FLAG_BOTTOM);
         assert_eq!(level.spawn_tiles, vec![(2, 1)]);
-        assert_eq!(level.enemy_tiles, vec![(4, 1)]);
+        assert_eq!(level.enemy_tiles(), vec![(4, 1)]);
         assert!(level.flag.is_some());
         assert_eq!(level.width_px(), 6.0 * TILE_SIZE);
     }
@@ -382,10 +436,63 @@ mod tests {
         assert_eq!(block_def_by_symbol('=').unwrap().id, BlockId::Platform);
         assert_eq!(block_def_by_symbol('.').unwrap().id, BlockId::Empty);
         assert_eq!(block_def_by_symbol('D').unwrap().id, BlockId::Crate);
+        assert_eq!(
+            block_def_by_symbol('S').unwrap().id,
+            BlockId::BreakableStone
+        );
         assert_eq!(symbol_action('P'), Some(SymbolAction::PlayerSpawn));
         assert_eq!(symbol_action('E'), Some(SymbolAction::EnemySpawn));
         assert_eq!(symbol_action('F'), Some(SymbolAction::Flag));
         assert_eq!(symbol_action('?'), None);
+    }
+
+    #[test]
+    fn breakable_stone_is_destructible_solid() {
+        assert!(Tile::BREAKABLE_STONE.is_solid());
+        assert_eq!(Tile::BREAKABLE_STONE.def().max_hits(), Some(3));
+        assert!(matches!(
+            Tile::BREAKABLE_STONE.def().special,
+            SpecialKind::Destructible
+        ));
+        let level = Level::parse(
+            "P..
+S..
+###
+",
+        )
+        .unwrap();
+        assert_eq!(level.tile(0, 1), Tile::BREAKABLE_STONE);
+    }
+
+    #[test]
+    fn legend_can_reference_breakable_stone_and_enemy() {
+        let src = "name: t
+
+[legend]
+. = block:empty
+# = block:ground
+S = block:breakable_stone
+P = marker:player
+G = enemy:slime
+
+[map]
+P.S
+#G#
+";
+        let level = Level::parse(src).unwrap();
+        assert_eq!(level.tile(2, 0), Tile::BREAKABLE_STONE);
+        assert_eq!(level.enemy_spawns[0].kind, "slime");
+    }
+
+    #[test]
+    fn flag_marker_places_two_tile_goal_blocks() {
+        let src = "P...\n....\n...F\n####\n";
+        let level = Level::parse(src).unwrap();
+        assert_eq!(level.tile(3, 2), Tile::FLAG_BOTTOM);
+        assert_eq!(level.tile(3, 1), Tile::FLAG_TOP);
+        let flag = level.flag_rect().expect("flag rect");
+        assert!((flag.y - TILE_SIZE).abs() < f32::EPSILON);
+        assert!((flag.h - TILE_SIZE * 2.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -493,7 +600,7 @@ mod tests {
         assert_eq!(level.width(), 100);
         assert_eq!(level.height(), 22);
         assert_eq!(level.spawn_tiles.len(), 1);
-        assert_eq!(level.enemy_tiles.len(), 6);
+        assert_eq!(level.enemy_tiles().len(), 6);
         assert!(level.flag.is_some());
     }
 
@@ -546,7 +653,7 @@ mod tests {
         assert_eq!(level.tile(0, 0), Tile::GROUND);
         assert_eq!(level.tile(1, 1), Tile::EMPTY);
         assert_eq!(level.spawn_tiles, vec![(0, 0)]);
-        assert_eq!(level.enemy_tiles, vec![(1, 1)]);
+        assert_eq!(level.enemy_tiles(), vec![(1, 1)]);
         assert!(level.flag.is_some());
     }
 
@@ -562,5 +669,38 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error, LevelError::NoSpawn);
+    }
+
+    #[test]
+    fn parses_new_format_with_metadata_and_legend() {
+        let src = r#"
+name: Test Stage
+world: grasslands
+background: hills
+stage: 2
+
+[legend]
+. = block:empty
+# = block:ground
+P = marker:player
+S = enemy:slime
+F = marker:flag
+
+[map]
+.....
+.P.S.
+..F..
+#####
+"#;
+        let level = Level::parse(src).unwrap();
+        assert_eq!(level.metadata.name, "Test Stage");
+        assert_eq!(level.metadata.world, "grasslands");
+        assert_eq!(level.metadata.background, "hills");
+        assert_eq!(level.metadata.stage, 2);
+        assert_eq!(level.spawn_tiles, vec![(1, 1)]);
+        assert_eq!(level.enemy_spawns.len(), 1);
+        assert_eq!(level.enemy_spawns[0].kind, "slime");
+        assert!(level.flag.is_some());
+        assert_eq!(level.tile(0, 3), Tile::GROUND);
     }
 }

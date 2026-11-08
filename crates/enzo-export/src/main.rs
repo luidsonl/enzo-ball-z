@@ -38,12 +38,15 @@ fn blocks() -> Vec<BlockOut> {
         BlockId::Block,
         BlockId::Platform,
         BlockId::Crate,
+        BlockId::FlagBottom,
+        BlockId::FlagTop,
+        BlockId::BreakableStone,
     ];
     ids.into_iter()
         .map(|id| {
             let d = block_def(id);
             BlockOut {
-                id: format!("{id:?}").to_lowercase(),
+                id: d.name.to_owned(),
                 name: d.name,
                 symbol: d.symbol,
                 width: d.width,

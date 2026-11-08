@@ -8,6 +8,7 @@ use crate::entities::{
 };
 use crate::events::{GameEvent, SkillRejectReason, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
+use crate::map::TILE_SIZE;
 use crate::map::{Level, LevelError};
 use crate::math::Vec2;
 use crate::mechanics::{self, Locomotion};
@@ -47,8 +48,9 @@ impl World {
             .copied()
             .unwrap_or(Vec2::ZERO);
         store.spawn(EntitySpec::player(0, spawn));
-        for pos in level.enemy_points(SLIME_SIZE) {
-            store.spawn(EntitySpec::slime(pos));
+        for spawn in &level.enemy_spawns {
+            let pos = enemy_anchor(spawn.tile, &spawn.kind);
+            spawn_enemy(&mut store, &spawn.kind, pos);
         }
 
         Ok(Self {
@@ -638,8 +640,9 @@ impl World {
         for id in removable {
             self.store.despawn(id);
         }
-        for pos in self.level.enemy_points(SLIME_SIZE) {
-            self.store.spawn(EntitySpec::slime(pos));
+        for spawn in &self.level.enemy_spawns {
+            let pos = enemy_anchor(spawn.tile, &spawn.kind);
+            spawn_enemy(&mut self.store, &spawn.kind, pos);
         }
 
         self.phase = GamePhase::Playing;
@@ -691,6 +694,28 @@ impl World {
             .player(0)
             .map(|entity| entity.body.pos)
             .unwrap_or(Vec2::ZERO)
+    }
+}
+
+fn enemy_anchor(tile: (usize, usize), kind: &str) -> Vec2 {
+    let size = match kind {
+        "slime" => SLIME_SIZE,
+        _ => SLIME_SIZE,
+    };
+    Vec2::new(
+        tile.0 as f32 * TILE_SIZE + (TILE_SIZE - size.x) * 0.5,
+        (tile.1 as f32 + 1.0) * TILE_SIZE - size.y,
+    )
+}
+
+fn spawn_enemy(store: &mut EntityStore, kind: &str, pos: Vec2) {
+    match kind {
+        "slime" | "" => {
+            store.spawn(EntitySpec::slime(pos));
+        }
+        _ => {
+            store.spawn(EntitySpec::slime(pos));
+        }
     }
 }
 

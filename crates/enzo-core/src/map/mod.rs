@@ -11,6 +11,7 @@
 
 pub mod block;
 pub mod blocks;
+pub mod format;
 pub mod level;
 pub mod parse;
 pub mod tile;
@@ -18,9 +19,11 @@ pub mod visual;
 
 pub use block::{BlockDef, BlockId, CollisionKind, RenderKind, Resistance, SpecialKind};
 pub use blocks::{
-    block_def, block_def_by_id, block_def_by_symbol, block_id_by_name, BLOCK_BRICK, BLOCK_CRATE,
-    BLOCK_DEFS, BLOCK_EMPTY, BLOCK_GROUND, BLOCK_PLATFORM,
+    block_def, block_def_by_id, block_def_by_symbol, block_id_by_name, BLOCK_BREAKABLE_STONE,
+    BLOCK_BRICK, BLOCK_CRATE, BLOCK_DEFS, BLOCK_EMPTY, BLOCK_FLAG_BOTTOM, BLOCK_FLAG_TOP,
+    BLOCK_GROUND, BLOCK_PLATFORM,
 };
+pub use format::{EnemySpawnDef, Legend, LegendTarget, MapMetadata};
 pub use level::{Level, TILE_SIZE};
 pub use parse::LevelError;
 pub use tile::Tile;
