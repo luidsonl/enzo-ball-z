@@ -160,7 +160,7 @@ Use Node generators for deterministic assets:
 - palette swaps/recolors for skin, hair, and clothing;
 - spritesheet assembly and manifest generation.
 
-This is the same family of approach as `scripts/gen-sprites.mjs`, but moved
+This is the same family of approach as ``node tools/pixel-forge/cli.mjs` (modular assets)`, but moved
 behind framework contracts.
 
 ### 5.2 Manual (Aseprite/LibreSprite)
@@ -168,7 +168,7 @@ behind framework contracts.
 Use a pixel editor for expressive or detailed art:
 - draw frames on the rig grid with consistent pivot/alignment;
 - organize clips/tags to match the contract;
-- export PNG spritesheets to `assets/sprites/authored/`;
+- export PNG spritesheets to `assets/authored/`;
 - register the visual definition and run validation.
 
 ### 5.3 Hybrid
