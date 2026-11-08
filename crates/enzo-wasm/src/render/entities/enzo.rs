@@ -52,8 +52,9 @@ pub fn draw(
     let dest = Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0);
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
+    let source = sprites.enzo_rig.frame_rect(clip, time);
     sprites.draw_enzo_rig(clip, time, dest, flip, tint, player.visual_profile);
-    compositor::draw_equipped_layers(sprites, player, dest, flip, tint);
+    compositor::draw_equipped_layers_rig(sprites, player, source, dest, flip, tint);
 
     // Attack/skill overlays.
     skills::draw_player_overlays(sprites, entity, player, center);

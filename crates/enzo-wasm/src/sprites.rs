@@ -11,7 +11,7 @@
 use enzo_core::entities::{ItemKind, VisualProfile};
 use macroquad::prelude::*;
 
-use crate::rig::HumanoidRig;
+use crate::rig::{opt_texture, HumanoidRig};
 
 const TILES_PATH: &str = "assets/sprites/tiles.png";
 const ENZO_PATH: &str = "assets/sprites/enzo.png";
@@ -105,14 +105,18 @@ pub struct Sprites {
     flag: Texture2D,
     items: Texture2D,
     item_equipped: Vec<Texture2D>,
+    item_rig_overlay: Vec<Option<Texture2D>>,
 }
 
 impl Sprites {
     pub async fn load() -> Self {
         let mut item_equipped = Vec::with_capacity(ItemKind::ALL.len());
+        let mut item_rig_overlay = Vec::with_capacity(ItemKind::ALL.len());
         for kind in ItemKind::ALL {
             let path = format!("assets/items/{}/equipped.png", kind.id());
             item_equipped.push(texture(&path, kind.id()).await);
+            let rig_path = format!("assets/items/{}/layers/humanoid_overlay.png", kind.id());
+            item_rig_overlay.push(opt_texture(&rig_path).await);
         }
         let enzo_sheet = texture(ENZO_PATH, "enzo").await;
         let valentina_sheet = texture(VALENTINA_PATH, "valentina").await;
@@ -125,6 +129,7 @@ impl Sprites {
             flag: texture(FLAG_PATH, "flag").await,
             items: texture(ITEMS_PATH, "items").await,
             item_equipped,
+            item_rig_overlay,
         }
     }
 
@@ -220,6 +225,24 @@ impl Sprites {
                 ..Default::default()
             },
         );
+    }
+
+    /// Draws a rig-aligned equipped item layer using the same source rect as the character frame.
+    /// Falls back to the static equipped image when no rig overlay exists.
+    pub fn draw_item_equipped_rig(
+        &self,
+        kind: ItemKind,
+        source: Option<Rect>,
+        dest: Rect,
+        flip_x: bool,
+        tint: Color,
+    ) {
+        let idx = kind.code() as usize;
+        if let (Some(src), Some(Some(tex))) = (source, self.item_rig_overlay.get(idx)) {
+            crate::rig::draw_sheet_tex(tex, src, dest, flip_x, tint);
+            return;
+        }
+        self.draw_item_equipped(kind, dest, flip_x, tint);
     }
 }
 

@@ -3,21 +3,22 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Canvas, encodePng } from './png.mjs';
 import { P } from './palette.mjs';
+import { HUMANOID_FRAMES } from './entities.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const CORE_ITEMS_PATH = join(ROOT, 'assets/definitions/generated/items.json');
 
 const VISUAL_HINTS = {
-  sword: { bg: '#3a4a6b', fg: '#d8e8ff', world: 'blade', equipped: 'blade' },
-  bow: { bg: '#5a3a22', fg: P.woodLight, world: 'bow', equipped: 'bow' },
-  armor: { bg: '#555b66', fg: '#cfd8e6', world: 'plate', equipped: 'plate' },
-  amulet: { bg: '#2f5a4a', fg: '#8fffd8', world: 'gem', equipped: 'gem' },
-  potion: { bg: '#6b1f3a', fg: '#ff8fb8', world: 'bottle', equipped: 'bottle' },
-  nutella_gun: { bg: P.crateDark, fg: P.woodLight, world: 'gun', equipped: 'gun' },
-  sword_67: { bg: '#2a355f', fg: '#7cf6ff', accent: '#ffd84d', world: 'blade67', equipped: 'blade67' },
-  cap_67: { bg: '#2a355f', fg: '#ffd84d', accent: '#7cf6ff', world: 'cap', equipped: 'cap' },
-  shirt_67: { bg: '#2a355f', fg: '#7cf6ff', accent: '#ffd84d', world: 'shirt', equipped: 'shirt' },
-  sneakers_67: { bg: '#2a355f', fg: '#e8eefc', accent: '#ffd84d', world: 'shoes', equipped: 'shoes' },
+  sword: { bg: '#3a4a6b', fg: '#d8e8ff', world: 'blade', equipped: 'blade', layer: 'weapon' },
+  bow: { bg: '#5a3a22', fg: P.woodLight, world: 'bow', equipped: 'bow', layer: 'weapon' },
+  armor: { bg: '#555b66', fg: '#cfd8e6', world: 'plate', equipped: 'plate', layer: 'armor' },
+  amulet: { bg: '#2f5a4a', fg: '#8fffd8', world: 'gem', equipped: 'gem', layer: 'accessory' },
+  potion: { bg: '#6b1f3a', fg: '#ff8fb8', world: 'bottle', equipped: 'bottle', layer: null },
+  nutella_gun: { bg: P.crateDark, fg: P.woodLight, world: 'gun', equipped: 'gun', layer: 'weapon' },
+  sword_67: { bg: '#2a355f', fg: '#7cf6ff', accent: '#ffd84d', world: 'blade67', equipped: 'blade67', layer: 'weapon' },
+  cap_67: { bg: '#2a355f', fg: '#ffd84d', accent: '#7cf6ff', world: 'cap', equipped: 'cap', layer: 'head' },
+  shirt_67: { bg: '#2a355f', fg: '#7cf6ff', accent: '#ffd84d', world: 'shirt', equipped: 'shirt', layer: 'armor' },
+  sneakers_67: { bg: '#2a355f', fg: '#e8eefc', accent: '#ffd84d', world: 'shoes', equipped: 'shoes', layer: 'feet' },
 };
 
 function loadContract() {
@@ -35,19 +36,27 @@ function writePng(path, canvas) {
 }
 
 function draw67Mark(c, x, y, fg, accent) {
-  // Stylized "67" pixels.
   c.rect(x, y, 2, 6, fg); c.rect(x + 1, y, 3, 1, fg); c.rect(x + 3, y + 1, 1, 2, fg); c.rect(x + 1, y + 3, 2, 1, accent);
   c.rect(x + 6, y, 4, 1, fg); c.rect(x + 9, y + 1, 1, 4, fg); c.rect(x + 6, y + 5, 4, 1, fg); c.rect(x + 6, y + 3, 3, 1, accent);
 }
 
+function pose(frame) {
+  if (frame.startsWith('walk_')) return { y: 0, step: frame==='walk_1'||frame==='walk_3'?1:frame==='walk_2'?-1:0, crouch:false };
+  if (frame.startsWith('run_')) return { y: 0, step: frame==='run_1'||frame==='run_3'?2:frame==='run_2'?-2:0, crouch:false };
+  if (frame === 'idle_1') return { y: -1, step: 0, crouch:false };
+  if (frame === 'crouch_0') return { y: 2, step: 0, crouch:true };
+  if (frame === 'jump_rise_0') return { y: -3, step: 0, crouch:false };
+  if (frame === 'jump_fall_0' || frame === 'dash_0') return { y: -1, step: 1, crouch:false };
+  if (frame.startsWith('fly_')) return { y: -2, step: frame==='fly_1'?1:0, crouch:false };
+  if (frame.startsWith('swim_')) return { y: -1, step: frame==='swim_1'?1:-1, crouch:false };
+  if (frame === 'dying_0' || frame === 'dead_0') return { y: 2, step: 0, crouch:true };
+  return { y: 0, step: 0, crouch:false };
+}
+
 function icon(bg, fg, accent = null) {
   const c = new Canvas(32, 32);
-  c.rect(0, 0, 32, 32, P.outline);
-  c.rect(1, 1, 30, 30, bg);
-  c.rect(2, 2, 28, 2, '#ffffff33');
-  c.rect(10, 8, 12, 16, fg);
-  c.rect(12, 10, 8, 12, bg);
-  c.rect(15, 6, 2, 20, '#ffffff55');
+  c.rect(0, 0, 32, 32, P.outline); c.rect(1, 1, 30, 30, bg); c.rect(2, 2, 28, 2, '#ffffff33');
+  c.rect(10, 8, 12, 16, fg); c.rect(12, 10, 8, 12, bg); c.rect(15, 6, 2, 20, '#ffffff55');
   if (accent) draw67Mark(c, 11, 22, fg, accent);
   return c;
 }
@@ -73,62 +82,79 @@ function worldSprite(kind, fg, accent = null) {
     c.rect(6, 5, 8, 10, fg); c.rect(4, 6, 2, 5, fg); c.rect(14, 6, 2, 5, fg); c.rect(8, 8, 4, 4, accent || '#ffffff33');
   } else if (kind === 'shoes') {
     c.rect(4, 12, 6, 4, fg); c.rect(10, 12, 6, 4, fg); c.rect(5, 13, 4, 2, accent || '#ffffff55'); c.rect(11, 13, 4, 2, accent || '#ffffff55');
-  } else {
-    c.rect(6, 6, 8, 8, fg);
-  }
+  } else { c.rect(6, 6, 8, 8, fg); }
   if (accent && (kind === 'cap' || kind === 'shirt' || kind === 'shoes')) draw67Mark(c, 5, 1, fg, accent);
   return c;
 }
 
+function drawEquippedAt(c, ox, frame, kind, fg, accent = null) {
+  const p = pose(frame);
+  const y = p.y; const bodyY = 14 + y; const headY = 6 + y; const fy = 29;
+  const attack = frame.startsWith('attack_') || frame === 'kick_0' || frame === 'cast_0';
+  const armX = frame === 'attack_3_0' ? 25 : frame === 'attack_2_0' ? 24 : frame === 'attack_1_0' || frame === 'cast_0' ? 23 : 22;
+  if (kind === 'blade' || kind === 'blade67') {
+    c.rect(ox + armX, bodyY - 2 + (attack ? 0 : 2), 2, 14, fg);
+    c.rect(ox + armX - 2, bodyY + 10, 6, 2, P.wood);
+    if (kind === 'blade67' && accent) c.rect(ox + armX - 1, bodyY + 2, 4, 2, accent);
+  } else if (kind === 'bow') {
+    c.rect(ox + armX, bodyY, 2, 14, P.wood); c.rect(ox + armX + 2, bodyY + 2, 2, 2, P.woodLight); c.rect(ox + armX + 2, bodyY + 10, 2, 2, P.woodLight);
+  } else if (kind === 'gun') {
+    c.rect(ox + armX - 1, bodyY + 2, 8, 4, P.crate); c.rect(ox + armX + 6, bodyY + 1, 3, 3, P.crateDark);
+  } else if (kind === 'cap') {
+    c.rect(ox + 9, headY, 14, 4, fg); c.rect(ox + 7, headY + 3, 18, 3, fg);
+    if (accent) c.rect(ox + 20, headY + 4, 5, 1, accent);
+  } else if (kind === 'shirt' || kind === 'plate') {
+    c.rect(ox + 10, bodyY, 12, p.crouch ? 7 : 10, fg);
+    c.rect(ox + 7, bodyY + 1, 3, p.crouch ? 4 : 7, fg);
+    c.rect(ox + 22, bodyY + 1, 3, p.crouch ? 4 : 7, fg);
+    if (accent) c.rect(ox + 13, bodyY + 2, 6, 3, accent);
+  } else if (kind === 'shoes') {
+    if (frame !== 'dying_0' && frame !== 'dead_0') {
+      c.rect(ox + 9, fy, 6, 3, fg); c.rect(ox + 17, fy, 6, 3, fg);
+      if (accent) { c.rect(ox + 10, fy + 1, 4, 1, accent); c.rect(ox + 18, fy + 1, 4, 1, accent); }
+    }
+  } else if (kind === 'gem') {
+    c.rect(ox + 15, bodyY + 9, 2, 2, fg);
+  }
+}
+
 function equippedSprite(kind, fg, accent = null) {
-  // Layer sprite sized for composition; placeholders are rig-compatible enough for tooling.
-  if (kind === 'blade' || kind === 'blade67' || kind === 'bow' || kind === 'gun') {
-    const c = new Canvas(32, 32);
-    c.rect(18, 8, 3, 16, fg);
-    if (kind === 'blade67' && accent) c.rect(17, 11, 5, 2, accent);
-    if (kind === 'gun') { c.rect(16, 12, 10, 5, P.crate); c.rect(24, 11, 4, 4, P.crateDark); }
-    if (kind === 'bow') { c.rect(18, 8, 2, 16, P.wood); c.rect(20, 10, 3, 2, P.woodLight); c.rect(20, 20, 3, 2, P.woodLight); }
-    return c;
-  }
-  if (kind === 'cap') {
-    const c = new Canvas(32, 32);
-    c.rect(9, 6, 14, 5, fg); c.rect(7, 10, 18, 4, fg);
-    if (accent) c.rect(20, 11, 6, 2, accent);
-    return c;
-  }
-  if (kind === 'shirt' || kind === 'plate') {
-    const c = new Canvas(32, 32);
-    c.rect(10, 12, 12, 12, fg); c.rect(7, 13, 3, 8, fg); c.rect(22, 13, 3, 8, fg);
-    if (accent) c.rect(13, 15, 6, 4, accent);
-    return c;
-  }
-  if (kind === 'shoes') {
-    const c = new Canvas(32, 32);
-    c.rect(9, 24, 6, 4, fg); c.rect(17, 24, 6, 4, fg);
-    if (accent) { c.rect(10, 25, 4, 2, accent); c.rect(18, 25, 4, 2, accent); }
-    return c;
-  }
-  return worldSprite(kind, fg, accent);
+  const c = new Canvas(32, 32);
+  drawEquippedAt(c, 0, 'idle_0', kind, fg, accent);
+  return c;
+}
+
+function humanoidOverlaySheet(kind, fg, accent = null) {
+  const c = new Canvas(32 * HUMANOID_FRAMES.length, 32);
+  HUMANOID_FRAMES.forEach((frame, i) => drawEquippedAt(c, i * 32, frame, kind, fg, accent));
+  return c;
 }
 
 export function buildItemAssets({ force = false } = {}) {
   const contract = loadContract();
   const files = [];
   for (const item of contract.items || []) {
-    const hint = VISUAL_HINTS[item.id] || { bg: '#444', fg: '#ddd', world: 'box', equipped: 'box' };
+    const hint = VISUAL_HINTS[item.id] || { bg: '#444', fg: '#ddd', world: 'box', equipped: 'box', layer: null };
     const visual = item.visual || {};
+    const dir = join(ROOT, 'assets/items', item.id);
+    mkdirSync(join(dir, 'layers'), { recursive: true });
     const assets = [
       ['icon', icon(hint.bg, hint.fg, hint.accent || null)],
       ['world', worldSprite(hint.world, hint.fg, hint.accent || null)],
       ['equipped', equippedSprite(hint.equipped || hint.world, hint.fg, hint.accent || null)],
     ];
-    const dir = join(ROOT, 'assets/items', item.id);
-    mkdirSync(dir, { recursive: true });
     for (const [slot, canvas] of assets) {
       const rel = visual[slot] || `assets/items/${item.id}/${slot}.png`;
       const abs = join(ROOT, rel);
       if (force || !existsSync(abs)) writePng(abs, canvas);
       files.push(rel);
+    }
+    // Rig-aligned per-frame overlay for humanoid composition.
+    if (hint.layer || item.slot) {
+      const layerRel = `assets/items/${item.id}/layers/humanoid_overlay.png`;
+      const layerAbs = join(ROOT, layerRel);
+      if (force || !existsSync(layerAbs)) writePng(layerAbs, humanoidOverlaySheet(hint.equipped || hint.world, hint.fg, hint.accent || null));
+      files.push(layerRel);
     }
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
       framework: 'pixel-forge',
@@ -141,6 +167,7 @@ export function buildItemAssets({ force = false } = {}) {
         icon: basename(visual.icon || 'icon.png'),
         world: basename(visual.world || 'world.png'),
         equipped: basename(visual.equipped || 'equipped.png'),
+        humanoid_overlay: (hint.layer || item.slot) ? 'layers/humanoid_overlay.png' : null,
       },
     }, null, 2) + '\n');
   }

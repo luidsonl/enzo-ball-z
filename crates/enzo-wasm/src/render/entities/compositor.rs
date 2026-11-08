@@ -21,11 +21,24 @@ pub fn draw_equipped_layers(
     flip_x: bool,
     tint: Color,
 ) {
+    draw_equipped_layers_rig(sprites, player, None, dest, flip_x, tint);
+}
+
+/// Draws equipped item overlays. When `source` (rig frame rect) is provided, uses
+/// per-animation-frame humanoid overlay sheets so items follow the current pose/state.
+pub fn draw_equipped_layers_rig(
+    sprites: &Sprites,
+    player: &PlayerSnapshot,
+    source: Option<Rect>,
+    dest: Rect,
+    flip_x: bool,
+    tint: Color,
+) {
     for slot in DRAW_ORDER {
         let Some(item) = player.equipped[slot.index()].as_ref() else {
             continue;
         };
-        sprites.draw_item_equipped(item.kind, dest, flip_x, tint);
+        sprites.draw_item_equipped_rig(item.kind, source, dest, flip_x, tint);
     }
 }
 

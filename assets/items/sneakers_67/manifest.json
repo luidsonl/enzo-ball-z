@@ -8,6 +8,7 @@
   "assets": {
     "icon": "icon.png",
     "world": "world.png",
-    "equipped": "equipped.png"
+    "equipped": "equipped.png",
+    "humanoid_overlay": "layers/humanoid_overlay.png"
   }
 }

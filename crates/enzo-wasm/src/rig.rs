@@ -204,7 +204,7 @@ impl HumanoidRig {
     }
 }
 
-fn draw_sheet_tex(texture: &Texture2D, source: Rect, dest: Rect, flip_x: bool, tint: Color) {
+pub fn draw_sheet_tex(texture: &Texture2D, source: Rect, dest: Rect, flip_x: bool, tint: Color) {
     draw_texture_ex(
         texture,
         dest.x,
@@ -231,7 +231,7 @@ async fn load_manifest(path: &str) -> Option<RigManifest> {
     }
 }
 
-async fn opt_texture(path: &str) -> Option<Texture2D> {
+pub async fn opt_texture(path: &str) -> Option<Texture2D> {
     let bytes = macroquad::file::load_file(path).await.ok()?;
     let image = Image::from_file_with_format(&bytes, Some(ImageFormat::Png)).ok()?;
     let tex = Texture2D::from_image(&image);
