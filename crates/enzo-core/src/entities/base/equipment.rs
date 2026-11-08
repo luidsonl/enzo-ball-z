@@ -20,18 +20,27 @@ impl EquipmentTags {
     pub const SWORD: Self = Self(1 << 0);
     pub const BOW: Self = Self(1 << 1);
     pub const NUTELLA_GUN: Self = Self(1 << 2);
+    pub const SIXSEVEN: Self = Self(1 << 3);
 
     pub const fn new(bits: u16) -> Self {
         Self(bits)
     }
 
-    pub fn is_empty(self) -> bool {
+    pub const fn is_empty(self) -> bool {
         self.0 == 0
     }
 
     /// `true` se todas as tags de `required` estão presentes.
-    pub fn contains(self, required: Self) -> bool {
+    pub const fn contains(self, required: Self) -> bool {
         self.0 & required.0 == required.0
+    }
+
+    pub const fn bits(self) -> u16 {
+        self.0
+    }
+
+    pub const fn union(self, tag: Self) -> Self {
+        Self(self.0 | tag.0)
     }
 
     pub fn insert(&mut self, tag: Self) {
@@ -39,28 +48,40 @@ impl EquipmentTags {
     }
 
     pub fn with(mut self, tag: Self) -> Self {
-        self.insert(tag);
+        self.0 |= tag.0;
         self
     }
 }
 
 /// Slot ocupado por um item equipado. Itens de consumo não ocupam slot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// New slots are appended to preserve legacy array index compatibility.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EquipSlot {
     Weapon,
     Armor,
     Accessory,
+    Head,
+    Feet,
 }
 
 impl EquipSlot {
-    pub const COUNT: usize = 3;
+    pub const COUNT: usize = 5;
+    pub const ALL: [Self; Self::COUNT] = [
+        Self::Weapon,
+        Self::Armor,
+        Self::Accessory,
+        Self::Head,
+        Self::Feet,
+    ];
 
-    pub fn index(self) -> usize {
+    pub const fn index(self) -> usize {
         match self {
             Self::Weapon => 0,
             Self::Armor => 1,
             Self::Accessory => 2,
+            Self::Head => 3,
+            Self::Feet => 4,
         }
     }
 }

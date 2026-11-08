@@ -15,9 +15,13 @@
 pub mod amulet;
 pub mod armor;
 pub mod bow;
+pub mod cap_67;
 pub mod nutella_gun;
 pub mod potion;
+pub mod shirt_67;
+pub mod sneakers_67;
 pub mod sword;
+pub mod sword_67;
 
 use crate::math::Vec2;
 use crate::mechanics::Locomotion;
@@ -48,13 +52,15 @@ pub enum ItemCategory {
     Potion,
     Armor,
     Accessory,
+    Headgear,
+    Footwear,
 }
 
 impl ItemCategory {
     pub fn usage(self) -> ItemUsage {
         match self {
             Self::Weapon | Self::Potion => ItemUsage::Active,
-            Self::Armor | Self::Accessory => ItemUsage::Passive,
+            Self::Armor | Self::Accessory | Self::Headgear | Self::Footwear => ItemUsage::Passive,
         }
     }
 
@@ -63,6 +69,8 @@ impl ItemCategory {
             Self::Weapon => Some(EquipSlot::Weapon),
             Self::Armor => Some(EquipSlot::Armor),
             Self::Accessory => Some(EquipSlot::Accessory),
+            Self::Headgear => Some(EquipSlot::Head),
+            Self::Footwear => Some(EquipSlot::Feet),
             Self::Potion => None,
         }
     }
@@ -73,7 +81,7 @@ impl ItemCategory {
 }
 
 /// Identidade extensível de um item.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ItemKind {
     Sword,
@@ -82,6 +90,59 @@ pub enum ItemKind {
     Amulet,
     Potion,
     NutellaGun,
+    Sword67,
+    Cap67,
+    Shirt67,
+    Sneakers67,
+}
+
+impl ItemKind {
+    pub const ALL: [Self; 10] = [
+        Self::Sword,
+        Self::Bow,
+        Self::Armor,
+        Self::Amulet,
+        Self::Potion,
+        Self::NutellaGun,
+        Self::Sword67,
+        Self::Cap67,
+        Self::Shirt67,
+        Self::Sneakers67,
+    ];
+
+    pub const fn id(self) -> &'static str {
+        match self {
+            Self::Sword => "sword",
+            Self::Bow => "bow",
+            Self::Armor => "armor",
+            Self::Amulet => "amulet",
+            Self::Potion => "potion",
+            Self::NutellaGun => "nutella_gun",
+            Self::Sword67 => "sword_67",
+            Self::Cap67 => "cap_67",
+            Self::Shirt67 => "shirt_67",
+            Self::Sneakers67 => "sneakers_67",
+        }
+    }
+
+    pub fn data(self) -> ItemData {
+        match self {
+            Self::Sword => ItemData::SWORD,
+            Self::Bow => ItemData::BOW,
+            Self::Armor => ItemData::ARMOR,
+            Self::Amulet => ItemData::AMULET,
+            Self::Potion => ItemData::POTION,
+            Self::NutellaGun => ItemData::NUTELLA_GUN,
+            Self::Sword67 => ItemData::SWORD_67,
+            Self::Cap67 => ItemData::CAP_67,
+            Self::Shirt67 => ItemData::SHIRT_67,
+            Self::Sneakers67 => ItemData::SNEAKERS_67,
+        }
+    }
+
+    pub fn visual_slot(self) -> Option<EquipSlot> {
+        self.data().slot()
+    }
 }
 
 /// Restrições para equipar/usar um item. Só atributos do personagem contam;
@@ -267,5 +328,27 @@ mod tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn sixty_seven_items_are_modular_and_equip_to_expected_slots() {
+        assert_eq!(ItemKind::Sword67.data().slot(), Some(EquipSlot::Weapon));
+        assert_eq!(ItemKind::Cap67.data().slot(), Some(EquipSlot::Head));
+        assert_eq!(ItemKind::Shirt67.data().slot(), Some(EquipSlot::Armor));
+        assert_eq!(ItemKind::Sneakers67.data().slot(), Some(EquipSlot::Feet));
+        assert!(ItemKind::Sword67
+            .data()
+            .equipment
+            .has(crate::entities::EquipmentTags::SWORD));
+        assert!(ItemKind::Sword67
+            .data()
+            .equipment
+            .has(crate::entities::EquipmentTags::SIXSEVEN));
+        assert!(ItemKind::Cap67
+            .data()
+            .equipment
+            .has(crate::entities::EquipmentTags::SIXSEVEN));
+        assert_eq!(ItemKind::Sword67.id(), "sword_67");
+        assert!(ItemKind::ALL.contains(&ItemKind::Cap67));
     }
 }
