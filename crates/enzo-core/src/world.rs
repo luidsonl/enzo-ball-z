@@ -571,10 +571,11 @@ impl World {
             flag: self.level.flag_rect(),
             camera_hint: self.camera_hint(),
         };
+        let tick = self.tick;
         snapshot.entities.extend(
             self.store
                 .iter()
-                .map(crate::snapshot::EntitySnapshot::from_entity),
+                .map(|e| crate::snapshot::EntitySnapshot::from_entity_at_tick(e, tick)),
         );
         snapshot
     }
@@ -589,10 +590,11 @@ impl World {
         out.flag = self.level.flag_rect();
         out.camera_hint = self.camera_hint();
         out.entities.clear();
+        let tick = self.tick;
         out.entities.extend(
             self.store
                 .iter()
-                .map(crate::snapshot::EntitySnapshot::from_entity),
+                .map(|e| crate::snapshot::EntitySnapshot::from_entity_at_tick(e, tick)),
         );
     }
 

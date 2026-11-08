@@ -1,8 +1,8 @@
 //! Snapshot serializável do mundo.
 
 use crate::entities::{
-    Attributes, EnemySpecies, Entity, EntityId, EntityKind, EquipSlot, Equipment, ItemCategory,
-    ItemKind, ItemUsage, PlayableCharacter, PlayerId, VisualProfile,
+    AnimationState, Attributes, EnemySpecies, Entity, EntityId, EntityKind, EquipSlot, Equipment,
+    ItemCategory, ItemKind, ItemUsage, PlayableCharacter, PlayerId, VisualProfile,
 };
 use crate::input::{ActionSlot, SixSevenKey};
 use crate::math::{Rect, Vec2};
@@ -10,7 +10,7 @@ use crate::progression;
 use crate::skills::{Loadout, SkillId, SkillLock};
 use crate::state::GamePhase;
 
-pub const SNAPSHOT_VERSION: u16 = 3;
+pub const SNAPSHOT_VERSION: u16 = 4;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -42,6 +42,8 @@ pub struct EntitySnapshot {
     pub health: f32,
     pub max_health: f32,
     pub iframes: f32,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub animation: AnimationState,
     pub player: Option<PlayerSnapshot>,
     pub enemy: Option<EnemySnapshot>,
     pub projectile: Option<ProjectileSnapshot>,
@@ -87,6 +89,10 @@ pub struct PlayerSnapshot {
     pub max_aura: f32,
     pub attributes: Attributes,
     pub equipment: Equipment,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, deserialize_with = "de_equipped_slots")
+    )]
     pub equipped: [Option<EquippedItemSnapshot>; EquipSlot::COUNT],
     pub inventory: Vec<ItemKind>,
     pub pending_level_up: bool,
@@ -100,6 +106,22 @@ pub struct PlayerSnapshot {
     pub combo_window: f32,
     pub melee_step: u8,
     pub melee_timer: f32,
+}
+
+#[cfg(feature = "serde")]
+fn de_equipped_slots<'de, D>(
+    deserializer: D,
+) -> Result<[Option<EquippedItemSnapshot>; EquipSlot::COUNT], D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let items = Vec::<Option<EquippedItemSnapshot>>::deserialize(deserializer)?;
+    let mut out = [None; EquipSlot::COUNT];
+    for (i, item) in items.into_iter().take(EquipSlot::COUNT).enumerate() {
+        out[i] = item;
+    }
+    Ok(out)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -145,12 +167,43 @@ pub enum SnapshotKind {
 
 impl EntitySnapshot {
     pub fn from_entity(entity: &Entity) -> Self {
+        Self::from_entity_at_tick(entity, 0)
+    }
+
+    pub fn from_entity_at_tick(entity: &Entity, tick: u64) -> Self {
         let kind = match entity.kind {
             EntityKind::Player(_) => SnapshotKind::Player,
             EntityKind::Enemy(_) => SnapshotKind::Enemy,
             EntityKind::Projectile(_) => SnapshotKind::Projectile,
             EntityKind::Item(_) => SnapshotKind::Item,
         };
+        let alive = entity.health.is_alive();
+        let farming = entity.locomotion.sixseven.is_active();
+        let sixseven_last = entity.locomotion.sixseven.last_key;
+        let melee_active = entity.skills.is_active(SkillId::Melee);
+        let melee_step = entity.skills.melee.step;
+        let flying = entity.skills.is_active(SkillId::Fly);
+        let dashing = entity.skills.is_active(SkillId::Dash);
+        let anim_time = tick as f32 / 60.0;
+        let animation = AnimationState::resolve(
+            alive,
+            entity.body.facing,
+            entity.body.on_ground,
+            entity.body.vel.x,
+            entity.body.vel.y,
+            entity.locomotion.walk.running,
+            dashing,
+            flying,
+            false,
+            entity.health.iframes > 0.0 && alive,
+            melee_step,
+            melee_active,
+            false,
+            false,
+            farming,
+            sixseven_last,
+            anim_time,
+        );
 
         Self {
             id: entity.id,
@@ -160,12 +213,13 @@ impl EntitySnapshot {
             size: entity.body.size,
             facing: entity.body.facing,
             on_ground: entity.body.on_ground,
-            dashing: entity.skills.is_active(SkillId::Dash),
+            dashing,
             running: entity.locomotion.walk.running,
             team: entity.team.0,
             health: entity.health.current,
             max_health: entity.stats.max_health,
             iframes: entity.health.iframes,
+            animation,
             player: entity
                 .player()
                 .map(|player| PlayerSnapshot::from_player(player, entity)),
