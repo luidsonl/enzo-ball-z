@@ -75,26 +75,45 @@ const tabs = computed(() => [
   ["customize", labels.value.customize || "Customize", false],
 ]);
 
-const PROFILE_FIELDS = [
-  { code: 0, key: "skin_tone", labelKey: "skin_tone", max: 7 },
-  { code: 1, key: "hair_style", labelKey: "hair_style", max: 7 },
-  { code: 2, key: "hair_color", labelKey: "hair_color", max: 7 },
-  { code: 3, key: "face", labelKey: "face", max: 7 },
-  { code: 4, key: "outfit_top", labelKey: "outfit_top", max: 7 },
-  { code: 5, key: "outfit_bottom", labelKey: "outfit_bottom", max: 7 },
-  { code: 6, key: "shoes", labelKey: "shoes", max: 7 },
+const SKIN_COLORS = ["#f2c9a0","#e3b07a","#f5d0b5","#c68642","#e8c39e","#d9a066","#f0c8a0","#b97a56"];
+const HAIR_COLORS = ["#5a3a22","#33241c","#d9b85c","#8c332e","#c0c5d9","#5c8cd9","#3a2f2a","#7a4a2a"];
+const CLOTH_COLORS = ["#4f7cff","#ff6fae","#67d86b","#f2c94c","#9b6bff","#ff8a4c","#5ce1e6","#e8eefc"];
+
+const CUSTOM_SECTIONS = [
+  { titleKey: "character", fields: [] },
+  { titleKey: "skin_tone", fields: [{ code: 0, key: "skin_tone", max: 7, kind: "color", palette: SKIN_COLORS }] },
+  { titleKey: "hair", fields: [
+    { code: 1, key: "hair_style", labelKey: "hair_style", max: 7, kind: "style" },
+    { code: 2, key: "hair_color", labelKey: "hair_color", max: 7, kind: "color", palette: HAIR_COLORS },
+  ]},
+  { titleKey: "face", fields: [{ code: 3, key: "face", max: 7, kind: "style" }] },
+  { titleKey: "outfit", fields: [
+    { code: 4, key: "outfit_top", labelKey: "outfit_top", max: 7, kind: "color", palette: CLOTH_COLORS },
+    { code: 5, key: "outfit_bottom", labelKey: "outfit_bottom", max: 7, kind: "color", palette: CLOTH_COLORS },
+  ]},
+  { titleKey: "shoes", fields: [{ code: 6, key: "shoes", max: 7, kind: "style" }] },
 ];
 
-function profileValue(field) {
-  return player.value?.visual_profile?.[field.key] ?? 0;
+function profileValue(key) {
+  return player.value?.visual_profile?.[key] ?? 0;
 }
+function setProfile(code, value) { setVisualProfileField(code, value); }
 function cycleProfile(field, dir) {
-  const max = field.max + 1;
-  const next = (profileValue(field) + dir + max) % max;
+  const max = (field.max ?? 7) + 1;
+  const next = (profileValue(field.key) + dir + max) % max;
   setVisualProfileField(field.code, next);
 }
-function profileLabel(field) {
-  return labels.value[field.labelKey] || field.key;
+function fieldLabel(field, fallbackKey) {
+  const k = field.labelKey || fallbackKey || field.key;
+  return labels.value[k] || k.replace(/_/g, " ");
+}
+function sectionTitle(section) {
+  const map = { hair: (labels.value.hair_style || "Hair"), outfit: (labels.value.outfit_top ? "Outfit" : "Clothing") };
+  return labels.value[section.titleKey] || map[section.titleKey] || section.titleKey.replace(/_/g, " ");
+}
+function swatchColor(field) {
+  if (!field.palette) return null;
+  return field.palette[profileValue(field.key) % field.palette.length];
 }
 
 const attrDefs = computed(() => {
@@ -271,29 +290,44 @@ function slotSkillName(slotState) {
 
           <template v-else-if="openPanel === 'customize'">
             <div class="dom-game-panel-header">
-              <h3 class="dom-title">{{ labels.customize || 'Customize' }}</h3>
+              <h3 class="dom-title">{{ labels.customize || 'Customize Character' }}</h3>
               <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
               <div class="dom-list">
-                <div class="dom-list-row">
+                <div class="dom-list-row" style="align-items:center; gap:10px; flex-wrap:wrap;">
                   <span class="dom-list-key">{{ labels.character || 'Character' }}</span>
-                  <span class="dom-list-val">{{ player.character || 'Enzo' }}</span>
-                  <div style="margin-left:auto; display:flex; gap:6px; pointer-events:auto">
+                  <div style="display:flex; gap:8px; pointer-events:auto">
                     <button type="button" class="dom-btn small" :class="{ primary: player.character_code === 0 }" @click.prevent.stop="setPlayableCharacter(0)">Enzo</button>
                     <button type="button" class="dom-btn small" :class="{ primary: player.character_code === 1 }" @click.prevent.stop="setPlayableCharacter(1)">Valentina</button>
                   </div>
+                  <span class="dom-list-val" style="margin-left:auto">{{ player.character || 'Enzo' }}</span>
                 </div>
-                <div v-for="field in PROFILE_FIELDS" :key="field.code" class="dom-list-row">
-                  <span class="dom-list-key">{{ profileLabel(field) }}</span>
-                  <span class="dom-list-val">{{ profileValue(field) }}</span>
-                  <div style="margin-left:auto; display:flex; gap:6px; pointer-events:auto">
-                    <button type="button" class="dom-btn small secondary" @click.prevent.stop="cycleProfile(field, -1)">-</button>
-                    <button type="button" class="dom-btn small" @click.prevent.stop="cycleProfile(field, 1)">+</button>
-                  </div>
-                </div>
+
+                <template v-for="section in CUSTOM_SECTIONS" :key="section.titleKey">
+                  <template v-if="section.fields.length">
+                    <div class="dom-list-row" style="margin-top:8px; opacity:0.9; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em">{{ sectionTitle(section) }}</div>
+                    <div v-for="field in section.fields" :key="field.code" class="dom-list-row" style="align-items:center; gap:8px;">
+                      <span class="dom-list-key">{{ fieldLabel(field, section.titleKey) }}</span>
+                      <span v-if="swatchColor(field)" :style="{ width:'18px', height:'18px', borderRadius:'50%', background: swatchColor(field), border:'2px solid rgba(255,255,255,.25)', flex:'0 0 auto' }"></span>
+                      <span class="dom-list-val">{{ profileValue(field.key) }}</span>
+                      <div style="margin-left:auto; display:flex; gap:6px; pointer-events:auto">
+                        <button type="button" class="dom-btn small secondary" @click.prevent.stop="cycleProfile(field, -1)">−</button>
+                        <button type="button" class="dom-btn small" @click.prevent.stop="cycleProfile(field, 1)">+</button>
+                      </div>
+                    </div>
+                    <div v-if="section.fields.some(f => f.palette)" style="display:flex; gap:6px; flex-wrap:wrap; padding:4px 0 2px 0; pointer-events:auto">
+                      <template v-for="field in section.fields.filter(f => f.palette)" :key="'p'+field.code">
+                        <button v-for="(c, i) in field.palette" :key="field.code+':'+i" type="button"
+                          @click.prevent.stop="setProfile(field.code, i)"
+                          :title="fieldLabel(field, section.titleKey) + ' ' + i"
+                          :style="{ width:'22px', height:'22px', borderRadius:'6px', background:c, border: profileValue(field.key)===i ? '2px solid #fff' : '2px solid rgba(255,255,255,.15)', cursor:'pointer', padding:0 }"></button>
+                      </template>
+                    </div>
+                  </template>
+                </template>
               </div>
-              <p class="muted" style="margin-top:10px">Layers: skin/face/hair, shirt, pants, shoes, plus equipped items (weapon, cap, armor, sneakers).</p>
+              <p class="muted" style="margin-top:10px">{{ labels.customize_hint || 'Choose character (Enzo/Valentina), hair, face, clothing, and skin tone. Equipped items render as overlays.' }}</p>
             </div>
           </template>
 
