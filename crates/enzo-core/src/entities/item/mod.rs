@@ -110,6 +110,14 @@ impl ItemKind {
         Self::Sneakers67,
     ];
 
+    pub const fn code(self) -> u8 {
+        self as u8
+    }
+
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.code() == code)
+    }
+
     pub const fn id(self) -> &'static str {
         match self {
             Self::Sword => "sword",

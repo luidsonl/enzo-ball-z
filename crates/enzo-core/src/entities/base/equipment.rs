@@ -84,6 +84,14 @@ impl EquipSlot {
             Self::Feet => 4,
         }
     }
+
+    pub const fn code(self) -> u8 {
+        self.index() as u8
+    }
+
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.into_iter().find(|s| s.code() == code)
+    }
 }
 
 /// Equipamento ativo de uma entidade, agregado a partir dos itens equipados.

@@ -3,7 +3,8 @@
 use crate::ai;
 use crate::aura;
 use crate::entities::{
-    EntityId, EntitySpec, EntityStore, EquipError, ItemData, PlayerId, ENZO_SIZE, SLIME_SIZE,
+    EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind, PlayerId,
+    ENZO_SIZE, SLIME_SIZE,
 };
 use crate::events::{GameEvent, SkillRejectReason, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
@@ -96,7 +97,7 @@ impl World {
         self.store.equip(entity_id, item)
     }
 
-    pub fn add_inventory(&mut self, player_id: PlayerId, kind: crate::entities::ItemKind) -> bool {
+    pub fn add_inventory(&mut self, player_id: PlayerId, kind: ItemKind) -> bool {
         let Some(entity) = self.store.player_mut(player_id) else {
             return false;
         };
@@ -104,6 +105,62 @@ impl World {
             return false;
         };
         player.add_item(kind);
+        true
+    }
+
+    /// Equips an item from the player's inventory, swapping any previously equipped item
+    /// in the same slot back into inventory. Authoritative validation runs in core.
+    pub fn equip_inventory_item(
+        &mut self,
+        player_id: PlayerId,
+        kind: ItemKind,
+    ) -> Result<(), EquipError> {
+        let item = kind.data();
+        let slot = item.slot().ok_or(EquipError::NotEquippable)?;
+        // Validate first (no mutation).
+        {
+            let entity = self
+                .store
+                .player(player_id)
+                .ok_or(EquipError::NotEquippable)?;
+            item.can_be_equipped_by(entity.entity_type(), entity.character_attribute_set())?;
+            let player = entity.player().ok_or(EquipError::NotEquippable)?;
+            if !player.inventory.contains(&kind) {
+                return Err(EquipError::NotEquippable);
+            }
+        }
+        let entity = self
+            .store
+            .player_mut(player_id)
+            .ok_or(EquipError::NotEquippable)?;
+        {
+            let player = entity.player_mut().ok_or(EquipError::NotEquippable)?;
+            if !player.remove_item(kind) {
+                return Err(EquipError::NotEquippable);
+            }
+        }
+        if let Some(old) = entity.unequip(slot) {
+            if let Some(player) = entity.player_mut() {
+                player.add_item(old.kind);
+            }
+        }
+        entity.try_equip(&item)?;
+        self.pending_events.push(GameEvent::SaveRequested);
+        Ok(())
+    }
+
+    /// Unequips a slot and returns the item to inventory.
+    pub fn unequip_slot(&mut self, player_id: PlayerId, slot: EquipSlot) -> bool {
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        let Some(old) = entity.unequip(slot) else {
+            return false;
+        };
+        if let Some(player) = entity.player_mut() {
+            player.add_item(old.kind);
+        }
+        self.pending_events.push(GameEvent::SaveRequested);
         true
     }
 
@@ -609,6 +666,7 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entities::{EquipSlot, ItemKind};
     use crate::input::ActionSlot;
     use crate::levels::LEVEL_1;
     use crate::skills::{LoadoutChange, LoadoutRequest, SkillId};
@@ -638,5 +696,40 @@ mod tests {
             entity.skills.loadout.slot_of(SkillId::Jump),
             Some(ActionSlot::Slot4)
         );
+    }
+
+    #[test]
+    fn equip_inventory_item_moves_between_inventory_and_slots() {
+        let mut world = World::new(LEVEL_1).unwrap();
+        assert!(world.add_inventory(0, ItemKind::Cap67));
+        assert!(world.add_inventory(0, ItemKind::Shirt67));
+        world.equip_inventory_item(0, ItemKind::Cap67).unwrap();
+        let entity = world.store().player(0).unwrap();
+        assert!(entity.equipped[EquipSlot::Head.index()].is_some());
+        assert!(!entity
+            .player()
+            .unwrap()
+            .inventory
+            .contains(&ItemKind::Cap67));
+
+        // Swap: equip another head item? use Sword slot behavior by equipping shirt on armor slot.
+        world.equip_inventory_item(0, ItemKind::Shirt67).unwrap();
+        let entity = world.store().player(0).unwrap();
+        assert!(entity.equipped[EquipSlot::Armor.index()].is_some());
+    }
+
+    #[test]
+    fn unequip_slot_returns_item_to_inventory() {
+        let mut world = World::new(LEVEL_1).unwrap();
+        world.add_inventory(0, ItemKind::Sneakers67);
+        world.equip_inventory_item(0, ItemKind::Sneakers67).unwrap();
+        assert!(world.unequip_slot(0, EquipSlot::Feet));
+        let entity = world.store().player(0).unwrap();
+        assert!(entity.equipped[EquipSlot::Feet.index()].is_none());
+        assert!(entity
+            .player()
+            .unwrap()
+            .inventory
+            .contains(&ItemKind::Sneakers67));
     }
 }
