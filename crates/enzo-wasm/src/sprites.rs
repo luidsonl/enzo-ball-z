@@ -115,8 +115,14 @@ impl Sprites {
         for kind in ItemKind::ALL {
             let path = format!("assets/items/{}/equipped.png", kind.id());
             item_equipped.push(texture(&path, kind.id()).await);
+            // Only attempt rig-aligned overlays for items that can be equipped/visually layered.
             let rig_path = format!("assets/items/{}/layers/humanoid_overlay.png", kind.id());
-            item_rig_overlay.push(opt_texture(&rig_path).await);
+            let overlay = if kind.data().slot().is_some() || kind.data().category != enzo_core::entities::ItemCategory::Potion {
+                opt_texture(&rig_path).await
+            } else {
+                None
+            };
+            item_rig_overlay.push(overlay);
         }
         let enzo_sheet = texture(ENZO_PATH, "enzo").await;
         let valentina_sheet = texture(VALENTINA_PATH, "valentina").await;
