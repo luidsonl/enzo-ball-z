@@ -3,8 +3,8 @@
 use crate::ai;
 use crate::aura;
 use crate::entities::{
-    EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind, PlayerId,
-    ENZO_SIZE, SLIME_SIZE,
+    EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind,
+    PlayableCharacter, PlayerId, VisualProfile, ENZO_SIZE, SLIME_SIZE,
 };
 use crate::events::{GameEvent, SkillRejectReason, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
@@ -160,6 +160,37 @@ impl World {
         if let Some(player) = entity.player_mut() {
             player.add_item(old.kind);
         }
+        self.pending_events.push(GameEvent::SaveRequested);
+        true
+    }
+
+    /// Updates visual customization for a player (authoritative, persisted via save).
+    pub fn set_visual_profile(&mut self, player_id: PlayerId, profile: VisualProfile) -> bool {
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        let Some(player) = entity.player_mut() else {
+            return false;
+        };
+        player.visual_profile = profile;
+        self.pending_events.push(GameEvent::SaveRequested);
+        true
+    }
+
+    /// Updates which playable character a player controls. This updates identity/profile
+    /// metadata; respawn/rebuild flows may be required by callers for full asset swaps.
+    pub fn set_playable_character(
+        &mut self,
+        player_id: PlayerId,
+        character: PlayableCharacter,
+    ) -> bool {
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        let Some(player) = entity.player_mut() else {
+            return false;
+        };
+        player.character = character;
         self.pending_events.push(GameEvent::SaveRequested);
         true
     }
@@ -731,5 +762,23 @@ mod tests {
             .unwrap()
             .inventory
             .contains(&ItemKind::Sneakers67));
+    }
+
+    #[test]
+    fn set_visual_profile_updates_player_customization() {
+        let mut world = World::new(LEVEL_1).unwrap();
+        let profile = VisualProfile {
+            skin_tone: 2,
+            hair_style: 3,
+            hair_color: 1,
+            face: 2,
+            outfit_top: 1,
+            outfit_bottom: 1,
+            shoes: 2,
+        };
+        assert!(world.set_visual_profile(0, profile));
+        let entity = world.store().player(0).unwrap();
+        assert_eq!(entity.player().unwrap().visual_profile, profile);
+        assert_eq!(entity.player().unwrap().character, PlayableCharacter::Enzo);
     }
 }

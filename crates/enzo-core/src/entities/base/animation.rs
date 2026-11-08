@@ -14,11 +14,28 @@ pub enum LocomotionPose {
     Idle,
     Walk,
     Run,
+    Crouch,
     JumpRise,
     JumpFall,
     Dash,
     Fly,
     Swim,
+}
+
+impl LocomotionPose {
+    pub const fn clip_name(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Walk => "walk",
+            Self::Run => "run",
+            Self::Crouch => "crouch",
+            Self::JumpRise => "jump_rise",
+            Self::JumpFall => "jump_fall",
+            Self::Dash => "dash",
+            Self::Fly => "fly",
+            Self::Swim => "swim",
+        }
+    }
 }
 
 /// Action overlay that can take priority over locomotion.
@@ -32,8 +49,29 @@ pub enum ActionPose {
     Kick,
     Cast,
     Hurt,
+    Dying,
     Dead,
     SixSeven(SixSevenHand),
+}
+
+impl ActionPose {
+    pub fn clip_name(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Melee(step) => match step {
+                1 => "attack_1",
+                2 => "attack_2",
+                _ => "attack_3",
+            },
+            Self::Kick => "kick",
+            Self::Cast => "cast",
+            Self::Hurt => "hurt",
+            Self::Dying => "dying",
+            Self::Dead => "dead",
+            Self::SixSeven(SixSevenHand::A) => "sixseven_a",
+            Self::SixSeven(SixSevenHand::B) => "sixseven_b",
+        }
+    }
 }
 
 /// Which hand/pose is shown during SixSeven aura farming.
@@ -83,6 +121,50 @@ impl AnimationState {
         sixseven_last: Option<SixSevenKey>,
         anim_time: f32,
     ) -> Self {
+        Self::resolve_with_pose(
+            alive,
+            facing,
+            on_ground,
+            vel_x,
+            vel_y,
+            running,
+            dashing,
+            flying,
+            swimming,
+            false,
+            hurt,
+            melee_step,
+            melee_active,
+            kick_active,
+            cast_active,
+            farming,
+            sixseven_last,
+            anim_time,
+        )
+    }
+
+    /// Extended resolver with additional locomotion intents (e.g. crouch).
+    #[allow(clippy::too_many_arguments)]
+    pub fn resolve_with_pose(
+        alive: bool,
+        facing: i8,
+        on_ground: bool,
+        vel_x: f32,
+        vel_y: f32,
+        running: bool,
+        dashing: bool,
+        flying: bool,
+        swimming: bool,
+        crouching: bool,
+        hurt: bool,
+        melee_step: u8,
+        melee_active: bool,
+        kick_active: bool,
+        cast_active: bool,
+        farming: bool,
+        sixseven_last: Option<SixSevenKey>,
+        anim_time: f32,
+    ) -> Self {
         let pose = if !alive {
             LocomotionPose::Idle
         } else if swimming {
@@ -97,6 +179,8 @@ impl AnimationState {
             } else {
                 LocomotionPose::JumpFall
             }
+        } else if crouching {
+            LocomotionPose::Crouch
         } else if vel_x.abs() > 20.0 {
             if running {
                 LocomotionPose::Run
@@ -138,8 +222,17 @@ impl AnimationState {
         }
     }
 
+    /// Clip key for rig/asset resolution. Action clips take priority over locomotion.
+    pub fn clip_name(self) -> &'static str {
+        if self.action == ActionPose::None {
+            self.pose.clip_name()
+        } else {
+            self.action.clip_name()
+        }
+    }
+
     pub fn is_dead(self) -> bool {
-        matches!(self.action, ActionPose::Dead)
+        matches!(self.action, ActionPose::Dead | ActionPose::Dying)
     }
 
     pub fn is_sixseven(self) -> bool {
@@ -240,5 +333,22 @@ mod tests {
         );
         assert_eq!(a.action, ActionPose::SixSeven(SixSevenHand::A));
         assert_eq!(b.action, ActionPose::SixSeven(SixSevenHand::B));
+    }
+
+    #[test]
+    fn clip_names_follow_action_priority_and_poses() {
+        let mut state = resolve_default();
+        state.pose = LocomotionPose::Crouch;
+        assert_eq!(state.clip_name(), "crouch");
+        let melee = AnimationState::resolve(
+            true, 1, true, 0.0, 0.0, false, false, false, false, false, 2, true, false, false,
+            false, None, 0.0,
+        );
+        assert_eq!(melee.clip_name(), "attack_2");
+        let swim = AnimationState::resolve_with_pose(
+            true, 1, false, 0.0, 0.0, false, false, false, true, false, false, 0, false, false,
+            false, false, None, 0.0,
+        );
+        assert_eq!(swim.clip_name(), "swim");
     }
 }
