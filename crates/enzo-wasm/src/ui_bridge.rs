@@ -37,6 +37,8 @@ pub enum UiAction {
     HudOpenSkills,
     LoadoutAssign { slot: u8, skill: u8 },
     LoadoutClear { slot: u8 },
+    EquipInventoryItem { item: u8 },
+    UnequipSlot { slot: u8 },
 }
 
 impl UiAction {
@@ -64,6 +66,8 @@ impl UiAction {
             14 => UiAction::HudRestart,
             15 => UiAction::HudOpenMenu,
             16 => UiAction::HudOpenSkills,
+            19 => UiAction::EquipInventoryItem { item: a },
+            20 => UiAction::UnequipSlot { slot: a },
             _ => return None,
         })
     }
@@ -180,12 +184,23 @@ pub extern "C" fn enzo_loadout_clear(slot: u8) {
     push_ui_action(UiAction::LoadoutClear { slot });
 }
 
+#[no_mangle]
+pub extern "C" fn enzo_equip_item(item_code: u8) {
+    push_ui_action(UiAction::EquipInventoryItem { item: item_code });
+}
+
+#[no_mangle]
+pub extern "C" fn enzo_unequip_slot(slot_code: u8) {
+    push_ui_action(UiAction::UnequipSlot { slot: slot_code });
+}
+
 /// Generic UI action bridge.
 /// Codes:
 /// 1=menu back, 2=open saves, 3=open options, 4=start(slot=a,new=b),
 /// 5=resume, 6=request delete(slot=a), 7=cancel delete, 8=confirm delete,
 /// 9=set language(a), 10=set mobile controls(a), 11=set interface scale percent(a*256+b),
-/// 12=allocate attribute(a), 13=confirm level up, 14=restart, 15=open menu, 16=open skills
+/// 12=allocate attribute(a), 13=confirm level up, 14=restart, 15=open menu, 16=open skills,
+/// 19=equip inventory item(a=item code), 20=unequip slot(a=slot code)
 #[no_mangle]
 pub extern "C" fn enzo_ui_action(code: u8, a: u8, b: u8, c: u8) {
     if let Some(action) = UiAction::from_ffi(code, a, b, c) {

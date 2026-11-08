@@ -340,7 +340,7 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
         })
         .collect();
 
-    let equipment_slots = [EquipSlot::Weapon, EquipSlot::Armor, EquipSlot::Accessory]
+    let equipment_slots = EquipSlot::ALL
         .into_iter()
         .map(|slot| {
             let item = p.equipped[slot.index()]

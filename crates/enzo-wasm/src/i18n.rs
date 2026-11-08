@@ -472,19 +472,19 @@ impl I18n {
             ItemKind::Amulet => self.t(Text::ItemAmulet),
             ItemKind::Potion => self.t(Text::ItemPotion),
             ItemKind::NutellaGun => self.t(Text::ItemNutellaGun),
-            ItemKind::Sword67 => match self.lang {
+            ItemKind::Sword67 => match self.language() {
                 Language::PtBr => "Espada 67",
                 Language::English => "67 Sword",
             },
-            ItemKind::Cap67 => match self.lang {
+            ItemKind::Cap67 => match self.language() {
                 Language::PtBr => "Boné 67",
                 Language::English => "67 Cap",
             },
-            ItemKind::Shirt67 => match self.lang {
+            ItemKind::Shirt67 => match self.language() {
                 Language::PtBr => "Camisa 67",
                 Language::English => "67 Shirt",
             },
-            ItemKind::Sneakers67 => match self.lang {
+            ItemKind::Sneakers67 => match self.language() {
                 Language::PtBr => "Tênis 67",
                 Language::English => "67 Sneakers",
             },
@@ -513,11 +513,11 @@ impl I18n {
             EquipSlot::Weapon => self.t(Text::WeaponSlot),
             EquipSlot::Armor => self.t(Text::ArmorSlot),
             EquipSlot::Accessory => self.t(Text::AccessorySlot),
-            EquipSlot::Head => match self.lang {
+            EquipSlot::Head => match self.language() {
                 Language::PtBr => "Cabeça",
                 Language::English => "Head",
             },
-            EquipSlot::Feet => match self.lang {
+            EquipSlot::Feet => match self.language() {
                 Language::PtBr => "Pés",
                 Language::English => "Feet",
             },

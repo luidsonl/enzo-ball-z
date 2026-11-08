@@ -240,6 +240,16 @@ impl App {
                             );
                         }
                     }
+                    UiAction::EquipInventoryItem { item } => {
+                        if let Some(kind) = enzo_core::entities::ItemKind::from_code(item) {
+                            let _ = session.world.equip_inventory_item(0, kind);
+                        }
+                    }
+                    UiAction::UnequipSlot { slot } => {
+                        if let Some(slot) = enzo_core::entities::EquipSlot::from_code(slot) {
+                            let _ = session.world.unequip_slot(0, slot);
+                        }
+                    }
                     _ => {}
                 },
                 Scene::MenuOverGame { menu, game } => match action {
@@ -272,6 +282,16 @@ impl App {
                                 0,
                                 enzo_core::skills::LoadoutRequest::Clear { slot },
                             );
+                        }
+                    }
+                    UiAction::EquipInventoryItem { item } => {
+                        if let Some(kind) = enzo_core::entities::ItemKind::from_code(item) {
+                            let _ = game.world.equip_inventory_item(0, kind);
+                        }
+                    }
+                    UiAction::UnequipSlot { slot } => {
+                        if let Some(slot) = enzo_core::entities::EquipSlot::from_code(slot) {
+                            let _ = game.world.unequip_slot(0, slot);
                         }
                     }
                     _ => {

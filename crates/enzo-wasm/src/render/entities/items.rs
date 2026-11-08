@@ -14,6 +14,10 @@ pub fn frame(kind: enzo_core::entities::ItemKind) -> usize {
         enzo_core::entities::ItemKind::Amulet => f::AMULET,
         enzo_core::entities::ItemKind::Potion => f::POTION,
         enzo_core::entities::ItemKind::NutellaGun => f::BOW, // placeholder visual
+        enzo_core::entities::ItemKind::Sword67 => f::SWORD,
+        enzo_core::entities::ItemKind::Cap67 => f::AMULET,
+        enzo_core::entities::ItemKind::Shirt67 => f::ARMOR,
+        enzo_core::entities::ItemKind::Sneakers67 => f::ARMOR,
     }
 }
 
