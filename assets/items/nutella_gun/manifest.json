@@ -1,8 +1,13 @@
 {
   "framework": "pixel-forge",
   "id": "nutella_gun",
+  "kind": "NutellaGun",
+  "category": "weapon",
+  "slot": "weapon",
+  "contract": "assets/definitions/generated/items.json",
   "assets": {
     "icon": "icon.png",
-    "world": "world.png"
+    "world": "world.png",
+    "equipped": "equipped.png"
   }
 }

@@ -1,0 +1,13 @@
+{
+  "framework": "pixel-forge",
+  "id": "sneakers_67",
+  "kind": "Sneakers67",
+  "category": "footwear",
+  "slot": "feet",
+  "contract": "assets/definitions/generated/items.json",
+  "assets": {
+    "icon": "icon.png",
+    "world": "world.png",
+    "equipped": "equipped.png"
+  }
+}

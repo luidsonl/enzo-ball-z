@@ -1,0 +1,249 @@
+{
+  "items": [
+    {
+      "category": "weapon",
+      "consumable": false,
+      "equipment_modifiers": {
+        "melee": 1
+      },
+      "equipment_tags": [
+        "sword"
+      ],
+      "heal": 0.0,
+      "id": "sword",
+      "kind": "Sword",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {
+          "strength": 2
+        }
+      },
+      "slot": "weapon",
+      "usage": "active",
+      "visual": {
+        "equipped": "assets/items/sword/equipped.png",
+        "icon": "assets/items/sword/icon.png",
+        "world": "assets/items/sword/world.png"
+      }
+    },
+    {
+      "category": "weapon",
+      "consumable": false,
+      "equipment_modifiers": {
+        "ranged": 1
+      },
+      "equipment_tags": [
+        "bow"
+      ],
+      "heal": 0.0,
+      "id": "bow",
+      "kind": "Bow",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {
+          "speed": 2
+        }
+      },
+      "slot": "weapon",
+      "usage": "active",
+      "visual": {
+        "equipped": "assets/items/bow/equipped.png",
+        "icon": "assets/items/bow/icon.png",
+        "world": "assets/items/bow/world.png"
+      }
+    },
+    {
+      "category": "armor",
+      "consumable": false,
+      "equipment_modifiers": {
+        "health": 1
+      },
+      "equipment_tags": [],
+      "heal": 0.0,
+      "id": "armor",
+      "kind": "Armor",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {
+          "health": 2
+        }
+      },
+      "slot": "armor",
+      "usage": "passive",
+      "visual": {
+        "equipped": "assets/items/armor/equipped.png",
+        "icon": "assets/items/armor/icon.png",
+        "world": "assets/items/armor/world.png"
+      }
+    },
+    {
+      "category": "accessory",
+      "consumable": false,
+      "equipment_modifiers": {
+        "aura": 1
+      },
+      "equipment_tags": [],
+      "heal": 0.0,
+      "id": "amulet",
+      "kind": "Amulet",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {
+          "aura": 2
+        }
+      },
+      "slot": "accessory",
+      "usage": "passive",
+      "visual": {
+        "equipped": "assets/items/amulet/equipped.png",
+        "icon": "assets/items/amulet/icon.png",
+        "world": "assets/items/amulet/world.png"
+      }
+    },
+    {
+      "category": "potion",
+      "consumable": true,
+      "equipment_modifiers": {},
+      "equipment_tags": [],
+      "heal": 30.0,
+      "id": "potion",
+      "kind": "Potion",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {
+          "aura": 1
+        }
+      },
+      "slot": null,
+      "usage": "active",
+      "visual": {
+        "equipped": "assets/items/potion/equipped.png",
+        "icon": "assets/items/potion/icon.png",
+        "world": "assets/items/potion/world.png"
+      }
+    },
+    {
+      "category": "weapon",
+      "consumable": false,
+      "equipment_modifiers": {},
+      "equipment_tags": [
+        "nutella_gun"
+      ],
+      "heal": 0.0,
+      "id": "nutella_gun",
+      "kind": "NutellaGun",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {}
+      },
+      "slot": "weapon",
+      "usage": "active",
+      "visual": {
+        "equipped": "assets/items/nutella_gun/equipped.png",
+        "icon": "assets/items/nutella_gun/icon.png",
+        "world": "assets/items/nutella_gun/world.png"
+      }
+    },
+    {
+      "category": "weapon",
+      "consumable": false,
+      "equipment_modifiers": {
+        "ego": 1,
+        "melee": 1
+      },
+      "equipment_tags": [
+        "sword",
+        "sixseven"
+      ],
+      "heal": 0.0,
+      "id": "sword_67",
+      "kind": "Sword67",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {
+          "strength": 1
+        }
+      },
+      "slot": "weapon",
+      "usage": "active",
+      "visual": {
+        "equipped": "assets/items/sword_67/equipped.png",
+        "icon": "assets/items/sword_67/icon.png",
+        "world": "assets/items/sword_67/world.png"
+      }
+    },
+    {
+      "category": "headgear",
+      "consumable": false,
+      "equipment_modifiers": {
+        "ego": 1
+      },
+      "equipment_tags": [
+        "sixseven"
+      ],
+      "heal": 0.0,
+      "id": "cap_67",
+      "kind": "Cap67",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {}
+      },
+      "slot": "head",
+      "usage": "passive",
+      "visual": {
+        "equipped": "assets/items/cap_67/equipped.png",
+        "icon": "assets/items/cap_67/icon.png",
+        "world": "assets/items/cap_67/world.png"
+      }
+    },
+    {
+      "category": "armor",
+      "consumable": false,
+      "equipment_modifiers": {
+        "health": 1
+      },
+      "equipment_tags": [
+        "sixseven"
+      ],
+      "heal": 0.0,
+      "id": "shirt_67",
+      "kind": "Shirt67",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {}
+      },
+      "slot": "armor",
+      "usage": "passive",
+      "visual": {
+        "equipped": "assets/items/shirt_67/equipped.png",
+        "icon": "assets/items/shirt_67/icon.png",
+        "world": "assets/items/shirt_67/world.png"
+      }
+    },
+    {
+      "category": "footwear",
+      "consumable": false,
+      "equipment_modifiers": {
+        "speed": 1
+      },
+      "equipment_tags": [
+        "sixseven"
+      ],
+      "heal": 0.0,
+      "id": "sneakers_67",
+      "kind": "Sneakers67",
+      "requirements": {
+        "entity_types": "[Playable]",
+        "min_attributes": {}
+      },
+      "slot": "feet",
+      "usage": "passive",
+      "visual": {
+        "equipped": "assets/items/sneakers_67/equipped.png",
+        "icon": "assets/items/sneakers_67/icon.png",
+        "world": "assets/items/sneakers_67/world.png"
+      }
+    }
+  ],
+  "source": "enzo-core"
+}

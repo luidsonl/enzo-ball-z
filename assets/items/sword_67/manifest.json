@@ -1,0 +1,13 @@
+{
+  "framework": "pixel-forge",
+  "id": "sword_67",
+  "kind": "Sword67",
+  "category": "weapon",
+  "slot": "weapon",
+  "contract": "assets/definitions/generated/items.json",
+  "assets": {
+    "icon": "icon.png",
+    "world": "world.png",
+    "equipped": "equipped.png"
+  }
+}

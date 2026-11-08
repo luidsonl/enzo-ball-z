@@ -1,0 +1,13 @@
+{
+  "framework": "pixel-forge",
+  "id": "cap_67",
+  "kind": "Cap67",
+  "category": "headgear",
+  "slot": "head",
+  "contract": "assets/definitions/generated/items.json",
+  "assets": {
+    "icon": "icon.png",
+    "world": "world.png",
+    "equipped": "equipped.png"
+  }
+}
