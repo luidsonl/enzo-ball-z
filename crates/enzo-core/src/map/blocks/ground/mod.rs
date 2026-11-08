@@ -16,7 +16,7 @@ pub const DEF: BlockDef = BlockDef {
 /// Ground visual is context-sensitive (top/fill); frames are resolved by the
 /// renderer using adjacency and the tilesheet contract.
 pub const VISUAL: BlockVisual = BlockVisual {
-    sheet: "assets/sprites/tiles.png",
+    sheet: "assets/blocks/tiles.png",
     states: &[
         BlockVisualState {
             name: "top",

@@ -8,7 +8,6 @@
     "build:dev": "cargo build -p enzo-wasm --target wasm32-unknown-unknown && node scripts/test-web.mjs --build-dev --no-browser",
     "dev": "bash scripts/build-wasm.sh && node scripts/serve.mjs",
     "serve": "node scripts/serve.mjs",
-    "sprites": "node scripts/gen-sprites.mjs",
     "sprites:blocks": "node tools/pixel-forge/cli.mjs build blocks",
     "sprites:validate": "node tools/pixel-forge/cli.mjs validate blocks",
     "defs:export": "cargo run -p enzo-export",

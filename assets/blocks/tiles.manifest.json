@@ -7,7 +7,7 @@
     "w": 16,
     "h": 16
   },
-  "sheet": "assets/sprites/tiles.png",
+  "sheet": "assets/blocks/tiles.png",
   "frames": {
     "GROUND_TOP": 0,
     "GROUND_FILL": 1,
@@ -20,6 +20,7 @@
   "blocks": [
     {
       "collision": "passable",
+      "height": 1,
       "id": "empty",
       "name": "empty",
       "render": {
@@ -29,6 +30,7 @@
       "resistance": "None",
       "special": "none",
       "symbol": ".",
+      "width": 1,
       "core": {
         "collision": "passable",
         "resistance": "None",
@@ -37,6 +39,7 @@
     },
     {
       "collision": "solid",
+      "height": 1,
       "id": "ground",
       "name": "ground",
       "render": {
@@ -50,6 +53,7 @@
       "resistance": "Unbreakable",
       "special": "none",
       "symbol": "#",
+      "width": 1,
       "core": {
         "collision": "solid",
         "resistance": "Unbreakable",
@@ -58,6 +62,7 @@
     },
     {
       "collision": "solid",
+      "height": 1,
       "id": "block",
       "name": "block",
       "render": {
@@ -69,6 +74,7 @@
       "resistance": "Unbreakable",
       "special": "none",
       "symbol": "B",
+      "width": 1,
       "core": {
         "collision": "solid",
         "resistance": "Unbreakable",
@@ -77,6 +83,7 @@
     },
     {
       "collision": "platform",
+      "height": 1,
       "id": "platform",
       "name": "platform",
       "render": {
@@ -88,6 +95,7 @@
       "resistance": "None",
       "special": "none",
       "symbol": "=",
+      "width": 1,
       "core": {
         "collision": "platform",
         "resistance": "None",
@@ -96,6 +104,7 @@
     },
     {
       "collision": "solid",
+      "height": 1,
       "id": "crate",
       "name": "crate",
       "render": {
@@ -111,6 +120,7 @@
       "resistance": "Hits(3)",
       "special": "destructible",
       "symbol": "D",
+      "width": 1,
       "core": {
         "collision": "solid",
         "resistance": "Hits(3)",

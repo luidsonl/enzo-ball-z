@@ -1,5 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { BLOCK_DEFS, TILE_CELL, buildTilesSheet } from './blocks.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { BLOCK_DEFS, RUNTIME_TILES_PATH, TILE_CELL, buildTilesSheet } from './blocks.mjs';
 import { validateSkillAssets } from './skills.mjs';
 import { validateItemAssets } from './items.mjs';
 import { validateEntityAssets } from './entities.mjs';
@@ -35,9 +36,12 @@ export function validateBlocks() {
   const errors = [...validateBlockDefs(), ...validateGeneratedSheet().errors];
   // If runtime tiles exist, ensure they are valid PNG signature (cheap check)
   try {
-    const bytes = readFileSync(new URL('../../../../assets/sprites/tiles.png', import.meta.url));
+    const path = existsSync(RUNTIME_TILES_PATH)
+      ? RUNTIME_TILES_PATH
+      : fileURLToPath(new URL('../../../../assets/blocks/tiles.png', import.meta.url));
+    const bytes = readFileSync(path);
     if (bytes.length < 8 || bytes[0] !== 137 || bytes[1] !== 80 || bytes[2] !== 78 || bytes[3] !== 71) {
-      errors.push('assets/sprites/tiles.png is not a valid PNG');
+      errors.push('assets/blocks/tiles.png is not a valid PNG');
     }
   } catch {
     // missing runtime sheet is not an error before first build

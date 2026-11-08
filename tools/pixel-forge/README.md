@@ -21,6 +21,6 @@ node tools/pixel-forge/cli.mjs validate blocks
 node tools/pixel-forge/cli.mjs inspect block crate
 ```
 
-Outputs are written under `assets/sprites/generated/`. Runtime game sheets may
-also be synced to `assets/sprites/` when a command is intended to replace a
+Outputs are written under `assets/blocks/generated/`. Runtime game sheets may
+also be synced to `assets/blocks/ (runtime tiles) / legacy sprites removed; ` when a command is intended to replace a
 legacy generator output.

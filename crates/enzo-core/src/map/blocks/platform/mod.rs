@@ -14,7 +14,7 @@ pub const DEF: BlockDef = BlockDef {
 };
 
 pub const VISUAL: BlockVisual = BlockVisual {
-    sheet: "assets/sprites/tiles.png",
+    sheet: "assets/blocks/tiles.png",
     states: &[BlockVisualState {
         name: "default",
         frame: Some(3),

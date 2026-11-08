@@ -5,6 +5,6 @@
     "damaged_1.png",
     "damaged_2.png"
   ],
-  "sheet": "assets/sprites/tiles.png",
+  "sheet": "assets/blocks/tiles.png",
   "contract": "assets/definitions/generated/blocks.json"
 }
