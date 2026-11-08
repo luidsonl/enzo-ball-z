@@ -44,6 +44,12 @@ pub struct EntitySnapshot {
     pub iframes: f32,
     #[cfg_attr(feature = "serde", serde(default))]
     pub animation: AnimationState,
+    /// Visual model for humanoid rendering (players and Enzo/Valentina-based enemies/variants).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub visual_character: Option<PlayableCharacter>,
+    /// Physical appearance customization (replicable for multiplayer/humanoid variants).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub visual_profile: VisualProfile,
     pub player: Option<PlayerSnapshot>,
     pub enemy: Option<EnemySnapshot>,
     pub projectile: Option<ProjectileSnapshot>,
@@ -220,6 +226,8 @@ impl EntitySnapshot {
             max_health: entity.stats.max_health,
             iframes: entity.health.iframes,
             animation,
+            visual_character: entity.visual_character,
+            visual_profile: entity.visual_profile,
             player: entity
                 .player()
                 .map(|player| PlayerSnapshot::from_player(player, entity)),

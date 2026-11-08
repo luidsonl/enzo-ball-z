@@ -93,6 +93,8 @@ impl EntitySpec {
             locomotion: config.locomotion,
             skills: config.skills,
             velocity: Vec2::ZERO,
+            visual_character: Some(config.character),
+            visual_profile: config.visual_profile,
         }
     }
 }

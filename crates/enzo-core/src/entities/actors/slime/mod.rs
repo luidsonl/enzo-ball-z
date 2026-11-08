@@ -71,6 +71,8 @@ impl EntitySpec {
             locomotion: Locomotion::enemy(),
             skills: Skills::enemy(),
             velocity: Vec2::ZERO,
+            visual_character: None,
+            visual_profile: Default::default(),
         }
     }
 }

@@ -36,6 +36,10 @@ impl EntityStore {
         let mut health = spec.health;
         health.current = health.current.clamp(0.0, spec.stats.max_health);
 
+        let (visual_character, visual_profile) = match &spec.kind {
+            EntityKind::Player(data) => (Some(data.character), data.visual_profile),
+            _ => (spec.visual_character, spec.visual_profile),
+        };
         let entity = Entity {
             id,
             kind: spec.kind,
@@ -49,6 +53,8 @@ impl EntityStore {
             equipped: spec.equipped,
             locomotion: spec.locomotion,
             skills: spec.skills,
+            visual_character,
+            visual_profile,
         };
         self.entities.insert(id, entity);
         id

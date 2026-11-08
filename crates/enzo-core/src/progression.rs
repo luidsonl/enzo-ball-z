@@ -180,6 +180,8 @@ impl SaveData {
         }
 
         entity.attributes = self.attributes;
+        entity.visual_character = Some(self.character);
+        entity.visual_profile = self.visual_profile;
         let stats = Stats::player(self.attributes);
         let Some(player) = entity.player_mut() else {
             return false;

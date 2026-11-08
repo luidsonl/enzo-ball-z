@@ -19,7 +19,7 @@ use super::controller::Controller;
 use super::equipment::{EquipSlot, Equipment, EquippedItem};
 use super::projectile::ProjectileData;
 use crate::entities::actors::enemy::EnemyData;
-use crate::entities::actors::player::PlayerData;
+use crate::entities::actors::player::{PlayableCharacter, PlayerData, VisualProfile};
 use crate::entities::item::{EquipError, ItemData};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -139,6 +139,14 @@ pub struct Entity {
     pub equipped: [Option<EquippedItem>; EquipSlot::COUNT],
     pub locomotion: Locomotion,
     pub skills: Skills,
+    /// Visual model/character identity for humanoid rendering (players and
+    /// humanoid-style enemies/variants). Stored on the entity to support
+    /// multiplayer replication and varied appearances.
+    pub visual_character: Option<PlayableCharacter>,
+    /// Physical appearance customization (skin, hair, face, outfit, etc.).
+    /// Stored on the entity so Enzo/Valentina-based enemies can have varied
+    /// characteristics and appearance can be replicated in multiplayer.
+    pub visual_profile: VisualProfile,
 }
 
 impl Entity {

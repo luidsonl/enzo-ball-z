@@ -7,6 +7,7 @@ use crate::math::Vec2;
 use crate::mechanics::Locomotion;
 use crate::skills::Skills;
 
+use super::actors::player::{PlayableCharacter, VisualProfile};
 use super::base::attributes::{Attributes, Stats};
 use super::base::components::{Health, TeamId};
 use super::base::controller::Controller;
@@ -30,6 +31,10 @@ pub struct EntitySpec {
     pub locomotion: Locomotion,
     pub skills: Skills,
     pub velocity: Vec2,
+    /// Visual appearance for humanoid rendering (players and humanoid-style
+    /// enemies/variants based on Enzo/Valentina).
+    pub visual_character: Option<PlayableCharacter>,
+    pub visual_profile: VisualProfile,
 }
 
 impl EntitySpec {
@@ -55,6 +60,17 @@ impl EntitySpec {
 
     pub fn with_team(mut self, team: TeamId) -> Self {
         self.team = team;
+        self
+    }
+
+    /// Sets visual appearance (for humanoid characters/enemies with varied traits).
+    pub fn with_visual(
+        mut self,
+        character: Option<PlayableCharacter>,
+        profile: VisualProfile,
+    ) -> Self {
+        self.visual_character = character;
+        self.visual_profile = profile;
         self
     }
 

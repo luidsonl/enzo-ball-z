@@ -171,6 +171,7 @@ impl World {
         let Some(entity) = self.store.player_mut(player_id) else {
             return false;
         };
+        entity.visual_profile = profile;
         let Some(player) = entity.player_mut() else {
             return false;
         };
@@ -189,6 +190,7 @@ impl World {
         let Some(entity) = self.store.player_mut(player_id) else {
             return false;
         };
+        entity.visual_character = Some(character);
         let Some(player) = entity.player_mut() else {
             return false;
         };
