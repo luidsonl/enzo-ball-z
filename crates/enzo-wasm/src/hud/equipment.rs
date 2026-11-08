@@ -10,15 +10,12 @@ use crate::ui;
 
 use super::window::WindowState;
 
-const SLOTS: [EquipSlot; EquipSlot::COUNT] =
-    [EquipSlot::Weapon, EquipSlot::Armor, EquipSlot::Accessory];
-
 pub(super) fn draw(state: WindowState, player: &PlayerSnapshot, i18n: I18n, ui: f32) {
     let content = state.content_rect(ui);
-    let row_h = 46.0 * ui;
+    let row_h = 38.0 * ui;
     let mut y = content.y;
 
-    for slot in SLOTS {
+    for slot in EquipSlot::ALL {
         draw_rectangle(content.x, y, content.w, row_h, ui::rgba(22, 24, 44, 230));
         draw_rectangle_lines(
             content.x,

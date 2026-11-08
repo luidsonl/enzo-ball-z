@@ -301,6 +301,8 @@ fn equip_slot_code(slot: EquipSlot) -> &'static str {
         EquipSlot::Weapon => "weapon",
         EquipSlot::Armor => "armor",
         EquipSlot::Accessory => "accessory",
+        EquipSlot::Head => "head",
+        EquipSlot::Feet => "feet",
     }
 }
 
