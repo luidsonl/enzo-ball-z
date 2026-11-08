@@ -225,10 +225,24 @@ Before considering a task complete:
 - [x] Action slots/modular skills plan in `docs/ACTIONS_AND_SKILLS.md`.
 - [x] Cargo workspace and scaffold (`enzo-core`, `enzo-wasm`, `enzo-sim`).
 - [x] `enzo-core`: action-slot input, mechanics/skills, loadout, snapshot v3,
-      save v2 migration, generic skill dispatch (Mogging rename complete).
+      save v2 migration (compatibly extended), generic skill dispatch (Mogging
+      rename complete).
+- [x] `enzo-core` attributes: Speed, Strength, Health, Aura, and Ego
+      (intelligence; increases aura attack power). Skill modules declare
+      `REQUIREMENTS` (entity type, level, attributes/status, equipment tags);
+      equippable items/weapons declare `ItemRequirements` (status/attributes).
+- [x] Playable variants foundation: `PlayableCharacter` (`Enzo`/`Valentina`) and
+      `VisualProfile` customization IDs in `PlayerData`, snapshot, and save;
+      `EntitySpec::valentina()` and `entities/actors/valentina` added.
 - [x] `enzo-wasm`: adapted to slot-based input and snapshot v3/save v2; render
       modularized (world orchestration, entity/character rendering, skill/attack
-      rendering separated).
+      rendering separated); player rendering dispatches by character (Valentina
+      has kick/cast/alternating SixSeven hand-pose animations).
+- [x] `pixel-forge` + `enzo-export`: core-driven contracts/assets for
+      blocks/skills and generated module assets/manifests for items/entities
+      (including Valentina). Validate with `node tools/pixel-forge/cli.mjs validate all`.
+- [ ] Functional character selection/customization UI and full layered
+      paper-doll compositor/runtime rig loading.
 - [ ] Functional loadout-editing UI and loadout bridge actions.
 - [ ] Persistent configurable keybindings (`KeyBindings`) and rebind UI.
 - [ ] Skill-owned asset files/icons under `assets/skills/<id>/` wired through

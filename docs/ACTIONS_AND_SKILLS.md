@@ -168,6 +168,7 @@ pub enum InputAction {
     AllocateStrength,
     AllocateHealth,
     AllocateAura,
+    AllocateEgo,
 
     Confirm,
     Restart,
@@ -270,6 +271,7 @@ pub struct KeyBindings {
 | `AllocateStrength` | `2` | level-up screen only |
 | `AllocateHealth` | `3` | level-up screen only |
 | `AllocateAura` | `4` | level-up screen only |
+| `AllocateEgo` | `5` (suggested) | level-up screen only; Ego (intelligence) increases aura attack power |
 | `Confirm` | `Enter` | level-up / modals |
 | `Restart` | `R` | death/victory |
 | `OpenMenu` | `Esc` | saves and returns to menu |
@@ -382,6 +384,15 @@ pub struct SkillContext {
 
 Rules:
 
+- **Skill modules declare requirements** in `skills/<id>/mod.rs` via `REQUIREMENTS`
+  / `SkillDef::requirements`: entity type (e.g. playable), minimum level, minimum
+  attributes/status (including `Ego` when relevant), and required equipment tags.
+  The `SkillContext` used for checks includes character attributes plus equipment
+  modifiers.
+- **Equippable items and weapons declare status requirements** in
+  `entities/item/<id>/mod.rs` via `ItemRequirements` (`entity_types`,
+  `min_attributes`). The core validates these requirements before equipping/using;
+  items may also grant equipment tags/modifiers that unlock or empower skills.
 - `SkillDef::requirements.check(context) -> Result<(), SkillLock>` returns the
   **first** unmet requirement in a fixed order: entity type, level, attributes,
   equipment.

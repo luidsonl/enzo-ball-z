@@ -139,11 +139,17 @@ pub struct Entity {
     pub body: Body,             // position, velocity, size, facing, on_ground
     pub health: Health,         // current health + i-frames
     pub stats: Stats,           // speed, strength, max health, max aura, etc.
-    pub attributes: Attributes, // character points
+    pub attributes: Attributes, // character points (Speed/Strength/Health/Aura/Ego)
     pub equipment: Equipment,   // equipped item modifiers/tags
     pub locomotion: Locomotion, // walk, sixseven (non-slot mechanics)
     pub skills: Skills,         // loadout + per-skill runtime state/cooldowns
 }
+
+Playable character data (`PlayerData`) also carries stable identity and
+customization: `PlayableCharacter` (`Enzo`/`Valentina`) and `VisualProfile`
+(skin, hair, face, outfit slot IDs). These are persisted in snapshot/save with
+backward-compatible defaults and resolved to assets by the client/pixel-forge
+manifests (no texture paths in core).
 ```
 
 Key rules:

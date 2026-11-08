@@ -10,21 +10,27 @@
 ## 1. Goal
 
 A 2D platformer in the style of Mario, written in Rust and compiled to
-WebAssembly. Enzo runs, jumps, fights, and farms aura by alternating the `6`
-and `7` keys. Aura is mana for the **Mogging** special. Enemies grant XP; XP
-levels up the character and grants points to distribute into Speed, Strength,
-Health, and Aura.
+WebAssembly. Players control a playable character (Enzo or Valentina), run,
+jump, fight, and farm aura by alternating the `6` and `7` keys. Aura is mana
+for aura-based skills such as **Mogging**. Enemies grant XP; XP levels up the
+character and grants points to distribute into Speed, Strength, Health, Aura,
+and Ego (intelligence). Players can customize character appearance (skin, hair,
+face, and outfit colors/slots) through stable visual profile IDs.
 
 ## 2. Scope
 
 - One level with horizontal scrolling and a tilemap.
 - One player in the MVP, with a core ready for N players.
+- Playable character selection: **Enzo** or **Valentina** (implemented as
+  separate playable entities; Valentina can have different animations/visuals).
+- Character customization via stable visual profile IDs (skin, hair style/color,
+  face, outfit slots) — data model functional; full UI/layer compositor pending.
 - Mario-style movement, including running via double-tap.
 - Aura farming with alternating `6`/`7`, combo, and slowdown.
 - 3-hit physical combo.
 - One special attack: **Mogging** (instant horizontal projectile).
 - One patrolling enemy type.
-- XP, level-up, points, and four attributes.
+- XP, level-up, points, and five attributes.
 - Health, aura, death with respawn, and victory by touching the flag.
 - Start menu with three save slots and language options.
 - Fixed HUD with draggable status/inventory/equipment/skills windows opened by
@@ -160,7 +166,7 @@ state.
 
 - Instant horizontal projectile in the facing direction.
 - Cost: `25` aura.
-- Damage: `20` + `2 × Aura points`.
+- Damage: `20` + `2 × Aura points` + `2 × Ego points` (aura attack power).
 - Speed: `620 px/s`; lifetime: `1.4 s`.
 - Pierces enemies (each enemy takes damage once per projectile).
 - Disappears on solid tile collision.
@@ -210,7 +216,8 @@ Systems must not assemble entities by hand or duplicate attributes.
 | Speed | `+10 px/s` walk and `+6 px/s` run |
 | Strength | `+2` damage to each physical combo hit |
 | Health | `+10` max health (and heals `+10`) |
-| Aura | `+10` max aura and `+2` Mogging damage |
+| Aura | `+10` max aura and `+2` aura attack damage |
+| Ego | `+2` aura attack power (intelligence equivalent) |
 
 - The level-up UI allows spending multiple points before confirming.
 
@@ -228,11 +235,14 @@ Systems must not assemble entities by hand or duplicate attributes.
 
 ## 12. Save
 
-- **Implemented (save v2):** progression save format is versioned (`SAVE_VERSION`
-  2) and includes loadout data; v1 saves are migrated to the default loadout.
-  Slot storage uses `localStorage` (current implementation uses v2 slot keys;
-  legacy v1 data is handled by migration/fallback behavior as implemented).
-- Saved progression data includes level, XP, points, attributes, and loadout.
+- **Implemented (save v2, extended compatibly):** progression save format is
+  versioned (`SAVE_VERSION` 2) and includes loadout data; v1 saves are migrated
+  to the default loadout. Slot storage uses `localStorage` (current
+  implementation uses v2 slot keys; legacy v1 data is handled by
+  migration/fallback behavior as implemented).
+- Saved progression data includes level, XP, points, attributes, loadout,
+  playable character identity (`Enzo`/`Valentina`), and visual customization
+  profile (stable IDs). New fields use backward-compatible defaults.
 - Saved on level-up, distribution confirmation, death, victory, and return to
   menu (as implemented).
 - Position, enemies, and projectiles are not saved.

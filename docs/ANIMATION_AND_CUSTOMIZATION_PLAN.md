@@ -4,9 +4,16 @@
 > (paper-doll equipment/clothing overlays), and skill-driven visual effects.
 > This complements `SPEC.md`, `ARCHITECTURE.md`, and `ACTIONS_AND_SKILLS.md`.
 >
-> Status: **planned** (runtime sprite loading has been decoupled from the wasm
-> binary; layered customization and the formal animation-state pipeline are not
-> implemented yet).
+> Status: **in progress**. Runtime sprite loading has been decoupled from the wasm
+> binary. Core now includes playable character identity (`Enzo`/`Valentina`) and
+> `VisualProfile` customization IDs (skin, hair, face, outfit slots) in player
+> data/snapshot/save (backward-compatible defaults). **Valentina** is implemented
+> as a new playable entity (`entities/actors/valentina`) with her own visual
+> metadata and different animation support (including `kick`, `cast`, and
+> alternating `sixseven_a/b` hand poses for aura farming). `pixel-forge` generates
+> Valentina entity assets/manifests, and the WASM renderer dispatches by character
+> with a Valentina-specific animation driver. Full layered paper-doll composition,
+> customization UI, and manifest-driven runtime rig loading remain planned.
 
 ## 1. Goals
 
