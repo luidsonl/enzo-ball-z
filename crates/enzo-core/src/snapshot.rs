@@ -124,7 +124,7 @@ where
     Ok(out)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EquippedItemSnapshot {
     pub slot: EquipSlot,
