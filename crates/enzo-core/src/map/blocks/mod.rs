@@ -33,3 +33,14 @@ pub fn block_def(id: BlockId) -> &'static BlockDef {
 pub fn block_def_by_symbol(symbol: char) -> Option<&'static BlockDef> {
     BLOCK_DEFS.iter().find(|def| def.symbol == Some(symbol))
 }
+
+pub fn block_def_by_id(id: &str) -> Option<&'static BlockDef> {
+    let id = id.trim();
+    BLOCK_DEFS.iter().find(|def| {
+        def.name.eq_ignore_ascii_case(id) || format!("{:?}", def.id).eq_ignore_ascii_case(id)
+    })
+}
+
+pub fn block_id_by_name(name: &str) -> Option<BlockId> {
+    block_def_by_id(name).map(|def| def.id)
+}

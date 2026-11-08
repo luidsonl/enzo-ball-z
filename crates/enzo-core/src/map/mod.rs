@@ -18,8 +18,8 @@ pub mod visual;
 
 pub use block::{BlockDef, BlockId, CollisionKind, RenderKind, Resistance, SpecialKind};
 pub use blocks::{
-    block_def, block_def_by_symbol, BLOCK_BRICK, BLOCK_CRATE, BLOCK_DEFS, BLOCK_EMPTY,
-    BLOCK_GROUND, BLOCK_PLATFORM,
+    block_def, block_def_by_id, block_def_by_symbol, block_id_by_name, BLOCK_BRICK, BLOCK_CRATE,
+    BLOCK_DEFS, BLOCK_EMPTY, BLOCK_GROUND, BLOCK_PLATFORM,
 };
 pub use level::{Level, TILE_SIZE};
 pub use parse::LevelError;

@@ -3,6 +3,7 @@
 use crate::events::{BlockPos, GameEvent};
 use crate::math::{Rect, Vec2};
 
+use super::block::BlockId;
 use super::parse::{symbol_action, LevelError, SymbolAction};
 use super::tile::Tile;
 
@@ -86,6 +87,37 @@ impl Level {
             return Err(LevelError::NoSpawn);
         }
 
+        Ok(Self {
+            width,
+            height,
+            damage: vec![0; tiles.len()],
+            tiles,
+            spawn_tiles,
+            enemy_tiles,
+            flag,
+        })
+    }
+
+    /// Builds a level from an explicit block-id grid (supports map editor / block-id incorporation).
+    /// `cells` is row-major with length `width * height`. Out-of-range indices default to empty.
+    pub fn from_block_ids(
+        width: usize,
+        height: usize,
+        cells: Vec<BlockId>,
+        spawn_tiles: Vec<(usize, usize)>,
+        enemy_tiles: Vec<(usize, usize)>,
+        flag: Option<Rect>,
+    ) -> Result<Self, LevelError> {
+        if width == 0 || height == 0 {
+            return Err(LevelError::Empty);
+        }
+        if spawn_tiles.is_empty() {
+            return Err(LevelError::NoSpawn);
+        }
+        let mut tiles = vec![Tile::EMPTY; width * height];
+        for (i, id) in cells.into_iter().take(tiles.len()).enumerate() {
+            tiles[i] = Tile::new(id);
+        }
         Ok(Self {
             width,
             height,
@@ -451,5 +483,40 @@ mod tests {
         assert_eq!(level.spawn_tiles.len(), 1);
         assert_eq!(level.enemy_tiles.len(), 6);
         assert!(level.flag.is_some());
+    }
+
+    #[test]
+    fn block_id_lookup_supports_editor_incorporation() {
+        assert_eq!(
+            crate::map::block_id_by_name("ground"),
+            Some(crate::map::BlockId::Ground)
+        );
+        assert_eq!(
+            crate::map::block_id_by_name("crate"),
+            Some(crate::map::BlockId::Crate)
+        );
+        assert_eq!(crate::map::block_id_by_name("unknown"), None);
+    }
+
+    #[test]
+    fn level_can_be_built_from_block_ids() {
+        let level = Level::from_block_ids(
+            3,
+            2,
+            vec![
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Ground,
+                crate::map::BlockId::Crate,
+                crate::map::BlockId::Ground,
+            ],
+            vec![(0, 0)],
+            vec![],
+            None,
+        )
+        .unwrap();
+        assert_eq!(level.tile(1, 1), Tile::CRATE);
+        assert_eq!(level.width(), 3);
     }
 }
