@@ -199,12 +199,15 @@ pub struct UiCatalogEntry {
 #[derive(Debug, Clone, Serialize)]
 pub struct UiEquipmentSlot {
     pub slot: String,
+    pub slot_code: u8,
     pub slot_label: String,
     pub item: Option<String>,
+    pub item_code: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UiInventoryItem {
+    pub code: u8,
     pub kind: String,
     pub name: String,
 }
@@ -343,13 +346,13 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
     let equipment_slots = EquipSlot::ALL
         .into_iter()
         .map(|slot| {
-            let item = p.equipped[slot.index()]
-                .as_ref()
-                .map(|eq| i18n.item(eq.kind).to_owned());
+            let eq = p.equipped[slot.index()].as_ref();
             UiEquipmentSlot {
                 slot: equip_slot_code(slot).to_owned(),
+                slot_code: slot.code(),
                 slot_label: i18n.equip_slot(slot).to_owned(),
-                item,
+                item: eq.map(|e| i18n.item(e.kind).to_owned()),
+                item_code: eq.map(|e| e.kind.code()),
             }
         })
         .collect();
@@ -358,6 +361,7 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
         .inventory
         .iter()
         .map(|kind| UiInventoryItem {
+            code: kind.code(),
             kind: format!("{:?}", kind),
             name: i18n.item(*kind).to_owned(),
         })

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { UiAction, loadoutAssign, loadoutClear, uiAction } from "../../bridge/bridge.js";
+import { UiAction, equipItem, loadoutAssign, loadoutClear, uiAction, unequipSlot } from "../../bridge/bridge.js";
 import { mobileControlsVisible } from "../../lib/mobile.js";
 
 const props = defineProps({
@@ -212,6 +212,13 @@ function slotSkillName(slotState) {
                 <div v-for="slot in (player.equipment_slots || [])" :key="slot.slot" class="dom-list-row">
                   <span class="dom-list-key">{{ slot.slot_label || slot.slot }}</span>
                   <span class="dom-list-val">{{ slot.item || labels.no_item || '—' }}</span>
+                  <button
+                    v-if="slot.item_code != null"
+                    type="button"
+                    class="dom-btn small secondary"
+                    style="margin-left:auto; pointer-events:auto; touch-action: manipulation"
+                    @click.prevent.stop="unequipSlot(slot.slot_code)"
+                  >{{ labels.unequip || 'Unequip' }}</button>
                 </div>
               </div>
             </div>
@@ -227,6 +234,13 @@ function slotSkillName(slotState) {
               <div v-else class="dom-list">
                 <div v-for="(item, i) in (player.inventory || [])" :key="i" class="dom-list-row">
                   <span class="dom-list-val">{{ item.name || item.kind }}</span>
+                  <button
+                    v-if="item.code != null"
+                    type="button"
+                    class="dom-btn small primary"
+                    style="margin-left:auto; pointer-events:auto; touch-action: manipulation"
+                    @click.prevent.stop="equipItem(item.code)"
+                  >{{ labels.equip || 'Equip' }}</button>
                 </div>
               </div>
             </div>
