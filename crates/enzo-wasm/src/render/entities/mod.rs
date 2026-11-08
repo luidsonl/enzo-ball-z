@@ -5,6 +5,7 @@
 
 pub mod compositor;
 pub mod enzo;
+pub mod humanoid_enemy;
 pub mod items;
 pub mod slime;
 pub mod valentina;

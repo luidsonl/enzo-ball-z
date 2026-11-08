@@ -91,7 +91,16 @@ fn draw_enemies(
         if entity.kind != SnapshotKind::Enemy {
             continue;
         }
-        entities::slime::draw(sprites, entity, interpolate(previous, entity, alpha), time);
+        if entity.visual_character.is_some() {
+            entities::humanoid_enemy::draw(
+                sprites,
+                entity,
+                interpolate(previous, entity, alpha),
+                time,
+            );
+        } else {
+            entities::slime::draw(sprites, entity, interpolate(previous, entity, alpha), time);
+        }
     }
 }
 
