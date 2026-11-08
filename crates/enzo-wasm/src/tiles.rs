@@ -1,12 +1,14 @@
-//! Chunked tile cache.
+//! Chunked tile cache with lazy tilesheet loading.
 //!
 //! Instead of drawing every map tile each frame, each visible chunk becomes a
 //! static mesh built once. Chunks outside the camera are never built.
+//! The tilesheet texture is requested lazily; chunks render once it's ready.
 
 use enzo_core::map::{Level, RenderKind, TILE_SIZE};
 use macroquad::prelude::*;
 
-use crate::sprites::{self, TILE_CELL};
+use crate::assets::AssetStore;
+use crate::sprites::{self, TILES_SHEET_PATH, TILE_CELL};
 
 /// Chunk side in tiles. 16x16 covers 512x512 px of world space.
 pub const CHUNK_TILES: i32 = 16;
@@ -46,23 +48,20 @@ pub struct TileRenderer {
     chunks: Vec<Option<Mesh>>,
     cols: usize,
     rows: usize,
-    texture: Texture2D,
-    atlas: Vec2,
+    assets: AssetStore,
     built: usize,
 }
 
 impl TileRenderer {
-    pub fn new(level: &Level, texture: Texture2D) -> Self {
+    pub fn new(level: &Level, assets: AssetStore) -> Self {
         let cols = level.width().div_ceil(CHUNK_TILES as usize);
         let rows = level.height().div_ceil(CHUNK_TILES as usize);
-        let atlas = texture.size();
-
+        assets.request(TILES_SHEET_PATH.to_owned());
         Self {
             chunks: (0..cols * rows).map(|_| None).collect(),
             cols,
             rows,
-            texture,
-            atlas,
+            assets,
             built: 0,
         }
     }
@@ -70,16 +69,20 @@ impl TileRenderer {
     /// Builds and draws chunks touching the camera.
     ///
     /// Chunks are rebuilt when drawn so destructible/dynamic block states remain
-    /// visible. If performance becomes an issue, add dirty-chunk invalidation.
+    /// visible. If the tilesheet isn't loaded yet, triggers lazy load and skips.
     pub fn draw(&mut self, level: &Level, view: Rect) {
         let Some(range) = visible_chunks(view, self.cols, self.rows) else {
             return;
         };
+        let Some(texture) = self.assets.get_or_request(TILES_SHEET_PATH) else {
+            return;
+        };
+        let atlas = texture.size();
 
         for cy in range.min_y..=range.max_y {
             for cx in range.min_x..=range.max_x {
                 let index = cy * self.cols + cx;
-                let mesh = build_chunk(level, cx, cy, &self.texture, self.atlas);
+                let mesh = build_chunk(level, cx, cy, &texture, atlas);
                 self.built = self.built.max(index + 1);
                 self.chunks[index] = Some(mesh);
                 if let Some(mesh) = &self.chunks[index] {

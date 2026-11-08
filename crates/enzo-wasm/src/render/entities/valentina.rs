@@ -50,7 +50,7 @@ pub fn draw(
     let dest = Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0);
     let flip = entity.facing < 0;
     let clip = anim.clip_name();
-    let source = sprites.valentina_rig.frame_rect(clip, time);
+    let source = sprites.rig_frame_source("valentina", clip, time);
     sprites.draw_valentina_rig(clip, time, dest, flip, tint, player.visual_profile);
     compositor::draw_equipped_layers_rig(sprites, player, source, dest, flip, tint);
 

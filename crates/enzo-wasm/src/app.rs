@@ -70,7 +70,7 @@ pub struct App {
 
 impl App {
     pub async fn new() -> Self {
-        let sprites = Sprites::load().await;
+        let sprites = Sprites::new();
         let app = Self {
             scene: Scene::Menu(Menu::new()),
             sprites,
@@ -150,6 +150,8 @@ impl App {
                 }
             }
 
+            // Lazy-load textures/rigs on demand (deduped, non-blocking per request queue).
+            self.sprites.pump().await;
             next_frame().await;
         }
     }
@@ -158,8 +160,7 @@ impl App {
         match transition {
             Transition::None => {}
             Transition::Start { slot, save } => {
-                let tiles = self.sprites.tiles_texture().clone();
-                match GameSession::new(slot, save, tiles, self.i18n) {
+                match GameSession::new(slot, save, self.sprites.assets.clone(), self.i18n) {
                     Ok(session) => self.scene = Scene::Game(Box::new(session)),
                     Err(err) => {
                         if let Scene::Menu(menu) = &mut self.scene {
@@ -377,7 +378,7 @@ impl GameSession {
     fn new(
         slot: usize,
         save: Option<SaveData>,
-        tiles_texture: Texture2D,
+        assets: crate::assets::AssetStore,
         i18n: I18n,
     ) -> Result<Self, LevelError> {
         let mut world = World::new(LEVEL_1)?;
@@ -385,7 +386,7 @@ impl GameSession {
             world.load_save(&data);
         }
 
-        let tiles = TileRenderer::new(world.level(), tiles_texture);
+        let tiles = TileRenderer::new(world.level(), assets);
         let current = world.snapshot();
         let mut camera = GameCamera::new();
         camera.resize(vec2(screen_width(), screen_height()));

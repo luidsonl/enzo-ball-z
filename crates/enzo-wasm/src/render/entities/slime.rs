@@ -1,4 +1,4 @@
-//! Animação e desenho da Slime.
+//! Animação e desenho da Slime (lazy modular entity sheet).
 
 use enzo_core::snapshot::EntitySnapshot;
 use macroquad::prelude::*;

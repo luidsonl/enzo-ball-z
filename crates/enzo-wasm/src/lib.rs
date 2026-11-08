@@ -5,6 +5,7 @@
 //! é decidida aqui.
 
 pub mod app;
+pub mod assets;
 pub mod camera;
 pub mod convert;
 pub mod effects;

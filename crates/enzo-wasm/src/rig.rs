@@ -158,17 +158,19 @@ pub struct HumanoidRig {
 }
 
 impl HumanoidRig {
-    pub async fn load(entity_id: &str, fallback_sheet: Texture2D) -> Self {
+    pub async fn load(entity_id: &str) -> Self {
+        let sheet_path = format!("assets/entities/{entity_id}/sheet.png");
+        let sheet = opt_texture(&sheet_path)
+            .await
+            .unwrap_or_else(|| Texture2D::from_rgba8(1, 1, &[255, 0, 255, 255]));
+        sheet.set_filter(FilterMode::Nearest);
         let rig_path = format!("assets/entities/{entity_id}/rig.json");
         let atlas_path = format!("assets/entities/{entity_id}/atlas.json");
         let mut manifest = match load_manifest(&rig_path).await {
             Some(m) => m,
-            None => load_manifest(&atlas_path).await.unwrap_or_else(|| {
-                macroquad::logging::warn!(
-                    "rig/atlas manifest missing for {entity_id}; using embedded canonical humanoid rig"
-                );
-                embedded_manifest(entity_id)
-            }),
+            None => load_manifest(&atlas_path)
+                .await
+                .unwrap_or_else(|| embedded_manifest(entity_id)),
         };
         if manifest.frames.is_empty() || manifest.clips.is_empty() {
             let embedded = embedded_manifest(entity_id);
@@ -182,33 +184,42 @@ impl HumanoidRig {
                 manifest.fallbacks = embedded.fallbacks;
             }
         }
-        let base = opt_texture(&format!("assets/entities/{entity_id}/layers/base.png")).await;
-        let face = opt_texture(&format!("assets/entities/{entity_id}/layers/face.png")).await;
-        let hair = opt_texture(&format!("assets/entities/{entity_id}/layers/hair.png")).await;
-        let outfit_top = opt_texture(&format!(
-            "assets/entities/{entity_id}/layers/outfit_top.png"
-        ))
-        .await;
-        let outfit_bottom = opt_texture(&format!(
-            "assets/entities/{entity_id}/layers/outfit_bottom.png"
-        ))
-        .await;
-        let shoes = opt_texture(&format!("assets/entities/{entity_id}/layers/shoes.png")).await;
-        if base.is_none() {
-            macroquad::logging::warn!(
-                "humanoid customization layers missing for {entity_id}; composing from sheet frames"
-            );
-        }
         Self {
             manifest,
-            sheet: fallback_sheet,
-            base,
-            face,
-            hair,
-            outfit_top,
-            outfit_bottom,
-            shoes,
+            sheet,
+            base: opt_texture(&format!("assets/entities/{entity_id}/layers/base.png")).await,
+            face: opt_texture(&format!("assets/entities/{entity_id}/layers/face.png")).await,
+            hair: opt_texture(&format!("assets/entities/{entity_id}/layers/hair.png")).await,
+            outfit_top: opt_texture(&format!(
+                "assets/entities/{entity_id}/layers/outfit_top.png"
+            ))
+            .await,
+            outfit_bottom: opt_texture(&format!(
+                "assets/entities/{entity_id}/layers/outfit_bottom.png"
+            ))
+            .await,
+            shoes: opt_texture(&format!("assets/entities/{entity_id}/layers/shoes.png")).await,
         }
+    }
+
+    /// Draws a loading placeholder (no texture dependency).
+    pub fn draw_placeholder(_clip_name: &str, _time: f32, dest: Rect, _flip_x: bool, tint: Color) {
+        let a = Color::new(tint.r, tint.g, tint.b, (tint.a * 0.35).clamp(0.0, 1.0));
+        draw_rectangle(
+            dest.x + dest.w * 0.22,
+            dest.y + dest.h * 0.08,
+            dest.w * 0.56,
+            dest.h * 0.84,
+            a,
+        );
+        draw_rectangle_lines(
+            dest.x,
+            dest.y,
+            dest.w,
+            dest.h,
+            1.0,
+            Color::new(1.0, 1.0, 1.0, 0.18),
+        );
     }
 
     pub fn has_layers(&self) -> bool {

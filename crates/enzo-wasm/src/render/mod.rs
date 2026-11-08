@@ -13,5 +13,4 @@ pub use background::{draw_background, Background};
 pub use world::{draw_world, RenderContext};
 
 // Compat: reexports usados por testes/código legado.
-pub use entities::items::frame as item_frame;
 pub use entities::slime::frame as slime_frame;
