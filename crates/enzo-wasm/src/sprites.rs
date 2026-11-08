@@ -14,7 +14,8 @@ use macroquad::prelude::*;
 use crate::rig::{opt_texture, HumanoidRig};
 
 const TILES_PATH: &str = "assets/sprites/tiles.png";
-const ENZO_PATH: &str = "assets/sprites/enzo.png";
+const ENZO_PATH: &str = "assets/entities/enzo/sheet.png";
+const ENZO_LEGACY_PATH: &str = "assets/sprites/enzo.png";
 const VALENTINA_PATH: &str = "assets/entities/valentina/sheet.png";
 const SLIME_PATH: &str = "assets/sprites/slime.png";
 const FX_PATH: &str = "assets/sprites/fx.png";
@@ -117,14 +118,16 @@ impl Sprites {
             item_equipped.push(texture(&path, kind.id()).await);
             // Only attempt rig-aligned overlays for items that can be equipped/visually layered.
             let rig_path = format!("assets/items/{}/layers/humanoid_overlay.png", kind.id());
-            let overlay = if kind.data().slot().is_some() || kind.data().category != enzo_core::entities::ItemCategory::Potion {
+            let overlay = if kind.data().slot().is_some()
+                || kind.data().category != enzo_core::entities::ItemCategory::Potion
+            {
                 opt_texture(&rig_path).await
             } else {
                 None
             };
             item_rig_overlay.push(overlay);
         }
-        let enzo_sheet = texture(ENZO_PATH, "enzo").await;
+        let enzo_sheet = texture_with_fallback(ENZO_PATH, ENZO_LEGACY_PATH, "enzo").await;
         let valentina_sheet = texture(VALENTINA_PATH, "valentina").await;
         Self {
             tiles: texture(TILES_PATH, "tiles").await,
@@ -268,6 +271,20 @@ async fn texture(path: &str, name: &str) -> Texture2D {
     };
     texture.set_filter(FilterMode::Nearest);
     texture
+}
+
+async fn texture_with_fallback(primary: &str, fallback: &str, name: &str) -> Texture2D {
+    for path in [primary, fallback] {
+        if let Ok(bytes) = macroquad::file::load_file(path).await {
+            if let Ok(image) = Image::from_file_with_format(&bytes, Some(ImageFormat::Png)) {
+                let tex = Texture2D::from_image(&image);
+                tex.set_filter(FilterMode::Nearest);
+                return tex;
+            }
+        }
+    }
+    macroquad::logging::error!("failed to load sprite '{name}' (tried {primary}, {fallback})");
+    fallback_texture()
 }
 
 fn fallback_texture() -> Texture2D {
