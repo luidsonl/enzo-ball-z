@@ -129,6 +129,8 @@ impl App {
                     game.i18n = self.i18n;
                     let offscreen = Pointer::at(Vec2::new(-10_000.0, -10_000.0));
                     let _ = game.frame(frame_dt, offscreen, &self.sprites);
+                    // Pause overlay on the main game canvas only; preview is drawn on top.
+                    draw_pause_overlay();
                     // Preview character in idle while customizing (rendered by WASM).
                     if menu.current() == crate::menu::MenuScreen::Customize {
                         let player = game
@@ -365,6 +367,9 @@ impl App {
                             enzo_core::entities::PlayableCharacter::from_code(character)
                         {
                             let _ = game.world.set_playable_character(0, c);
+                            game.world.write_snapshot(&mut game.current);
+                            menu.draft_character = c;
+                            let _ = save::store_draft_character(c);
                         }
                     }
                     UiAction::SetVisualProfileField { field, value } => {
@@ -372,6 +377,9 @@ impl App {
                             if let Some(player) = entity.player() {
                                 let profile = player.visual_profile.with_field(field, value);
                                 let _ = game.world.set_visual_profile(0, profile);
+                                game.world.write_snapshot(&mut game.current);
+                                menu.draft_visual_profile = profile;
+                                let _ = save::store_draft_visual_profile(profile);
                             }
                         }
                     }
@@ -752,6 +760,17 @@ impl GameSession {
     fn game_toast_text(&self) -> Option<&str> {
         self.save_toast.as_ref().map(|(text, _)| text.as_str())
     }
+}
+
+fn draw_pause_overlay() {
+    set_default_camera();
+    draw_rectangle(
+        0.0,
+        0.0,
+        screen_width(),
+        screen_height(),
+        Color::from_rgba(8, 10, 22, 140),
+    );
 }
 
 fn draw_menu_canvas_background(time: f32) {

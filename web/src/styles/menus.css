@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(8, 10, 22, 0.55);
+  background: transparent;
 }
 
 .dom-menu-wrap {
