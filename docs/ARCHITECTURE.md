@@ -154,6 +154,10 @@ manifests (no texture paths in core).
 
 Key rules:
 
+- Humanoid playable characters (Enzo, Valentina) and future humanoid enemies
+  should share a **common humanoid base** via composition/archetype builders, not
+  inheritance. Character/actor modules define identity, visual/customization
+  defaults, and overrides; shared helpers assemble the `EntitySpec`.
 - `Stats` is derived from attributes for the player and fixed/configured for
   enemies; both use the same struct.
 - `EntityStore` is the only creation/removal point:

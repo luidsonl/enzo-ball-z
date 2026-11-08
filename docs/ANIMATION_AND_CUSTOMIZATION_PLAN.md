@@ -423,6 +423,27 @@ LibreSprite for expressive frames and code for variants/validation. This gives
 you scalability (many clothes/colors/weapons/expressions) without coupling
 assets to the wasm or duplicating gameplay logic in the client.
 
+## 9.11 Humanoid common base (composition, not inheritance)
+
+Enzo, Valentina, and future humanoid enemies should share a **common humanoid
+base** implemented with **composition + shared archetype/spec builders**, not
+class inheritance (Rust has no class inheritance; the project uses componentized
+entities/specs).
+
+- **Shared base:** humanoid body/rig contract (clips, anchors, pivots, hand/weapon
+  points for attack/use/SixSeven), default locomotion/skill/collision patterns,
+  and helpers to build `EntitySpec` from a config (`PlayableCharacter`/variant,
+  team, controller, stats, equipment/loadout, visual metadata).
+- **Character modules:** `actors/enzo` and `actors/valentina` define only what
+  differs (identity, default `VisualProfile`, body/visual constants, clip/asset
+  overrides). `EntitySpec::enzo`/`::valentina` delegate to the humanoid base.
+- **Future humanoid enemies:** reuse the same base with `Controller::Ai`,
+  `TeamId::ENEMIES`, species-specific stats/rewards/AI, and their own visual
+  modules/rig-compatible assets.
+- **Traits:** use only for real polymorphic behavior/interfaces; prefer
+  data-driven defs/static dispatch consistent with blocks/skills. Keep a single
+  `Entity` type and authoritative gameplay rules in `enzo-core`.
+
 ## 10. Modular blocks and map symbols (planned)
 
 Blocks/tiles should become **modular definitions** so new terrain and special
