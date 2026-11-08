@@ -28,6 +28,16 @@ pub enum PlayableCharacter {
 }
 
 impl PlayableCharacter {
+    pub const ALL: [Self; 2] = [Self::Enzo, Self::Valentina];
+
+    pub const fn code(self) -> u8 {
+        self as u8
+    }
+
+    pub fn from_code(code: u8) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.code() == code)
+    }
+
     pub const fn id(self) -> &'static str {
         match self {
             Self::Enzo => "enzo",
@@ -45,6 +55,8 @@ impl PlayableCharacter {
 
 /// Stable visual customization IDs (no image paths in core).
 /// Values are interpreted by the client/asset manifest.
+/// Layers: skin/body, face, hair (style+color), outfit top/shirt, outfit bottom/pants, shoes.
+/// Equipment items may override or add layers at render time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VisualProfile {
@@ -62,6 +74,30 @@ pub struct VisualProfile {
     pub outfit_bottom: u8,
     #[cfg_attr(feature = "serde", serde(default))]
     pub shoes: u8,
+}
+
+impl VisualProfile {
+    pub const FIELD_SKIN_TONE: u8 = 0;
+    pub const FIELD_HAIR_STYLE: u8 = 1;
+    pub const FIELD_HAIR_COLOR: u8 = 2;
+    pub const FIELD_FACE: u8 = 3;
+    pub const FIELD_OUTFIT_TOP: u8 = 4;
+    pub const FIELD_OUTFIT_BOTTOM: u8 = 5;
+    pub const FIELD_SHOES: u8 = 6;
+
+    pub fn with_field(mut self, field: u8, value: u8) -> Self {
+        match field {
+            Self::FIELD_SKIN_TONE => self.skin_tone = value,
+            Self::FIELD_HAIR_STYLE => self.hair_style = value,
+            Self::FIELD_HAIR_COLOR => self.hair_color = value,
+            Self::FIELD_FACE => self.face = value,
+            Self::FIELD_OUTFIT_TOP => self.outfit_top = value,
+            Self::FIELD_OUTFIT_BOTTOM => self.outfit_bottom = value,
+            Self::FIELD_SHOES => self.shoes = value,
+            _ => {}
+        }
+        self
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

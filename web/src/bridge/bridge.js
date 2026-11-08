@@ -43,6 +43,8 @@ export const UiAction = Object.freeze({
   HudOpenSkills: 16,
   EquipInventoryItem: 19,
   UnequipSlot: 20,
+  SetPlayableCharacter: 21,
+  SetVisualProfileField: 22,
 });
 
 const pendingUi = [];
@@ -115,6 +117,22 @@ export function unequipSlot(slotCode) {
     return;
   }
   uiAction(UiAction.UnequipSlot, slotCode, 0, 0);
+}
+
+export function setPlayableCharacter(characterCode) {
+  if (exportsReady() && typeof globalThis.wasm_exports.enzo_set_character === "function") {
+    globalThis.wasm_exports.enzo_set_character(characterCode);
+    return;
+  }
+  uiAction(UiAction.SetPlayableCharacter, characterCode, 0, 0);
+}
+
+export function setVisualProfileField(field, value) {
+  if (exportsReady() && typeof globalThis.wasm_exports.enzo_set_visual_profile_field === "function") {
+    globalThis.wasm_exports.enzo_set_visual_profile_field(field, value);
+    return;
+  }
+  uiAction(UiAction.SetVisualProfileField, field, value, 0);
 }
 
 export function getMobileControlsMode() {

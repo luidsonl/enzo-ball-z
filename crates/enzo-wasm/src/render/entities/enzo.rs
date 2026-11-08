@@ -67,7 +67,7 @@ pub fn frame(pose: Pose, time: f32) -> usize {
 pub fn frame_from_animation(anim: AnimationState, time: f32) -> usize {
     use sprites::enzo as f;
     match anim.action {
-        ActionPose::Dead => f::HURT,
+        ActionPose::Dead | ActionPose::Dying => f::HURT,
         ActionPose::Hurt => f::HURT,
         ActionPose::Cast | ActionPose::Kick => f::ATTACK_B,
         ActionPose::Melee(step) => {
@@ -92,6 +92,7 @@ pub fn frame_from_animation(anim: AnimationState, time: f32) -> usize {
                     f::RUN_C
                 }
             }
+            LocomotionPose::Crouch => f::IDLE_A,
             LocomotionPose::Run | LocomotionPose::Walk => {
                 let phase = (time * 8.0) as usize % 4;
                 [f::RUN_A, f::RUN_B, f::RUN_C, f::RUN_D][phase]

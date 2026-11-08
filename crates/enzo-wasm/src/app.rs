@@ -250,6 +250,21 @@ impl App {
                             let _ = session.world.unequip_slot(0, slot);
                         }
                     }
+                    UiAction::SetPlayableCharacter { character } => {
+                        if let Some(c) =
+                            enzo_core::entities::PlayableCharacter::from_code(character)
+                        {
+                            let _ = session.world.set_playable_character(0, c);
+                        }
+                    }
+                    UiAction::SetVisualProfileField { field, value } => {
+                        if let Some(entity) = session.world.store().player(0) {
+                            if let Some(player) = entity.player() {
+                                let profile = player.visual_profile.with_field(field, value);
+                                let _ = session.world.set_visual_profile(0, profile);
+                            }
+                        }
+                    }
                     _ => {}
                 },
                 Scene::MenuOverGame { menu, game } => match action {
@@ -292,6 +307,21 @@ impl App {
                     UiAction::UnequipSlot { slot } => {
                         if let Some(slot) = enzo_core::entities::EquipSlot::from_code(slot) {
                             let _ = game.world.unequip_slot(0, slot);
+                        }
+                    }
+                    UiAction::SetPlayableCharacter { character } => {
+                        if let Some(c) =
+                            enzo_core::entities::PlayableCharacter::from_code(character)
+                        {
+                            let _ = game.world.set_playable_character(0, c);
+                        }
+                    }
+                    UiAction::SetVisualProfileField { field, value } => {
+                        if let Some(entity) = game.world.store().player(0) {
+                            if let Some(player) = entity.player() {
+                                let profile = player.visual_profile.with_field(field, value);
+                                let _ = game.world.set_visual_profile(0, profile);
+                            }
                         }
                     }
                     _ => {

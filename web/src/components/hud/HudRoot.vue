@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { UiAction, equipItem, loadoutAssign, loadoutClear, uiAction, unequipSlot } from "../../bridge/bridge.js";
+import { UiAction, equipItem, loadoutAssign, loadoutClear, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
 import { mobileControlsVisible } from "../../lib/mobile.js";
 
 const props = defineProps({
@@ -72,7 +72,30 @@ const tabs = computed(() => [
   ["equipment", labels.value.equipment || "Equipment", false],
   ["skills", labels.value.skills || "Skills", false],
   ["items", labels.value.inventory || "Items", false],
+  ["customize", labels.value.customize || "Customize", false],
 ]);
+
+const PROFILE_FIELDS = [
+  { code: 0, key: "skin_tone", labelKey: "skin_tone", max: 7 },
+  { code: 1, key: "hair_style", labelKey: "hair_style", max: 7 },
+  { code: 2, key: "hair_color", labelKey: "hair_color", max: 7 },
+  { code: 3, key: "face", labelKey: "face", max: 7 },
+  { code: 4, key: "outfit_top", labelKey: "outfit_top", max: 7 },
+  { code: 5, key: "outfit_bottom", labelKey: "outfit_bottom", max: 7 },
+  { code: 6, key: "shoes", labelKey: "shoes", max: 7 },
+];
+
+function profileValue(field) {
+  return player.value?.visual_profile?.[field.key] ?? 0;
+}
+function cycleProfile(field, dir) {
+  const max = field.max + 1;
+  const next = (profileValue(field) + dir + max) % max;
+  setVisualProfileField(field.code, next);
+}
+function profileLabel(field) {
+  return labels.value[field.labelKey] || field.key;
+}
 
 const attrDefs = computed(() => {
   const attrs = player.value?.attributes || {};
@@ -243,6 +266,34 @@ function slotSkillName(slotState) {
                   >{{ labels.equip || 'Equip' }}</button>
                 </div>
               </div>
+            </div>
+          </template>
+
+          <template v-else-if="openPanel === 'customize'">
+            <div class="dom-game-panel-header">
+              <h3 class="dom-title">{{ labels.customize || 'Customize' }}</h3>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
+            </div>
+            <div class="dom-game-panel-body">
+              <div class="dom-list">
+                <div class="dom-list-row">
+                  <span class="dom-list-key">{{ labels.character || 'Character' }}</span>
+                  <span class="dom-list-val">{{ player.character || 'Enzo' }}</span>
+                  <div style="margin-left:auto; display:flex; gap:6px; pointer-events:auto">
+                    <button type="button" class="dom-btn small" :class="{ primary: player.character_code === 0 }" @click.prevent.stop="setPlayableCharacter(0)">Enzo</button>
+                    <button type="button" class="dom-btn small" :class="{ primary: player.character_code === 1 }" @click.prevent.stop="setPlayableCharacter(1)">Valentina</button>
+                  </div>
+                </div>
+                <div v-for="field in PROFILE_FIELDS" :key="field.code" class="dom-list-row">
+                  <span class="dom-list-key">{{ profileLabel(field) }}</span>
+                  <span class="dom-list-val">{{ profileValue(field) }}</span>
+                  <div style="margin-left:auto; display:flex; gap:6px; pointer-events:auto">
+                    <button type="button" class="dom-btn small secondary" @click.prevent.stop="cycleProfile(field, -1)">-</button>
+                    <button type="button" class="dom-btn small" @click.prevent.stop="cycleProfile(field, 1)">+</button>
+                  </div>
+                </div>
+              </div>
+              <p class="muted" style="margin-top:10px">Layers: skin/face/hair, shirt, pants, shoes, plus equipped items (weapon, cap, armor, sneakers).</p>
             </div>
           </template>
 

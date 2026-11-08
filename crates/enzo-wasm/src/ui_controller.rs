@@ -63,6 +63,17 @@ pub struct UiLabels {
     pub equipped: String,
     pub locked: String,
     pub close: String,
+    pub customize: String,
+    pub character: String,
+    pub skin_tone: String,
+    pub hair_style: String,
+    pub hair_color: String,
+    pub face: String,
+    pub outfit_top: String,
+    pub outfit_bottom: String,
+    pub shoes: String,
+    pub equip: String,
+    pub unequip: String,
 }
 
 impl UiLabels {
@@ -130,6 +141,61 @@ impl UiLabels {
                 "Close".to_owned()
             } else {
                 "Fechar".to_owned()
+            },
+            customize: if i18n.language().code() == "en" {
+                "Customize".to_owned()
+            } else {
+                "Personalizar".to_owned()
+            },
+            character: if i18n.language().code() == "en" {
+                "Character".to_owned()
+            } else {
+                "Personagem".to_owned()
+            },
+            skin_tone: if i18n.language().code() == "en" {
+                "Skin tone".to_owned()
+            } else {
+                "Tom de pele".to_owned()
+            },
+            hair_style: if i18n.language().code() == "en" {
+                "Hair style".to_owned()
+            } else {
+                "Estilo de cabelo".to_owned()
+            },
+            hair_color: if i18n.language().code() == "en" {
+                "Hair color".to_owned()
+            } else {
+                "Cor do cabelo".to_owned()
+            },
+            face: if i18n.language().code() == "en" {
+                "Face".to_owned()
+            } else {
+                "Rosto".to_owned()
+            },
+            outfit_top: if i18n.language().code() == "en" {
+                "Shirt".to_owned()
+            } else {
+                "Camisa".to_owned()
+            },
+            outfit_bottom: if i18n.language().code() == "en" {
+                "Pants".to_owned()
+            } else {
+                "Calça".to_owned()
+            },
+            shoes: if i18n.language().code() == "en" {
+                "Shoes".to_owned()
+            } else {
+                "Tênis".to_owned()
+            },
+            equip: if i18n.language().code() == "en" {
+                "Equip".to_owned()
+            } else {
+                "Equipar".to_owned()
+            },
+            unequip: if i18n.language().code() == "en" {
+                "Unequip".to_owned()
+            } else {
+                "Desequipar".to_owned()
             },
         }
     }
@@ -221,7 +287,21 @@ pub struct UiAttributes {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct UiVisualProfile {
+    pub skin_tone: u8,
+    pub hair_style: u8,
+    pub hair_color: u8,
+    pub face: u8,
+    pub outfit_top: u8,
+    pub outfit_bottom: u8,
+    pub shoes: u8,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct UiPlayerState {
+    pub character: String,
+    pub character_code: u8,
+    pub visual_profile: UiVisualProfile,
     pub health: f32,
     pub max_health: f32,
     pub aura: f32,
@@ -368,6 +448,17 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
         .collect();
 
     Some(UiPlayerState {
+        character: format!("{:?}", p.character),
+        character_code: p.character.code(),
+        visual_profile: UiVisualProfile {
+            skin_tone: p.visual_profile.skin_tone,
+            hair_style: p.visual_profile.hair_style,
+            hair_color: p.visual_profile.hair_color,
+            face: p.visual_profile.face,
+            outfit_top: p.visual_profile.outfit_top,
+            outfit_bottom: p.visual_profile.outfit_bottom,
+            shoes: p.visual_profile.shoes,
+        },
         health: entity.health,
         max_health: entity.max_health,
         aura: p.aura,

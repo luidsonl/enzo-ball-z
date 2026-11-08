@@ -78,7 +78,7 @@ pub fn frame(pose: Pose, time: f32) -> usize {
 pub fn frame_from_animation(anim: AnimationState, time: f32) -> usize {
     use sprites::valentina as f;
     match anim.action {
-        ActionPose::Dead | ActionPose::Hurt => f::HURT,
+        ActionPose::Dead | ActionPose::Dying | ActionPose::Hurt => f::HURT,
         ActionPose::Cast => f::CAST,
         ActionPose::Kick | ActionPose::Melee(_) => f::KICK,
         ActionPose::SixSeven(hand) => match hand {
@@ -97,6 +97,7 @@ pub fn frame_from_animation(anim: AnimationState, time: f32) -> usize {
                     f::WALK_2
                 }
             }
+            LocomotionPose::Crouch => f::IDLE,
             LocomotionPose::Walk | LocomotionPose::Run => {
                 if ((time * 8.0) as usize).is_multiple_of(2) {
                     f::WALK_1
