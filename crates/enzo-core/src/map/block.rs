@@ -66,8 +66,12 @@ pub enum RenderKind {
 pub struct BlockDef {
     pub id: BlockId,
     pub name: &'static str,
-    /// ASCII symbol used by the map parser to place this block directly.
+    /// ASCII symbol used by the map parser to place this block directly (1x1 blocks).
     pub symbol: Option<char>,
+    /// Footprint width in tiles.
+    pub width: u8,
+    /// Footprint height in tiles.
+    pub height: u8,
     pub collision: CollisionKind,
     pub resistance: Resistance,
     pub special: SpecialKind,

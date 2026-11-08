@@ -5,6 +5,8 @@ pub const DEF: BlockDef = BlockDef {
     id: BlockId::Empty,
     name: "empty",
     symbol: Some('.'),
+    width: 1,
+    height: 1,
     collision: CollisionKind::Passable,
     resistance: Resistance::None,
     special: SpecialKind::None,

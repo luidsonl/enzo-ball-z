@@ -5,6 +5,8 @@ pub const DEF: BlockDef = BlockDef {
     id: BlockId::Ground,
     name: "ground",
     symbol: Some('#'),
+    width: 1,
+    height: 1,
     collision: CollisionKind::Solid,
     resistance: Resistance::Unbreakable,
     special: SpecialKind::None,
