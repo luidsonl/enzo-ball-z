@@ -1,0 +1,400 @@
+{
+  "framework": "pixel-forge",
+  "id": "valentina",
+  "kind": "humanoid",
+  "image": "sheet.png",
+  "cell": {
+    "w": 32,
+    "h": 32
+  },
+  "anchor": {
+    "x": 16,
+    "y": 30
+  },
+  "frames": {
+    "idle_0": {
+      "x": 0,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "idle_1": {
+      "x": 32,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "walk_0": {
+      "x": 64,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "walk_1": {
+      "x": 96,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "walk_2": {
+      "x": 128,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "walk_3": {
+      "x": 160,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "run_0": {
+      "x": 192,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "run_1": {
+      "x": 224,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "run_2": {
+      "x": 256,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "run_3": {
+      "x": 288,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "crouch_0": {
+      "x": 320,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "jump_rise_0": {
+      "x": 352,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "jump_fall_0": {
+      "x": 384,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "fly_0": {
+      "x": 416,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "fly_1": {
+      "x": 448,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "swim_0": {
+      "x": 480,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "swim_1": {
+      "x": 512,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "dash_0": {
+      "x": 544,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "sixseven_a_0": {
+      "x": 576,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "sixseven_b_0": {
+      "x": 608,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "attack_1_0": {
+      "x": 640,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "attack_2_0": {
+      "x": 672,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "attack_3_0": {
+      "x": 704,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "kick_0": {
+      "x": 736,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "cast_0": {
+      "x": 768,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "hurt_0": {
+      "x": 800,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "dying_0": {
+      "x": 832,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "dead_0": {
+      "x": 864,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    }
+  },
+  "clips": {
+    "idle": {
+      "frames": [
+        "idle_0",
+        "idle_1"
+      ],
+      "fps": 2.5,
+      "loop": true
+    },
+    "walk": {
+      "frames": [
+        "walk_0",
+        "walk_1",
+        "walk_2",
+        "walk_3"
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "run": {
+      "frames": [
+        "run_0",
+        "run_1",
+        "run_2",
+        "run_3"
+      ],
+      "fps": 10,
+      "loop": true
+    },
+    "crouch": {
+      "frames": [
+        "crouch_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "jump": {
+      "frames": [
+        "jump_rise_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "jump_rise": {
+      "frames": [
+        "jump_rise_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "jump_fall": {
+      "frames": [
+        "jump_fall_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "fly": {
+      "frames": [
+        "fly_0",
+        "fly_1"
+      ],
+      "fps": 6,
+      "loop": true
+    },
+    "swim": {
+      "frames": [
+        "swim_0",
+        "swim_1"
+      ],
+      "fps": 5,
+      "loop": true
+    },
+    "dash": {
+      "frames": [
+        "dash_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "sixseven_a": {
+      "frames": [
+        "sixseven_a_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "sixseven_b": {
+      "frames": [
+        "sixseven_b_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "attack_1": {
+      "frames": [
+        "attack_1_0"
+      ],
+      "fps": 10,
+      "loop": false
+    },
+    "attack_2": {
+      "frames": [
+        "attack_2_0"
+      ],
+      "fps": 10,
+      "loop": false
+    },
+    "attack_3": {
+      "frames": [
+        "attack_3_0"
+      ],
+      "fps": 10,
+      "loop": false
+    },
+    "kick": {
+      "frames": [
+        "kick_0"
+      ],
+      "fps": 10,
+      "loop": false
+    },
+    "cast": {
+      "frames": [
+        "cast_0"
+      ],
+      "fps": 8,
+      "loop": false
+    },
+    "hurt": {
+      "frames": [
+        "hurt_0"
+      ],
+      "fps": 1,
+      "loop": true
+    },
+    "dying": {
+      "frames": [
+        "dying_0"
+      ],
+      "fps": 4,
+      "loop": false
+    },
+    "dead": {
+      "frames": [
+        "dead_0"
+      ],
+      "fps": 1,
+      "loop": true
+    }
+  },
+  "fallbacks": {
+    "run": [
+      "walk",
+      "idle"
+    ],
+    "crouch": [
+      "idle"
+    ],
+    "fly": [
+      "jump_rise",
+      "jump_fall",
+      "jump",
+      "idle"
+    ],
+    "swim": [
+      "fly",
+      "walk",
+      "idle"
+    ],
+    "dash": [
+      "run",
+      "walk",
+      "idle"
+    ],
+    "jump": [
+      "jump_rise",
+      "jump_fall",
+      "idle"
+    ],
+    "attack_2": [
+      "attack_1"
+    ],
+    "attack_3": [
+      "attack_2",
+      "attack_1"
+    ],
+    "kick": [
+      "attack_1"
+    ],
+    "cast": [
+      "attack_1",
+      "idle"
+    ],
+    "dying": [
+      "dead",
+      "hurt"
+    ],
+    "sixseven_a": [
+      "idle"
+    ],
+    "sixseven_b": [
+      "idle"
+    ]
+  },
+  "layers": [
+    "base",
+    "face",
+    "hair",
+    "outfit_bottom",
+    "shoes",
+    "outfit_top",
+    "headgear",
+    "accessory",
+    "weapon"
+  ]
+}

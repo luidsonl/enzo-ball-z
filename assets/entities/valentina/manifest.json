@@ -1,16 +1,41 @@
 {
   "framework": "pixel-forge",
   "id": "valentina",
+  "kind": "humanoid",
   "sheet": "sheet.png",
+  "rig": "rig.json",
   "atlas": "atlas.json",
   "clips": [
     "idle",
     "walk",
+    "run",
+    "crouch",
     "jump",
-    "kick",
-    "cast",
+    "jump_rise",
+    "jump_fall",
+    "fly",
+    "swim",
+    "dash",
     "sixseven_a",
     "sixseven_b",
-    "hurt"
+    "attack_1",
+    "attack_2",
+    "attack_3",
+    "kick",
+    "cast",
+    "hurt",
+    "dying",
+    "dead"
+  ],
+  "layers": [
+    "base",
+    "face",
+    "hair",
+    "outfit_bottom",
+    "shoes",
+    "outfit_top",
+    "headgear",
+    "accessory",
+    "weapon"
   ]
 }
