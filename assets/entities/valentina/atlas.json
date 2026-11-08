@@ -111,68 +111,86 @@
       "w": 32,
       "h": 32
     },
-    "dash_0": {
+    "climb_0": {
       "x": 544,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "sixseven_a_0": {
+    "climb_1": {
       "x": 576,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "sixseven_b_0": {
+    "dash_0": {
       "x": 608,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "attack_1_0": {
+    "sixseven_a_0": {
       "x": 640,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "attack_2_0": {
+    "sixseven_b_0": {
       "x": 672,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "attack_3_0": {
+    "attack_1_0": {
       "x": 704,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "kick_0": {
+    "attack_2_0": {
       "x": 736,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "cast_0": {
+    "attack_3_0": {
       "x": 768,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "hurt_0": {
+    "kick_0": {
       "x": 800,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "dying_0": {
+    "cast_0": {
       "x": 832,
       "y": 0,
       "w": 32,
       "h": 32
     },
-    "dead_0": {
+    "shout_0": {
       "x": 864,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "hurt_0": {
+      "x": 896,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "dying_0": {
+      "x": 928,
+      "y": 0,
+      "w": 32,
+      "h": 32
+    },
+    "dead_0": {
+      "x": 960,
       "y": 0,
       "w": 32,
       "h": 32
@@ -251,6 +269,14 @@
       "fps": 5,
       "loop": true
     },
+    "climb": {
+      "frames": [
+        "climb_0",
+        "climb_1"
+      ],
+      "fps": 5,
+      "loop": true
+    },
     "dash": {
       "frames": [
         "dash_0"
@@ -307,6 +333,13 @@
       "fps": 8,
       "loop": false
     },
+    "shout": {
+      "frames": [
+        "shout_0"
+      ],
+      "fps": 8,
+      "loop": false
+    },
     "hurt": {
       "frames": [
         "hurt_0"
@@ -348,6 +381,10 @@
       "walk",
       "idle"
     ],
+    "climb": [
+      "jump_rise",
+      "idle"
+    ],
     "dash": [
       "run",
       "walk",
@@ -369,6 +406,11 @@
       "attack_1"
     ],
     "cast": [
+      "attack_1",
+      "idle"
+    ],
+    "shout": [
+      "cast",
       "attack_1",
       "idle"
     ],

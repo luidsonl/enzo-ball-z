@@ -15,6 +15,7 @@
     "jump_fall",
     "fly",
     "swim",
+    "climb",
     "dash",
     "sixseven_a",
     "sixseven_b",
@@ -23,6 +24,7 @@
     "attack_3",
     "kick",
     "cast",
+    "shout",
     "hurt",
     "dying",
     "dead"
@@ -37,5 +39,38 @@
     "headgear",
     "accessory",
     "weapon"
-  ]
+  ],
+  "customization": {
+    "variants": {
+      "skin_tone": 8,
+      "hair_style": 8,
+      "hair_color": 8,
+      "face": 8,
+      "outfit_top": 8,
+      "outfit_bottom": 8,
+      "shoes": 8
+    },
+    "layer_variants": {
+      "hair": [
+        "layers/hair_style_0.png",
+        "layers/hair_style_1.png",
+        "layers/hair_style_2.png",
+        "layers/hair_style_3.png",
+        "layers/hair_style_4.png",
+        "layers/hair_style_5.png",
+        "layers/hair_style_6.png",
+        "layers/hair_style_7.png"
+      ],
+      "face": [
+        "layers/face_0.png",
+        "layers/face_1.png",
+        "layers/face_2.png",
+        "layers/face_3.png",
+        "layers/face_4.png",
+        "layers/face_5.png",
+        "layers/face_6.png",
+        "layers/face_7.png"
+      ]
+    }
+  }
 }
