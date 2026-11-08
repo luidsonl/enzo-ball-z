@@ -87,6 +87,17 @@
       "special": "destructible",
       "symbol": "S",
       "width": 1
+    },
+    {
+      "collision": "solid",
+      "height": 1,
+      "id": "barrier",
+      "name": "barrier",
+      "render": "empty",
+      "resistance": "Unbreakable",
+      "special": "none",
+      "symbol": "X",
+      "width": 1
     }
   ],
   "source": "enzo-core"

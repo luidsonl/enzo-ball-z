@@ -96,14 +96,15 @@ mod tests {
     fn slime_turns_at_wall() {
         let level = level("P.#\n###\n");
         let mut store = EntityStore::new();
-        let enemy = slime_at(&mut store, 32.0, 6.0, 1);
+        // +1,+1 shift from surrounding barrier.
+        let enemy = slime_at(&mut store, 64.0, 38.0, 1);
         store.get_mut(enemy).unwrap().body.on_ground = true;
 
-        // Anda para a direita; parede no tile 2 (x >= 64).
+        // Anda para a direita; parede no tile 3 (x >= 96).
         crate::ai::update(&mut store, &level);
         assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, 1);
 
-        store.get_mut(enemy).unwrap().body.pos.x = 58.0;
+        store.get_mut(enemy).unwrap().body.pos.x = 90.0;
         crate::ai::update(&mut store, &level);
         assert_eq!(store.get(enemy).unwrap().locomotion.walk.intent_x, -1);
         assert_eq!(patrol_dir(&store, enemy), -1);

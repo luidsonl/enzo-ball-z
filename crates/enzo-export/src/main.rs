@@ -41,6 +41,7 @@ fn blocks() -> Vec<BlockOut> {
         BlockId::FlagBottom,
         BlockId::FlagTop,
         BlockId::BreakableStone,
+        BlockId::Barrier,
     ];
     ids.into_iter()
         .map(|id| {

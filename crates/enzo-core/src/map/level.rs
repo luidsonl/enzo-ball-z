@@ -115,7 +115,8 @@ impl Level {
             spawn_tiles,
             enemy_spawns,
             flag,
-        })
+        }
+        .with_surrounding_barrier())
     }
 
     /// Builds a level from an explicit block-id grid (supports map editor / block-id incorporation).
@@ -187,7 +188,38 @@ impl Level {
             spawn_tiles,
             enemy_spawns,
             flag,
-        })
+        }
+        .with_surrounding_barrier())
+    }
+
+    /// Surrounds the level with an invisible impassable barrier on left, right,
+    /// and top. Bottom remains open so falling below the map still counts as death.
+    fn with_surrounding_barrier(mut self) -> Self {
+        let new_w = self.width + 2;
+        let new_h = self.height + 1;
+        let mut tiles = vec![Tile::BARRIER; new_w * new_h];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                tiles[(y + 1) * new_w + (x + 1)] = self.tiles[y * self.width + x];
+            }
+        }
+        self.width = new_w;
+        self.height = new_h;
+        self.tiles = tiles;
+        self.damage = vec![0; new_w * new_h];
+        for spawn in &mut self.spawn_tiles {
+            spawn.0 += 1;
+            spawn.1 += 1;
+        }
+        for enemy in &mut self.enemy_spawns {
+            enemy.tile.0 += 1;
+            enemy.tile.1 += 1;
+        }
+        if let Some(flag) = &mut self.flag {
+            flag.x += TILE_SIZE;
+            flag.y += TILE_SIZE;
+        }
+        self
     }
 
     pub fn width(&self) -> usize {
@@ -243,10 +275,14 @@ impl Level {
         }
     }
 
-    /// Out of bounds counts as empty: the player can fall and die.
+    /// Out of bounds on left/right/top is an impassable barrier; below the map
+    /// remains empty so falling counts as death.
     pub fn tile_at(&self, tx: i32, ty: i32) -> Tile {
-        if tx < 0 || ty < 0 {
+        if ty >= self.height as i32 {
             return Tile::EMPTY;
+        }
+        if tx < 0 || ty < 0 || tx >= self.width as i32 {
+            return Tile::BARRIER;
         }
         self.tile(tx as usize, ty as usize)
     }
@@ -418,15 +454,16 @@ mod tests {
     #[test]
     fn parses_tiles_and_markers() {
         let level = Level::parse(SAMPLE).unwrap();
-        assert_eq!(level.width(), 6);
-        assert_eq!(level.height(), 4);
-        assert_eq!(level.tile(0, 3), Tile::GROUND);
-        assert_eq!(level.tile(2, 1), Tile::EMPTY); // player spawn remains empty
-        assert_eq!(level.tile(2, 2), Tile::FLAG_BOTTOM);
-        assert_eq!(level.spawn_tiles, vec![(2, 1)]);
-        assert_eq!(level.enemy_tiles(), vec![(4, 1)]);
+        // +2 width / +1 height from surrounding barrier.
+        assert_eq!(level.width(), 8);
+        assert_eq!(level.height(), 5);
+        assert_eq!(level.tile(1, 4), Tile::GROUND);
+        assert_eq!(level.tile(3, 2), Tile::EMPTY); // player spawn remains empty
+        assert_eq!(level.tile(3, 3), Tile::FLAG_BOTTOM);
+        assert_eq!(level.spawn_tiles, vec![(3, 2)]);
+        assert_eq!(level.enemy_tiles(), vec![(5, 2)]);
         assert!(level.flag.is_some());
-        assert_eq!(level.width_px(), 6.0 * TILE_SIZE);
+        assert_eq!(level.width_px(), 8.0 * TILE_SIZE);
     }
 
     #[test]
@@ -461,7 +498,8 @@ S..
 ",
         )
         .unwrap();
-        assert_eq!(level.tile(0, 1), Tile::BREAKABLE_STONE);
+        // +1,+1 shift from surrounding barrier.
+        assert_eq!(level.tile(1, 2), Tile::BREAKABLE_STONE);
     }
 
     #[test]
@@ -480,18 +518,21 @@ P.S
 #G#
 ";
         let level = Level::parse(src).unwrap();
-        assert_eq!(level.tile(2, 0), Tile::BREAKABLE_STONE);
+        // +1,+1 shift from surrounding barrier.
+        assert_eq!(level.tile(3, 1), Tile::BREAKABLE_STONE);
         assert_eq!(level.enemy_spawns[0].kind, "slime");
+        assert_eq!(level.enemy_spawns[0].tile, (2, 2));
     }
 
     #[test]
     fn flag_marker_places_two_tile_goal_blocks() {
         let src = "P...\n....\n...F\n####\n";
         let level = Level::parse(src).unwrap();
-        assert_eq!(level.tile(3, 2), Tile::FLAG_BOTTOM);
-        assert_eq!(level.tile(3, 1), Tile::FLAG_TOP);
+        // +1,+1 shift from surrounding barrier.
+        assert_eq!(level.tile(4, 3), Tile::FLAG_BOTTOM);
+        assert_eq!(level.tile(4, 2), Tile::FLAG_TOP);
         let flag = level.flag_rect().expect("flag rect");
-        assert!((flag.y - TILE_SIZE).abs() < f32::EPSILON);
+        assert!((flag.y - 2.0 * TILE_SIZE).abs() < f32::EPSILON);
         assert!((flag.h - TILE_SIZE * 2.0).abs() < f32::EPSILON);
     }
 
@@ -520,13 +561,14 @@ P.S
     #[test]
     fn crate_takes_damage_and_breaks() {
         let mut level = Level::parse("P..\nD..\n###\n").unwrap();
-        let rect = Rect::new(0.0, TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        // +1,+1 shift from surrounding barrier.
+        let rect = Rect::new(TILE_SIZE, 2.0 * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         let mut events = Vec::new();
 
-        assert!(level.tile(0, 1).is_solid());
+        assert!(level.tile(1, 2).is_solid());
         assert!(level.damage_solid_blocks_in_rect(rect, 1, &mut events));
-        assert_eq!(level.block_damage(0, 1), 1);
-        assert!(level.tile(0, 1).is_solid());
+        assert_eq!(level.block_damage(1, 2), 1);
+        assert!(level.tile(1, 2).is_solid());
         assert!(matches!(
             events.as_slice(),
             [GameEvent::BlockDamaged { .. }]
@@ -535,8 +577,8 @@ P.S
         events.clear();
         level.damage_solid_blocks_in_rect(rect, 1, &mut events);
         level.damage_solid_blocks_in_rect(rect, 1, &mut events);
-        assert_eq!(level.block_damage(0, 1), 3);
-        assert!(!level.tile(0, 1).is_solid());
+        assert_eq!(level.block_damage(1, 2), 3);
+        assert!(!level.tile(1, 2).is_solid());
         assert!(events
             .iter()
             .any(|e| matches!(e, GameEvent::BlockDestroyed { .. })));
@@ -547,8 +589,9 @@ P.S
         let level = Level::parse(SAMPLE).unwrap();
         let size = Vec2::new(24.0, 30.0);
         let spawn = level.spawn_points(size)[0];
-        assert_eq!(spawn.x, 2.0 * TILE_SIZE + 4.0);
-        assert_eq!(spawn.y, 2.0 * TILE_SIZE - 30.0);
+        // +1,+1 tile shift from surrounding barrier.
+        assert_eq!(spawn.x, 3.0 * TILE_SIZE + 4.0);
+        assert_eq!(spawn.y, 3.0 * TILE_SIZE - 30.0);
     }
 
     #[test]
@@ -579,17 +622,30 @@ P.S
     }
 
     #[test]
-    fn out_of_bounds_is_empty() {
+    fn out_of_bounds_treats_sides_and_top_as_barrier() {
         let level = Level::parse(SAMPLE).unwrap();
-        assert_eq!(level.tile_at(-1, 0), Tile::EMPTY);
-        assert_eq!(level.tile_at(0, 99), Tile::EMPTY);
+        assert_eq!(level.tile_at(-1, 0), Tile::BARRIER);
+        assert_eq!(level.tile_at(level.width() as i32, 0), Tile::BARRIER);
+        assert_eq!(level.tile_at(0, -1), Tile::BARRIER);
+        assert_eq!(level.tile_at(0, level.height() as i32), Tile::EMPTY);
+    }
+
+    #[test]
+    fn injected_barrier_surrounds_left_right_and_top() {
+        let level = Level::parse(SAMPLE).unwrap();
+        assert_eq!(level.tile(0, 1), Tile::BARRIER); // left border
+        assert_eq!(level.tile(level.width() - 1, 1), Tile::BARRIER); // right
+        assert_eq!(level.tile(1, 0), Tile::BARRIER); // top
+                                                     // Below the map remains open so falling still counts as death.
+        assert_eq!(level.tile_at(1, level.height() as i32), Tile::EMPTY);
     }
 
     #[test]
     fn detects_solid_overlap() {
         let level = Level::parse(SAMPLE).unwrap();
-        let touching_ground = Rect::new(0.0, 3.0 * TILE_SIZE, 32.0, 32.0);
-        let above_ground = Rect::new(0.0, 2.0 * TILE_SIZE, 32.0, 32.0);
+        // Border injection shifts content by (+1 tile, +1 tile).
+        let touching_ground = Rect::new(TILE_SIZE, 4.0 * TILE_SIZE, 32.0, 32.0);
+        let above_ground = Rect::new(TILE_SIZE, 3.0 * TILE_SIZE, 32.0, 32.0);
         assert!(level.rect_overlaps_solid(touching_ground));
         assert!(!level.rect_overlaps_solid(above_ground));
     }
@@ -597,8 +653,9 @@ P.S
     #[test]
     fn parses_level_one() {
         let level = Level::parse(crate::levels::LEVEL_1).unwrap();
-        assert_eq!(level.width(), 100);
-        assert_eq!(level.height(), 22);
+        // +2 width (left/right barrier), +1 height (top barrier).
+        assert_eq!(level.width(), 102);
+        assert_eq!(level.height(), 23);
         assert_eq!(level.spawn_tiles.len(), 1);
         assert_eq!(level.enemy_tiles().len(), 6);
         assert!(level.flag.is_some());
@@ -635,8 +692,9 @@ P.S
             None,
         )
         .unwrap();
-        assert_eq!(level.tile(1, 1), Tile::CRATE);
-        assert_eq!(level.width(), 3);
+        // +1,+1 shift from surrounding barrier.
+        assert_eq!(level.tile(2, 2), Tile::CRATE);
+        assert_eq!(level.width(), 5);
     }
 
     #[test]
@@ -650,10 +708,11 @@ P.S
             Some(Rect::new(0.0, 0.0, 16.0, 32.0)),
         )
         .unwrap();
-        assert_eq!(level.tile(0, 0), Tile::GROUND);
-        assert_eq!(level.tile(1, 1), Tile::EMPTY);
-        assert_eq!(level.spawn_tiles, vec![(0, 0)]);
-        assert_eq!(level.enemy_tiles(), vec![(1, 1)]);
+        // +1,+1 shift from surrounding barrier.
+        assert_eq!(level.tile(1, 1), Tile::GROUND);
+        assert_eq!(level.tile(2, 2), Tile::EMPTY);
+        assert_eq!(level.spawn_tiles, vec![(1, 1)]);
+        assert_eq!(level.enemy_tiles(), vec![(2, 2)]);
         assert!(level.flag.is_some());
     }
 
@@ -697,10 +756,12 @@ F = marker:flag
         assert_eq!(level.metadata.world, "grasslands");
         assert_eq!(level.metadata.background, "hills");
         assert_eq!(level.metadata.stage, 2);
-        assert_eq!(level.spawn_tiles, vec![(1, 1)]);
+        // +1,+1 shift from surrounding barrier.
+        assert_eq!(level.spawn_tiles, vec![(2, 2)]);
         assert_eq!(level.enemy_spawns.len(), 1);
         assert_eq!(level.enemy_spawns[0].kind, "slime");
+        assert_eq!(level.enemy_spawns[0].tile, (4, 2));
         assert!(level.flag.is_some());
-        assert_eq!(level.tile(0, 3), Tile::GROUND);
+        assert_eq!(level.tile(1, 4), Tile::GROUND);
     }
 }

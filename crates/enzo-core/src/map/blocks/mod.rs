@@ -3,6 +3,7 @@
 //! Each block kind lives in its own module (like entity specs), exporting a
 //! `DEF: BlockDef`. The registry is indexed by [`BlockId`] discriminant.
 
+pub mod barrier;
 pub mod block;
 pub mod breakable_stone;
 pub mod crate_block;
@@ -14,6 +15,7 @@ pub mod platform;
 
 use super::block::{BlockDef, BlockId};
 
+pub use barrier::DEF as BLOCK_BARRIER;
 pub use block::DEF as BLOCK_BRICK;
 pub use breakable_stone::DEF as BLOCK_BREAKABLE_STONE;
 pub use crate_block::DEF as BLOCK_CRATE;
@@ -24,7 +26,7 @@ pub use ground::DEF as BLOCK_GROUND;
 pub use platform::DEF as BLOCK_PLATFORM;
 
 /// All registered block definitions, indexed by [`BlockId`] discriminant order.
-pub const BLOCK_DEFS: [BlockDef; 8] = [
+pub const BLOCK_DEFS: [BlockDef; 9] = [
     BLOCK_EMPTY,
     BLOCK_GROUND,
     BLOCK_BRICK,
@@ -33,6 +35,7 @@ pub const BLOCK_DEFS: [BlockDef; 8] = [
     BLOCK_FLAG_BOTTOM,
     BLOCK_FLAG_TOP,
     BLOCK_BREAKABLE_STONE,
+    BLOCK_BARRIER,
 ];
 
 pub fn block_def(id: BlockId) -> &'static BlockDef {

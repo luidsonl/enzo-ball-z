@@ -15,6 +15,8 @@ pub enum BlockId {
     FlagTop = 6,
     /// Solid stone block that can be damaged and destroyed.
     BreakableStone = 7,
+    /// Invisible, impassable boundary block used to surround the map.
+    Barrier = 8,
 }
 
 /// How a block participates in movement/collision.
