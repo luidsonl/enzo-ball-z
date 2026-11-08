@@ -8,6 +8,7 @@
 //! Each sheet uses a fixed cell: tiles and items are 16x16; actors and effects
 //! are 32x32. Rendering chooses frames from snapshot/state.
 
+use enzo_core::entities::ItemKind;
 use macroquad::prelude::*;
 
 const TILES_PATH: &str = "assets/sprites/tiles.png";
@@ -101,10 +102,16 @@ pub struct Sprites {
     fx: Texture2D,
     flag: Texture2D,
     items: Texture2D,
+    item_equipped: Vec<Texture2D>,
 }
 
 impl Sprites {
     pub async fn load() -> Self {
+        let mut item_equipped = Vec::with_capacity(ItemKind::ALL.len());
+        for kind in ItemKind::ALL {
+            let path = format!("assets/items/{}/equipped.png", kind.id());
+            item_equipped.push(texture(&path, kind.id()).await);
+        }
         Self {
             tiles: texture(TILES_PATH, "tiles").await,
             enzo: texture(ENZO_PATH, "enzo").await,
@@ -113,6 +120,7 @@ impl Sprites {
             fx: texture(FX_PATH, "fx").await,
             flag: texture(FLAG_PATH, "flag").await,
             items: texture(ITEMS_PATH, "items").await,
+            item_equipped,
         }
     }
 
@@ -156,6 +164,24 @@ impl Sprites {
 
     pub fn draw_item(&self, index: usize, dest: Rect, tint: Color) {
         draw_sheet(&self.items, ITEM_CELL, index, dest, false, tint);
+    }
+
+    pub fn draw_item_equipped(&self, kind: ItemKind, dest: Rect, flip_x: bool, tint: Color) {
+        let idx = kind.code() as usize;
+        let Some(tex) = self.item_equipped.get(idx) else {
+            return;
+        };
+        draw_texture_ex(
+            tex,
+            dest.x,
+            dest.y,
+            tint,
+            DrawTextureParams {
+                dest_size: Some(vec2(dest.w, dest.h)),
+                flip_x,
+                ..Default::default()
+            },
+        );
     }
 }
 

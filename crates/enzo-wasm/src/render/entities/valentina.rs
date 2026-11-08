@@ -1,12 +1,13 @@
 //! Animation and drawing for the playable Valentina character.
 
-use enzo_core::skills::SkillId;
+use enzo_core::entities::{ActionPose, AnimationState, LocomotionPose, SixSevenHand};
 use enzo_core::snapshot::{EntitySnapshot, PlayerSnapshot};
 use macroquad::prelude::*;
 
 use crate::sprites::{self, Sprites};
 
 use super::super::skills;
+use super::compositor;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
@@ -18,6 +19,7 @@ pub struct Pose {
     pub melee_timer: f32,
     pub iframes: f32,
     pub casting: bool,
+    pub dead: bool,
 }
 
 impl Pose {
@@ -26,7 +28,11 @@ impl Pose {
             slot.active
                 && matches!(
                     slot.skill,
-                    Some(SkillId::Mogging | SkillId::NutellaShot | SkillId::Shout)
+                    Some(
+                        enzo_core::skills::SkillId::Mogging
+                            | enzo_core::skills::SkillId::NutellaShot
+                            | enzo_core::skills::SkillId::Shout
+                    )
                 )
         });
         Self {
@@ -38,43 +44,69 @@ impl Pose {
             melee_timer: player.melee_timer,
             iframes: entity.iframes,
             casting,
+            dead: entity.health <= 0.0,
         }
+    }
+
+    fn to_animation(self, time: f32) -> AnimationState {
+        AnimationState::resolve(
+            !self.dead,
+            if self.vel_x < 0.0 { -1 } else { 1 },
+            self.on_ground,
+            self.vel_x,
+            self.vel_y,
+            false,
+            self.dashing,
+            false,
+            false,
+            self.iframes > 0.0 && !self.dead,
+            1,
+            self.melee_timer > 0.0,
+            self.melee_timer > 0.0, // Valentina uses kick for melee in legacy behavior
+            self.casting,
+            self.farming,
+            None,
+            time,
+        )
     }
 }
 
 pub fn frame(pose: Pose, time: f32) -> usize {
+    frame_from_animation(pose.to_animation(time), time)
+}
+
+pub fn frame_from_animation(anim: AnimationState, time: f32) -> usize {
     use sprites::valentina as f;
-    if pose.iframes > 0.0 {
-        return f::HURT;
+    match anim.action {
+        ActionPose::Dead | ActionPose::Hurt => f::HURT,
+        ActionPose::Cast => f::CAST,
+        ActionPose::Kick | ActionPose::Melee(_) => f::KICK,
+        ActionPose::SixSeven(hand) => match hand {
+            SixSevenHand::A => f::SIXSEVEN_A,
+            SixSevenHand::B => f::SIXSEVEN_B,
+        },
+        ActionPose::None => match anim.pose {
+            LocomotionPose::Dash
+            | LocomotionPose::Fly
+            | LocomotionPose::JumpRise
+            | LocomotionPose::JumpFall => f::JUMP,
+            LocomotionPose::Swim => {
+                if ((time * 6.0) as usize).is_multiple_of(2) {
+                    f::WALK_1
+                } else {
+                    f::WALK_2
+                }
+            }
+            LocomotionPose::Walk | LocomotionPose::Run => {
+                if ((time * 8.0) as usize).is_multiple_of(2) {
+                    f::WALK_1
+                } else {
+                    f::WALK_2
+                }
+            }
+            LocomotionPose::Idle => f::IDLE,
+        },
     }
-    if pose.casting {
-        return f::CAST;
-    }
-    if pose.melee_timer > 0.0 {
-        return f::KICK;
-    }
-    if pose.farming {
-        // Alternating hand poses for SixSeven aura farming.
-        return if ((time * 10.0) as usize).is_multiple_of(2) {
-            f::SIXSEVEN_A
-        } else {
-            f::SIXSEVEN_B
-        };
-    }
-    if pose.dashing {
-        return f::JUMP;
-    }
-    if !pose.on_ground {
-        return f::JUMP;
-    }
-    if pose.vel_x.abs() > 20.0 {
-        return if ((time * 8.0) as usize).is_multiple_of(2) {
-            f::WALK_1
-        } else {
-            f::WALK_2
-        };
-    }
-    f::IDLE
 }
 
 pub fn draw(
@@ -86,9 +118,8 @@ pub fn draw(
 ) {
     let size = vec2(entity.size.x, entity.size.y);
     let center = pos + size * 0.5;
-    let pose = Pose::from_snapshot(entity, player);
+    let anim = entity.animation;
 
-    // Shadow
     draw_ellipse(
         pos.x + size.x * 0.5,
         pos.y + size.y - 2.0,
@@ -98,7 +129,7 @@ pub fn draw(
         Color::from_rgba(12, 10, 22, 70),
     );
 
-    if player.farming {
+    if anim.farming || anim.is_sixseven() {
         let pulse = 0.5 + 0.5 * (time * 8.0).sin();
         draw_circle(
             center.x,
@@ -108,18 +139,20 @@ pub fn draw(
         );
     }
 
-    let blink = entity.iframes > 0.0 && (time * 24.0) as i32 % 2 == 0;
-    let tint = if blink {
+    let blink = entity.iframes > 0.0 && (time * 24.0) as i32 % 2 == 0 && !anim.is_dead();
+    let mut tint = if blink {
         Color::from_rgba(255, 255, 255, 90)
+    } else if anim.is_dead() {
+        Color::from_rgba(220, 220, 240, 180)
     } else {
         WHITE
     };
-    sprites.draw_valentina(
-        frame(pose, time),
-        Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0),
-        entity.facing < 0,
-        tint,
-    );
+    tint = compositor::profile_tint(player, tint);
+
+    let dest = Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0);
+    let flip = entity.facing < 0;
+    sprites.draw_valentina(frame_from_animation(anim, time), dest, flip, tint);
+    compositor::draw_equipped_layers(sprites, player, dest, flip, tint);
 
     skills::draw_player_overlays(sprites, entity, player, center);
 }
@@ -138,6 +171,7 @@ mod tests {
             melee_timer: 0.0,
             iframes: 0.0,
             casting: false,
+            dead: false,
         }
     }
 

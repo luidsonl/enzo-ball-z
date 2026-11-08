@@ -1,11 +1,13 @@
-//! Animação e desenho do personagem Enzo.
+//! Animation and drawing for the playable Enzo character.
 
+use enzo_core::entities::{ActionPose, AnimationState, LocomotionPose};
 use enzo_core::snapshot::{EntitySnapshot, PlayerSnapshot};
 use macroquad::prelude::*;
 
 use crate::sprites::{self, Sprites};
 
 use super::super::skills;
+use super::compositor;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pose {
@@ -17,6 +19,7 @@ pub struct Pose {
     pub melee_timer: f32,
     pub melee_step: u8,
     pub iframes: f32,
+    pub dead: bool,
 }
 
 impl Pose {
@@ -30,43 +33,77 @@ impl Pose {
             melee_timer: player.melee_timer,
             melee_step: player.melee_step,
             iframes: entity.iframes,
+            dead: entity.health <= 0.0,
         }
+    }
+
+    fn to_animation(self, time: f32) -> AnimationState {
+        AnimationState::resolve(
+            !self.dead,
+            if self.vel_x < 0.0 { -1 } else { 1 },
+            self.on_ground,
+            self.vel_x,
+            self.vel_y,
+            self.vel_x.abs() > 300.0,
+            self.dashing,
+            false,
+            false,
+            self.iframes > 0.0 && !self.dead,
+            self.melee_step,
+            self.melee_timer > 0.0,
+            false,
+            false,
+            self.farming,
+            None,
+            time,
+        )
     }
 }
 
 pub fn frame(pose: Pose, time: f32) -> usize {
+    frame_from_animation(pose.to_animation(time), time)
+}
+
+pub fn frame_from_animation(anim: AnimationState, time: f32) -> usize {
     use sprites::enzo as f;
-    if pose.melee_timer > 0.0 {
-        return if pose.melee_step >= 3 {
-            f::ATTACK_B
-        } else {
-            f::ATTACK_A
-        };
-    }
-    if pose.iframes > 0.0 {
-        return f::HURT;
-    }
-    if pose.dashing {
-        return f::DASH;
-    }
-    if pose.farming {
-        return if ((time * 10.0) as usize).is_multiple_of(2) {
-            f::FARM_A
-        } else {
-            f::FARM_B
-        };
-    }
-    if !pose.on_ground {
-        return if pose.vel_y < 0.0 { f::JUMP } else { f::FALL };
-    }
-    if pose.vel_x.abs() > 20.0 {
-        let phase = (time * (4.0 + pose.vel_x.abs() / 80.0)) as usize % 4;
-        return [f::RUN_A, f::RUN_B, f::RUN_C, f::RUN_D][phase];
-    }
-    if ((time * 2.5) as usize).is_multiple_of(2) {
-        f::IDLE_A
-    } else {
-        f::IDLE_B
+    match anim.action {
+        ActionPose::Dead => f::HURT,
+        ActionPose::Hurt => f::HURT,
+        ActionPose::Cast | ActionPose::Kick => f::ATTACK_B,
+        ActionPose::Melee(step) => {
+            if step >= 3 {
+                f::ATTACK_B
+            } else {
+                f::ATTACK_A
+            }
+        }
+        ActionPose::SixSeven(hand) => match hand {
+            enzo_core::entities::SixSevenHand::A => f::FARM_A,
+            enzo_core::entities::SixSevenHand::B => f::FARM_B,
+        },
+        ActionPose::None => match anim.pose {
+            LocomotionPose::Dash => f::DASH,
+            LocomotionPose::Fly | LocomotionPose::JumpRise => f::JUMP,
+            LocomotionPose::JumpFall => f::FALL,
+            LocomotionPose::Swim => {
+                if ((time * 6.0) as usize).is_multiple_of(2) {
+                    f::RUN_A
+                } else {
+                    f::RUN_C
+                }
+            }
+            LocomotionPose::Run | LocomotionPose::Walk => {
+                let phase = (time * 8.0) as usize % 4;
+                [f::RUN_A, f::RUN_B, f::RUN_C, f::RUN_D][phase]
+            }
+            LocomotionPose::Idle => {
+                if ((time * 2.5) as usize).is_multiple_of(2) {
+                    f::IDLE_A
+                } else {
+                    f::IDLE_B
+                }
+            }
+        },
     }
 }
 
@@ -79,9 +116,9 @@ pub fn draw(
 ) {
     let size = vec2(entity.size.x, entity.size.y);
     let center = pos + size * 0.5;
-    let pose = Pose::from_snapshot(entity, player);
+    let anim = entity.animation;
 
-    // sombra
+    // Shadow
     draw_ellipse(
         pos.x + size.x * 0.5,
         pos.y + size.y - 2.0,
@@ -91,7 +128,7 @@ pub fn draw(
         Color::from_rgba(12, 10, 22, 70),
     );
 
-    if player.farming {
+    if anim.farming || anim.is_sixseven() {
         let pulse = 0.5 + 0.5 * (time * 8.0).sin();
         draw_circle(
             center.x,
@@ -101,20 +138,22 @@ pub fn draw(
         );
     }
 
-    let blink = entity.iframes > 0.0 && (time * 24.0) as i32 % 2 == 0;
-    let tint = if blink {
+    let blink = entity.iframes > 0.0 && (time * 24.0) as i32 % 2 == 0 && !anim.is_dead();
+    let mut tint = if blink {
         Color::from_rgba(255, 255, 255, 90)
+    } else if anim.is_dead() {
+        Color::from_rgba(220, 220, 240, 180)
     } else {
         WHITE
     };
-    sprites.draw_enzo(
-        frame(pose, time),
-        Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0),
-        entity.facing < 0,
-        tint,
-    );
+    tint = compositor::profile_tint(player, tint);
 
-    // Overlay de ataque é responsabilidade da skill.
+    let dest = Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0);
+    let flip = entity.facing < 0;
+    sprites.draw_enzo(frame_from_animation(anim, time), dest, flip, tint);
+    compositor::draw_equipped_layers(sprites, player, dest, flip, tint);
+
+    // Attack/skill overlays.
     skills::draw_player_overlays(sprites, entity, player, center);
 }
 
@@ -132,6 +171,7 @@ mod tests {
             melee_timer: 0.0,
             melee_step: 0,
             iframes: 0.0,
+            dead: false,
         }
     }
 
