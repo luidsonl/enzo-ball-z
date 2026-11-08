@@ -2,7 +2,7 @@
 
 use crate::entities::{
     Attributes, EnemySpecies, Entity, EntityId, EntityKind, EquipSlot, Equipment, ItemCategory,
-    ItemKind, ItemUsage, PlayerId,
+    ItemKind, ItemUsage, PlayableCharacter, PlayerId, VisualProfile,
 };
 use crate::input::{ActionSlot, SixSevenKey};
 use crate::math::{Rect, Vec2};
@@ -75,6 +75,10 @@ pub struct SkillCatalogEntry {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlayerSnapshot {
     pub player_id: PlayerId,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub character: PlayableCharacter,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub visual_profile: VisualProfile,
     pub level: u32,
     pub xp: f32,
     pub xp_to_next: f32,
@@ -245,6 +249,8 @@ impl PlayerSnapshot {
             .collect();
         Self {
             player_id: player.player_id,
+            character: player.character,
+            visual_profile: player.visual_profile,
             level: player.level,
             xp: player.xp,
             xp_to_next: progression::xp_to_next(player.level),

@@ -23,14 +23,17 @@ pub enum Attribute {
     Strength,
     Health,
     Aura,
+    /// Ego (intelligence): increases aura attack power.
+    Ego,
 }
 
 impl Attribute {
-    pub const ALL: [Attribute; 4] = [
+    pub const ALL: [Attribute; 5] = [
         Attribute::Speed,
         Attribute::Strength,
         Attribute::Health,
         Attribute::Aura,
+        Attribute::Ego,
     ];
 }
 
@@ -109,10 +112,12 @@ pub enum InputAction {
     Restart,
     OpenMenu,
     OpenSkills,
+    /// Allocates a point into Ego (intelligence). Appended for ABI stability.
+    AllocateEgo,
 }
 
 impl InputAction {
-    pub const ALL: [InputAction; 18] = [
+    pub const ALL: [InputAction; 19] = [
         InputAction::MoveLeft,
         InputAction::MoveRight,
         InputAction::MoveUp,
@@ -131,6 +136,7 @@ impl InputAction {
         InputAction::Restart,
         InputAction::OpenMenu,
         InputAction::OpenSkills,
+        InputAction::AllocateEgo,
     ];
 
     pub const COUNT: usize = Self::ALL.len();
@@ -159,6 +165,7 @@ impl InputAction {
             InputAction::AllocateStrength => Some(Attribute::Strength),
             InputAction::AllocateHealth => Some(Attribute::Health),
             InputAction::AllocateAura => Some(Attribute::Aura),
+            InputAction::AllocateEgo => Some(Attribute::Ego),
             _ => None,
         }
     }
@@ -178,8 +185,7 @@ impl InputAction {
         )
     }
 
-    /// Código estável para a ponte HTML/mobile. A ordem é ABI: só acrescente
-    /// variantes no fim.
+    /// Stable code for the HTML/mobile bridge. Order is ABI: append-only.
     pub const fn code(self) -> u8 {
         match self {
             InputAction::MoveLeft => 0,
@@ -200,6 +206,7 @@ impl InputAction {
             InputAction::Restart => 15,
             InputAction::OpenMenu => 16,
             InputAction::OpenSkills => 17,
+            InputAction::AllocateEgo => 18,
         }
     }
 
@@ -223,6 +230,7 @@ impl InputAction {
             15 => Some(InputAction::Restart),
             16 => Some(InputAction::OpenMenu),
             17 => Some(InputAction::OpenSkills),
+            18 => Some(InputAction::AllocateEgo),
             _ => None,
         }
     }

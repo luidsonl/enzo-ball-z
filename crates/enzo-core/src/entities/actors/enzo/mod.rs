@@ -40,10 +40,22 @@ pub mod visual {
 impl EntitySpec {
     /// Creates an Enzo player. `player_id` is stable and indexes per-tick commands.
     pub fn player(player_id: PlayerId, pos: Vec2) -> Self {
+        Self::enzo(player_id, pos)
+    }
+
+    /// Creates an Enzo playable character.
+    pub fn enzo(player_id: PlayerId, pos: Vec2) -> Self {
+        use super::player::{PlayableCharacter, VisualProfile};
         let attributes = Attributes::default();
         let stats = Stats::player(attributes);
         Self {
-            kind: EntityKind::Player(PlayerData::new(player_id, pos, stats)),
+            kind: EntityKind::Player(PlayerData::new(
+                player_id,
+                PlayableCharacter::Enzo,
+                VisualProfile::default(),
+                pos,
+                stats,
+            )),
             controller: Controller::player(),
             team: TeamId::PLAYERS,
             pos,

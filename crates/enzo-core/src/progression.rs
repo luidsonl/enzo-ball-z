@@ -1,6 +1,8 @@
 //! Progressão: XP, nível, pontos, atributos e save.
 
-use crate::entities::{Attributes, Entity, EntityId, EntityStore, Stats};
+use crate::entities::{
+    Attributes, Entity, EntityId, EntityStore, PlayableCharacter, Stats, VisualProfile,
+};
 use crate::events::GameEvent;
 use crate::input::Attribute;
 use crate::skills::Loadout;
@@ -126,11 +128,15 @@ pub fn confirm_level_up(entity: &mut Entity) {
     }
 }
 
-/// Dados persistentes. Posição, inimigos e projéteis não entram no save.
+/// Persistent data. Position, enemies, and projectiles are not saved.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SaveData {
     pub version: u16,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub character: PlayableCharacter,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub visual_profile: VisualProfile,
     pub level: u32,
     pub xp: f32,
     pub points: u32,
@@ -144,6 +150,8 @@ impl SaveData {
         let player = entity.player()?;
         Some(Self {
             version: SAVE_VERSION,
+            character: player.character,
+            visual_profile: player.visual_profile,
             level: player.level,
             xp: player.xp,
             points: player.points,
@@ -176,11 +184,13 @@ impl SaveData {
         let Some(player) = entity.player_mut() else {
             return false;
         };
+        player.character = self.character;
+        player.visual_profile = self.visual_profile;
         player.level = self.level.max(1);
         player.xp = self.xp.max(0.0);
         player.points = self.points;
         player.aura = stats.max_aura;
-        player.pending_level_up = false;
+        player.pending_level_up = player.points > 0;
 
         entity.stats = stats;
         entity.health.current = stats.max_health;
@@ -307,6 +317,7 @@ mod tests {
             strength: 2,
             health: 3,
             aura: 4,
+            ego: 0,
         };
         entity.skills.loadout.clear(ActionSlot::Slot4);
         entity
@@ -335,6 +346,8 @@ mod tests {
     fn v1_save_migrates_to_default_loadout() {
         let save = SaveData {
             version: SAVE_VERSION_V1,
+            character: Default::default(),
+            visual_profile: Default::default(),
             level: 2,
             xp: 10.0,
             points: 1,
@@ -352,6 +365,8 @@ mod tests {
         let mut entity = player();
         let save = SaveData {
             version: 999,
+            character: Default::default(),
+            visual_profile: Default::default(),
             level: 9,
             xp: 0.0,
             points: 9,

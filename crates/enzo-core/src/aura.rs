@@ -44,7 +44,14 @@ mod tests {
     use crate::math::Vec2;
 
     fn player() -> PlayerData {
-        PlayerData::new(0, Vec2::ZERO, Stats::player(Default::default()))
+        use crate::entities::{PlayableCharacter, VisualProfile};
+        PlayerData::new(
+            0,
+            PlayableCharacter::Enzo,
+            VisualProfile::default(),
+            Vec2::ZERO,
+            Stats::player(Default::default()),
+        )
     }
 
     fn press(player: &mut PlayerData, sixseven: &mut SixSeven, key: SixSevenKey) -> f32 {
