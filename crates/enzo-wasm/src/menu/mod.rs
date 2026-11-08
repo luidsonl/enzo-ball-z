@@ -24,6 +24,7 @@ pub enum MenuScreen {
     Main,
     Saves,
     Options,
+    Customize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -115,6 +116,10 @@ impl Menu {
             }
             UiAction::MenuOpenOptions => {
                 self.push(MenuScreen::Options);
+                None
+            }
+            UiAction::MenuOpenCustomize => {
+                self.push(MenuScreen::Customize);
                 None
             }
             UiAction::MenuStart { slot, new_game } => {

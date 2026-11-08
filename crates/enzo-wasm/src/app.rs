@@ -66,6 +66,7 @@ pub struct App {
     i18n: I18n,
     pointer: Pointer,
     ui_publish_accum: f32,
+    time: f32,
 }
 
 impl App {
@@ -77,6 +78,7 @@ impl App {
             i18n: I18n::new(save::load_language()),
             pointer: Pointer::default(),
             ui_publish_accum: 0.0,
+            time: 0.0,
         };
 
         ui::set_interface_scale(save::load_interface_scale());
@@ -88,6 +90,7 @@ impl App {
     pub async fn run(&mut self) {
         loop {
             let frame_dt = get_frame_time().clamp(0.0, MAX_FRAME_TIME);
+            self.time += frame_dt;
             self.pointer.poll();
 
             let ui_actions = ui_bridge::drain_ui_actions();
@@ -97,11 +100,15 @@ impl App {
             }
 
             let transition = match &mut self.scene {
-                Scene::Menu(menu) => match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
-                    Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
-                    Some(MenuAction::Resume) => Transition::None,
-                    None => Transition::None,
-                },
+                Scene::Menu(menu) => {
+                    // Keep canvas stable (no black flashing) while DOM menu is shown.
+                    draw_menu_canvas_background(self.time);
+                    match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
+                        Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
+                        Some(MenuAction::Resume) => Transition::None,
+                        None => Transition::None,
+                    }
+                }
                 Scene::Game(session) => {
                     session.i18n = self.i18n;
                     if session.frame(frame_dt, self.pointer, &self.sprites) {
@@ -114,6 +121,17 @@ impl App {
                     game.i18n = self.i18n;
                     let offscreen = Pointer::at(Vec2::new(-10_000.0, -10_000.0));
                     let _ = game.frame(frame_dt, offscreen, &self.sprites);
+                    // Preview character in idle while customizing (rendered by WASM).
+                    if menu.current() == crate::menu::MenuScreen::Customize {
+                        let player = game
+                        .current
+                        .player()
+                        .and_then(|e| e.player.as_ref())
+                        .or_else(|| game.current.entities.iter().find_map(|e| e.player.as_ref()));
+                    if let Some(player) = player {
+                        draw_character_preview(&self.sprites, player, self.time);
+                    }
+                    }
                     match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                         Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
                         Some(MenuAction::Resume) => Transition::Resume,
@@ -701,6 +719,87 @@ impl GameSession {
 
     fn game_toast_text(&self) -> Option<&str> {
         self.save_toast.as_ref().map(|(text, _)| text.as_str())
+    }
+}
+
+fn draw_menu_canvas_background(time: f32) {
+    // Stable background to avoid black flashing while DOM menu/assets are active.
+    set_default_camera();
+    let w = screen_width();
+    let h = screen_height();
+    let top = Color::from_rgba(18, 24, 52, 255);
+    let bottom = Color::from_rgba(74, 122, 156, 255);
+    let bands = 24;
+    for i in 0..bands {
+        let t = i as f32 / (bands - 1) as f32;
+        let c = Color::new(
+            top.r + (bottom.r - top.r) * t,
+            top.g + (bottom.g - top.g) * t,
+            top.b + (bottom.b - top.b) * t,
+            1.0,
+        );
+        let bh = h / bands as f32;
+        draw_rectangle(0.0, i as f32 * bh, w, bh + 1.0, c);
+    }
+    let pulse = (time * 0.8).sin() * 0.5 + 0.5;
+    draw_circle(
+        w * 0.82,
+        h * 0.18,
+        h * 0.05 + pulse * 2.0,
+        Color::from_rgba(255, 240, 190, 70),
+    );
+}
+
+fn draw_character_preview(
+    sprites: &Sprites,
+    player: &enzo_core::snapshot::PlayerSnapshot,
+    time: f32,
+) {
+    set_default_camera();
+    let w = screen_width();
+    let h = screen_height();
+    // Preview panel area (left side) rendered by WASM behind DOM menu.
+    let panel = Rect::new(w * 0.05, h * 0.22, w * 0.22, h * 0.42);
+    draw_rectangle(
+        panel.x,
+        panel.y,
+        panel.w,
+        panel.h,
+        Color::from_rgba(10, 14, 30, 170),
+    );
+    draw_rectangle_lines(
+        panel.x,
+        panel.y,
+        panel.w,
+        panel.h,
+        2.0,
+        Color::from_rgba(94, 242, 255, 120),
+    );
+    // Ground line + idle character preview (all rig states share aligned frames).
+    let ground_y = panel.y + panel.h * 0.82;
+    draw_line(
+        panel.x + 12.0,
+        ground_y,
+        panel.right() - 12.0,
+        ground_y,
+        2.0,
+        Color::from_rgba(120, 170, 120, 140),
+    );
+    let size = (panel.w.min(panel.h) * 0.55).clamp(64.0, 180.0);
+    let dest = Rect::new(
+        panel.x + (panel.w - size) * 0.5,
+        ground_y - size,
+        size,
+        size,
+    );
+    let tint = WHITE;
+    match player.character {
+        enzo_core::entities::PlayableCharacter::Valentina => {
+            sprites.draw_valentina_rig("idle", time, dest, false, tint, player.visual_profile);
+        }
+        _ => {
+            sprites.draw_enzo_rig("idle", time, dest, false, tint, player.visual_profile);
+        }
     }
 }
 

@@ -45,6 +45,7 @@ export const UiAction = Object.freeze({
   UnequipSlot: 20,
   SetPlayableCharacter: 21,
   SetVisualProfileField: 22,
+  MenuOpenCustomize: 23,
 });
 
 const pendingUi = [];

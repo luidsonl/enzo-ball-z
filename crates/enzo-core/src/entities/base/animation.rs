@@ -20,6 +20,7 @@ pub enum LocomotionPose {
     Dash,
     Fly,
     Swim,
+    Climb,
 }
 
 impl LocomotionPose {
@@ -34,6 +35,7 @@ impl LocomotionPose {
             Self::Dash => "dash",
             Self::Fly => "fly",
             Self::Swim => "swim",
+            Self::Climb => "climb",
         }
     }
 }
@@ -48,6 +50,7 @@ pub enum ActionPose {
     Melee(u8),
     Kick,
     Cast,
+    Shout,
     Hurt,
     Dying,
     Dead,
@@ -65,6 +68,7 @@ impl ActionPose {
             },
             Self::Kick => "kick",
             Self::Cast => "cast",
+            Self::Shout => "shout",
             Self::Hurt => "hurt",
             Self::Dying => "dying",
             Self::Dead => "dead",
@@ -132,11 +136,13 @@ impl AnimationState {
             flying,
             swimming,
             false,
+            false,
             hurt,
             melee_step,
             melee_active,
             kick_active,
             cast_active,
+            false,
             farming,
             sixseven_last,
             anim_time,
@@ -155,18 +161,22 @@ impl AnimationState {
         dashing: bool,
         flying: bool,
         swimming: bool,
+        climbing: bool,
         crouching: bool,
         hurt: bool,
         melee_step: u8,
         melee_active: bool,
         kick_active: bool,
         cast_active: bool,
+        shout_active: bool,
         farming: bool,
         sixseven_last: Option<SixSevenKey>,
         anim_time: f32,
     ) -> Self {
         let pose = if !alive {
             LocomotionPose::Idle
+        } else if climbing {
+            LocomotionPose::Climb
         } else if swimming {
             LocomotionPose::Swim
         } else if dashing {
@@ -195,6 +205,8 @@ impl AnimationState {
             ActionPose::Dead
         } else if hurt {
             ActionPose::Hurt
+        } else if shout_active {
+            ActionPose::Shout
         } else if cast_active {
             ActionPose::Cast
         } else if kick_active {
@@ -346,9 +358,19 @@ mod tests {
         );
         assert_eq!(melee.clip_name(), "attack_2");
         let swim = AnimationState::resolve_with_pose(
-            true, 1, false, 0.0, 0.0, false, false, false, true, false, false, 0, false, false,
-            false, false, None, 0.0,
+            true, 1, false, 0.0, 0.0, false, false, false, true, false, false, false, 0, false,
+            false, false, false, false, None, 0.0,
         );
         assert_eq!(swim.clip_name(), "swim");
+        let climb = AnimationState::resolve_with_pose(
+            true, 1, false, 0.0, -10.0, false, false, false, false, true, false, false, 0, false,
+            false, false, false, false, None, 0.0,
+        );
+        assert_eq!(climb.clip_name(), "climb");
+        let shout = AnimationState::resolve_with_pose(
+            true, 1, true, 0.0, 0.0, false, false, false, false, false, false, false, 0, false,
+            false, false, true, false, None, 0.0,
+        );
+        assert_eq!(shout.clip_name(), "shout");
     }
 }

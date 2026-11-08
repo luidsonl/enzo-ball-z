@@ -130,6 +130,22 @@ impl Sprites {
         self.assets.get_or_request(TILES_SHEET_PATH)
     }
 
+    fn profile_hair_texture(&self, character: &str, profile: VisualProfile) -> Option<Texture2D> {
+        let path = format!(
+            "assets/entities/{character}/layers/hair_style_{}.png",
+            profile.hair_style % 8
+        );
+        self.assets.get_or_request(&path)
+    }
+
+    fn profile_face_texture(&self, character: &str, profile: VisualProfile) -> Option<Texture2D> {
+        let path = format!(
+            "assets/entities/{character}/layers/face_{}.png",
+            profile.face % 8
+        );
+        self.assets.get_or_request(&path)
+    }
+
     pub fn draw_enzo_rig(
         &self,
         clip: &str,
@@ -140,10 +156,21 @@ impl Sprites {
         profile: VisualProfile,
     ) {
         self.ensure_rig(&self.enzo_rig);
+        let hair = self.profile_hair_texture("enzo", profile);
+        let face = self.profile_face_texture("enzo", profile);
         let drawn = {
             let r = self.enzo_rig.borrow();
             if let Lazy::Ready(rig) = &r.state {
-                rig.draw_composed(clip, time, dest, flip_x, tint, profile);
+                rig.draw_composed(
+                    clip,
+                    time,
+                    dest,
+                    flip_x,
+                    tint,
+                    profile,
+                    hair.as_ref(),
+                    face.as_ref(),
+                );
                 true
             } else {
                 false
@@ -164,10 +191,21 @@ impl Sprites {
         profile: VisualProfile,
     ) {
         self.ensure_rig(&self.valentina_rig);
+        let hair = self.profile_hair_texture("valentina", profile);
+        let face = self.profile_face_texture("valentina", profile);
         let drawn = {
             let r = self.valentina_rig.borrow();
             if let Lazy::Ready(rig) = &r.state {
-                rig.draw_composed(clip, time, dest, flip_x, tint, profile);
+                rig.draw_composed(
+                    clip,
+                    time,
+                    dest,
+                    flip_x,
+                    tint,
+                    profile,
+                    hair.as_ref(),
+                    face.as_ref(),
+                );
                 true
             } else {
                 false
@@ -287,27 +325,12 @@ fn embedded_frame_rect(clip_name: &str, time: f32) -> Option<Rect> {
 }
 
 fn embedded_manifest() -> crate::rig::RigManifest {
-    let json = serde_json::json!({
+    let json: serde_json::Value = serde_json::from_str(r#"{
         "id": "humanoid",
         "image": "sheet.png",
         "cell": {"w": 32.0, "h": 32.0},
         "anchor": {"x": 16.0, "y": 30.0},
-        "frames": {
-            "idle_0":{"x":0.0,"y":0.0,"w":32.0,"h":32.0},"idle_1":{"x":32.0,"y":0.0,"w":32.0,"h":32.0},
-            "walk_0":{"x":64.0,"y":0.0,"w":32.0,"h":32.0},"walk_1":{"x":96.0,"y":0.0,"w":32.0,"h":32.0},
-            "walk_2":{"x":128.0,"y":0.0,"w":32.0,"h":32.0},"walk_3":{"x":160.0,"y":0.0,"w":32.0,"h":32.0},
-            "run_0":{"x":192.0,"y":0.0,"w":32.0,"h":32.0},"run_1":{"x":224.0,"y":0.0,"w":32.0,"h":32.0},
-            "run_2":{"x":256.0,"y":0.0,"w":32.0,"h":32.0},"run_3":{"x":288.0,"y":0.0,"w":32.0,"h":32.0},
-            "crouch_0":{"x":320.0,"y":0.0,"w":32.0,"h":32.0},"jump_rise_0":{"x":352.0,"y":0.0,"w":32.0,"h":32.0},
-            "jump_fall_0":{"x":384.0,"y":0.0,"w":32.0,"h":32.0},"fly_0":{"x":416.0,"y":0.0,"w":32.0,"h":32.0},
-            "fly_1":{"x":448.0,"y":0.0,"w":32.0,"h":32.0},"swim_0":{"x":480.0,"y":0.0,"w":32.0,"h":32.0},
-            "swim_1":{"x":512.0,"y":0.0,"w":32.0,"h":32.0},"dash_0":{"x":544.0,"y":0.0,"w":32.0,"h":32.0},
-            "sixseven_a_0":{"x":576.0,"y":0.0,"w":32.0,"h":32.0},"sixseven_b_0":{"x":608.0,"y":0.0,"w":32.0,"h":32.0},
-            "attack_1_0":{"x":640.0,"y":0.0,"w":32.0,"h":32.0},"attack_2_0":{"x":672.0,"y":0.0,"w":32.0,"h":32.0},
-            "attack_3_0":{"x":704.0,"y":0.0,"w":32.0,"h":32.0},"kick_0":{"x":736.0,"y":0.0,"w":32.0,"h":32.0},
-            "cast_0":{"x":768.0,"y":0.0,"w":32.0,"h":32.0},"hurt_0":{"x":800.0,"y":0.0,"w":32.0,"h":32.0},
-            "dying_0":{"x":832.0,"y":0.0,"w":32.0,"h":32.0},"dead_0":{"x":864.0,"y":0.0,"w":32.0,"h":32.0}
-        },
+        "frames": {"idle_0":{"x":0.0,"y":0.0,"w":32.0,"h":32.0},"idle_1":{"x":32.0,"y":0.0,"w":32.0,"h":32.0},"walk_0":{"x":64.0,"y":0.0,"w":32.0,"h":32.0},"walk_1":{"x":96.0,"y":0.0,"w":32.0,"h":32.0},"walk_2":{"x":128.0,"y":0.0,"w":32.0,"h":32.0},"walk_3":{"x":160.0,"y":0.0,"w":32.0,"h":32.0},"run_0":{"x":192.0,"y":0.0,"w":32.0,"h":32.0},"run_1":{"x":224.0,"y":0.0,"w":32.0,"h":32.0},"run_2":{"x":256.0,"y":0.0,"w":32.0,"h":32.0},"run_3":{"x":288.0,"y":0.0,"w":32.0,"h":32.0},"crouch_0":{"x":320.0,"y":0.0,"w":32.0,"h":32.0},"jump_rise_0":{"x":352.0,"y":0.0,"w":32.0,"h":32.0},"jump_fall_0":{"x":384.0,"y":0.0,"w":32.0,"h":32.0},"fly_0":{"x":416.0,"y":0.0,"w":32.0,"h":32.0},"fly_1":{"x":448.0,"y":0.0,"w":32.0,"h":32.0},"swim_0":{"x":480.0,"y":0.0,"w":32.0,"h":32.0},"swim_1":{"x":512.0,"y":0.0,"w":32.0,"h":32.0},"climb_0":{"x":544.0,"y":0.0,"w":32.0,"h":32.0},"climb_1":{"x":576.0,"y":0.0,"w":32.0,"h":32.0},"dash_0":{"x":608.0,"y":0.0,"w":32.0,"h":32.0},"sixseven_a_0":{"x":640.0,"y":0.0,"w":32.0,"h":32.0},"sixseven_b_0":{"x":672.0,"y":0.0,"w":32.0,"h":32.0},"attack_1_0":{"x":704.0,"y":0.0,"w":32.0,"h":32.0},"attack_2_0":{"x":736.0,"y":0.0,"w":32.0,"h":32.0},"attack_3_0":{"x":768.0,"y":0.0,"w":32.0,"h":32.0},"kick_0":{"x":800.0,"y":0.0,"w":32.0,"h":32.0},"cast_0":{"x":832.0,"y":0.0,"w":32.0,"h":32.0},"shout_0":{"x":864.0,"y":0.0,"w":32.0,"h":32.0},"hurt_0":{"x":896.0,"y":0.0,"w":32.0,"h":32.0},"dying_0":{"x":928.0,"y":0.0,"w":32.0,"h":32.0},"dead_0":{"x":960.0,"y":0.0,"w":32.0,"h":32.0}},
         "clips": {
             "idle":{"frames":["idle_0","idle_1"],"fps":2.5,"loop":true},
             "walk":{"frames":["walk_0","walk_1","walk_2","walk_3"],"fps":8.0,"loop":true},
@@ -318,6 +341,7 @@ fn embedded_manifest() -> crate::rig::RigManifest {
             "jump_fall":{"frames":["jump_fall_0"],"fps":1.0,"loop":true},
             "fly":{"frames":["fly_0","fly_1"],"fps":6.0,"loop":true},
             "swim":{"frames":["swim_0","swim_1"],"fps":5.0,"loop":true},
+            "climb":{"frames":["climb_0","climb_1"],"fps":5.0,"loop":true},
             "dash":{"frames":["dash_0"],"fps":1.0,"loop":true},
             "sixseven_a":{"frames":["sixseven_a_0"],"fps":1.0,"loop":true},
             "sixseven_b":{"frames":["sixseven_b_0"],"fps":1.0,"loop":true},
@@ -326,12 +350,13 @@ fn embedded_manifest() -> crate::rig::RigManifest {
             "attack_3":{"frames":["attack_3_0"],"fps":10.0,"loop":false},
             "kick":{"frames":["kick_0"],"fps":10.0,"loop":false},
             "cast":{"frames":["cast_0"],"fps":8.0,"loop":false},
+            "shout":{"frames":["shout_0"],"fps":8.0,"loop":false},
             "hurt":{"frames":["hurt_0"],"fps":1.0,"loop":true},
             "dying":{"frames":["dying_0"],"fps":4.0,"loop":false},
             "dead":{"frames":["dead_0"],"fps":1.0,"loop":true}
         },
-        "fallbacks": {"run":["walk","idle"],"crouch":["idle"],"fly":["jump_rise","jump_fall","jump","idle"],"swim":["fly","walk","idle"],"dash":["run","walk","idle"],"jump":["jump_rise","jump_fall","idle"],"attack_2":["attack_1"],"attack_3":["attack_2","attack_1"],"kick":["attack_1"],"cast":["attack_1","idle"],"dying":["dead","hurt"],"sixseven_a":["idle"],"sixseven_b":["idle"]},
+        "fallbacks": {"run":["walk","idle"],"crouch":["idle"],"fly":["jump_rise","jump_fall","jump","idle"],"swim":["fly","walk","idle"],"climb":["jump_rise","idle"],"dash":["run","walk","idle"],"jump":["jump_rise","jump_fall","idle"],"attack_2":["attack_1"],"attack_3":["attack_2","attack_1"],"kick":["attack_1"],"cast":["attack_1","idle"],"shout":["cast","attack_1","idle"],"dying":["dead","hurt"],"sixseven_a":["idle"],"sixseven_b":["idle"]},
         "layers": []
-    });
+    }"#).expect("embedded canonical rig manifest json");
     serde_json::from_value(json).expect("embedded canonical rig manifest")
 }

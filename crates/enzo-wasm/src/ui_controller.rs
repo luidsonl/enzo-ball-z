@@ -64,6 +64,7 @@ pub struct UiLabels {
     pub locked: String,
     pub close: String,
     pub customize: String,
+    pub character_editor: String,
     pub character: String,
     pub skin_tone: String,
     pub hair_style: String,
@@ -72,6 +73,7 @@ pub struct UiLabels {
     pub outfit_top: String,
     pub outfit_bottom: String,
     pub shoes: String,
+    pub main_clothing_color: String,
     pub equip: String,
     pub unequip: String,
 }
@@ -147,6 +149,11 @@ impl UiLabels {
             } else {
                 "Personalizar".to_owned()
             },
+            character_editor: if i18n.language().code() == "en" {
+                "Character Editor".to_owned()
+            } else {
+                "Editor de Personagem".to_owned()
+            },
             character: if i18n.language().code() == "en" {
                 "Character".to_owned()
             } else {
@@ -186,6 +193,11 @@ impl UiLabels {
                 "Shoes".to_owned()
             } else {
                 "Tênis".to_owned()
+            },
+            main_clothing_color: if i18n.language().code() == "en" {
+                "Main clothing color".to_owned()
+            } else {
+                "Cor principal da roupa".to_owned()
             },
             equip: if i18n.language().code() == "en" {
                 "Equip".to_owned()
@@ -357,6 +369,7 @@ fn menu_state(menu: &Menu) -> UiMenuState {
         MenuScreen::Main => "main",
         MenuScreen::Saves => "saves",
         MenuScreen::Options => "options",
+        MenuScreen::Customize => "customize",
     };
     let mut slots = Vec::with_capacity(SLOT_COUNT);
     for i in 0..SLOT_COUNT {

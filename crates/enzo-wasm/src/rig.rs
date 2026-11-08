@@ -29,6 +29,8 @@ const HUMANOID_CANONICAL_FRAMES: &[&str] = &[
     "fly_1",
     "swim_0",
     "swim_1",
+    "climb_0",
+    "climb_1",
     "dash_0",
     "sixseven_a_0",
     "sixseven_b_0",
@@ -37,6 +39,7 @@ const HUMANOID_CANONICAL_FRAMES: &[&str] = &[
     "attack_3_0",
     "kick_0",
     "cast_0",
+    "shout_0",
     "hurt_0",
     "dying_0",
     "dead_0",
@@ -52,6 +55,7 @@ fn canonical_clip(name: &str) -> Option<(&'static [&'static str], f32, bool)> {
         "jump_fall" => (&["jump_fall_0"][..], 1.0, true),
         "fly" => (&["fly_0", "fly_1"][..], 6.0, true),
         "swim" => (&["swim_0", "swim_1"][..], 5.0, true),
+        "climb" => (&["climb_0", "climb_1"][..], 5.0, true),
         "dash" => (&["dash_0"][..], 1.0, true),
         "sixseven_a" => (&["sixseven_a_0"][..], 1.0, true),
         "sixseven_b" => (&["sixseven_b_0"][..], 1.0, true),
@@ -60,6 +64,7 @@ fn canonical_clip(name: &str) -> Option<(&'static [&'static str], f32, bool)> {
         "attack_3" => (&["attack_3_0"][..], 10.0, false),
         "kick" => (&["kick_0"][..], 10.0, false),
         "cast" => (&["cast_0"][..], 8.0, false),
+        "shout" => (&["shout_0"][..], 8.0, false),
         "hurt" => (&["hurt_0"][..], 1.0, true),
         "dying" => (&["dying_0"][..], 4.0, false),
         "dead" => (&["dead_0"][..], 1.0, true),
@@ -73,12 +78,14 @@ fn canonical_fallbacks(name: &str) -> &'static [&'static str] {
         "crouch" => &["idle"],
         "fly" => &["jump_rise", "jump_fall", "jump", "idle"],
         "swim" => &["fly", "walk", "idle"],
+        "climb" => &["jump_rise", "idle"],
         "dash" => &["run", "walk", "idle"],
         "jump" => &["jump_rise", "jump_fall", "idle"],
         "attack_2" => &["attack_1"],
         "attack_3" => &["attack_2", "attack_1"],
         "kick" => &["attack_1"],
         "cast" => &["attack_1", "idle"],
+        "shout" => &["cast", "attack_1", "idle"],
         "dying" => &["dead", "hurt"],
         "sixseven_a" | "sixseven_b" => &["idle"],
         _ => &["idle"],
@@ -286,6 +293,7 @@ impl HumanoidRig {
         frames.get(idx).map(|s| (*s).to_owned())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_composed(
         &self,
         clip_name: &str,
@@ -294,6 +302,8 @@ impl HumanoidRig {
         flip_x: bool,
         tint: Color,
         profile: VisualProfile,
+        hair_override: Option<&Texture2D>,
+        face_override: Option<&Texture2D>,
     ) {
         let Some(source) = self.frame_rect(clip_name, time) else {
             draw_sheet_tex(
@@ -309,28 +319,33 @@ impl HumanoidRig {
             draw_sheet_tex(&self.sheet, source, dest, flip_x, tint);
             return;
         }
-        let skin_tint = skin_tint(profile.skin_tone, tint);
-        let hair_tint = hair_tint(profile.hair_color, tint);
+        let skin = skin_tint(profile.skin_tone, tint);
+        let hair = hair_tint(profile.hair_color, tint);
+        // "Main clothing color" (outfit_top) drives outfit palette; bottom gets a related tint.
+        let outfit_main = clothing_tint(profile.outfit_top, tint);
+        let outfit_bottom = clothing_tint(profile.outfit_bottom, tint);
         if let Some(tex) = &self.base {
-            draw_sheet_tex(tex, source, dest, flip_x, skin_tint);
+            draw_sheet_tex(tex, source, dest, flip_x, skin);
         } else {
             draw_sheet_tex(&self.sheet, source, dest, flip_x, tint);
             return;
         }
-        if let Some(tex) = &self.face {
+        let face_tex = face_override.or(self.face.as_ref());
+        if let Some(tex) = face_tex {
             draw_sheet_tex(tex, source, dest, flip_x, tint);
         }
         if let Some(tex) = &self.outfit_bottom {
-            draw_sheet_tex(tex, source, dest, flip_x, tint);
+            draw_sheet_tex(tex, source, dest, flip_x, outfit_bottom);
         }
         if let Some(tex) = &self.shoes {
             draw_sheet_tex(tex, source, dest, flip_x, tint);
         }
         if let Some(tex) = &self.outfit_top {
-            draw_sheet_tex(tex, source, dest, flip_x, tint);
+            draw_sheet_tex(tex, source, dest, flip_x, outfit_main);
         }
-        if let Some(tex) = &self.hair {
-            draw_sheet_tex(tex, source, dest, flip_x, hair_tint);
+        let hair_tex = hair_override.or(self.hair.as_ref());
+        if let Some(tex) = hair_tex {
+            draw_sheet_tex(tex, source, dest, flip_x, hair);
         }
     }
 }
@@ -359,6 +374,7 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
         "jump_fall",
         "fly",
         "swim",
+        "climb",
         "dash",
         "sixseven_a",
         "sixseven_b",
@@ -367,6 +383,7 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
         "attack_3",
         "kick",
         "cast",
+        "shout",
         "hurt",
         "dying",
         "dead",
@@ -454,43 +471,52 @@ pub async fn opt_texture(path: &str) -> Option<Texture2D> {
     Some(tex)
 }
 
+fn palette_tint(base: Color, r: f32, g: f32, b: f32) -> Color {
+    Color::new(
+        (base.r * r).clamp(0.0, 1.0),
+        (base.g * g).clamp(0.0, 1.0),
+        (base.b * b).clamp(0.0, 1.0),
+        base.a,
+    )
+}
+
 fn skin_tint(id: u8, base: Color) -> Color {
-    match id % 5 {
+    match id % 8 {
         0 => base,
-        1 => Color::new(
-            (base.r * 0.92).min(1.0),
-            (base.g * 0.82).min(1.0),
-            (base.b * 0.72).min(1.0),
-            base.a,
-        ),
-        2 => Color::new(
-            (base.r * 1.02).min(1.0),
-            (base.g * 0.92).min(1.0),
-            (base.b * 0.82).min(1.0),
-            base.a,
-        ),
-        3 => Color::new(
-            (base.r * 0.78).min(1.0),
-            (base.g * 0.62).min(1.0),
-            (base.b * 0.52).min(1.0),
-            base.a,
-        ),
-        _ => Color::new(
-            (base.r * 0.88).min(1.0),
-            (base.g * 0.95).min(1.0),
-            (base.b * 0.88).min(1.0),
-            base.a,
-        ),
+        1 => palette_tint(base, 1.08, 0.96, 0.88),
+        2 => palette_tint(base, 0.95, 0.84, 0.74),
+        3 => palette_tint(base, 0.86, 0.72, 0.60),
+        4 => palette_tint(base, 0.74, 0.58, 0.46),
+        5 => palette_tint(base, 0.62, 0.46, 0.36),
+        6 => palette_tint(base, 0.90, 0.92, 0.84),
+        _ => palette_tint(base, 1.00, 0.86, 0.82),
     }
 }
 
 fn hair_tint(id: u8, base: Color) -> Color {
-    match id % 6 {
+    let a = base.a;
+    match id % 8 {
         0 => base,
-        1 => Color::new(0.20, 0.16, 0.14, base.a),
-        2 => Color::new(0.85, 0.72, 0.35, base.a),
-        3 => Color::new(0.55, 0.20, 0.18, base.a),
-        4 => Color::new(0.75, 0.78, 0.85, base.a),
-        _ => Color::new(0.35, 0.55, 0.85, base.a),
+        1 => Color::new(0.12, 0.10, 0.10, a), // black
+        2 => Color::new(0.36, 0.24, 0.16, a), // brown
+        3 => Color::new(0.82, 0.68, 0.30, a), // blond
+        4 => Color::new(0.62, 0.22, 0.18, a), // red
+        5 => Color::new(0.78, 0.80, 0.86, a), // silver
+        6 => Color::new(0.30, 0.52, 0.88, a), // blue
+        _ => Color::new(0.72, 0.38, 0.82, a), // purple
+    }
+}
+
+fn clothing_tint(id: u8, base: Color) -> Color {
+    let a = base.a;
+    match id % 8 {
+        0 => base,
+        1 => Color::new(0.30, 0.52, 1.00, a), // blue
+        2 => Color::new(0.95, 0.45, 0.65, a), // pink
+        3 => Color::new(0.30, 0.78, 0.45, a), // green
+        4 => Color::new(0.95, 0.72, 0.28, a), // gold
+        5 => Color::new(0.90, 0.35, 0.30, a), // red
+        6 => Color::new(0.55, 0.45, 0.85, a), // purple
+        _ => Color::new(0.78, 0.80, 0.84, a), // silver
     }
 }

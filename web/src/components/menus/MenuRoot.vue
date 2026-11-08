@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { UiAction, uiAction } from "../../bridge/bridge.js";
+import { UiAction, uiAction, setPlayableCharacter, setVisualProfileField } from "../../bridge/bridge.js";
 
 const props = defineProps({
   state: { type: Object, default: null },
@@ -9,6 +9,7 @@ const props = defineProps({
 const menu = computed(() => props.state?.menu ?? null);
 const labels = computed(() => props.state?.labels ?? {});
 const settings = computed(() => props.state?.settings ?? {});
+const player = computed(() => props.state?.player ?? null);
 const show = computed(() => !!(props.state && (props.state.scene === "menu" || props.state.scene === "menu_over_game") && menu.value));
 
 function act(code, a = 0, b = 0, c = 0) {
@@ -19,6 +20,30 @@ function setScale(delta) {
   const current = Number(settings.value.interface_scale ?? 1);
   const pct = Math.round(Math.min(200, Math.max(75, (current + delta) * 100)));
   act(UiAction.SetInterfaceScale, Math.floor(pct / 256), pct % 256);
+}
+
+const SKIN_COLORS = ["#f6d7b0", "#efc89a", "#ddb07a", "#c89262", "#a8744c", "#86583a", "#f0e0c8", "#f2b8a8"];
+const HAIR_COLORS = ["#5a3a22", "#1f1a1a", "#5c3d29", "#d1ad4d", "#9e3830", "#c7ccd9", "#4d85e0", "#b861d1"];
+const CLOTH_COLORS = ["#4f7cff", "#4f84ff", "#f274a8", "#4dc773", "#f2b847", "#e6594d", "#8c73d9", "#c7ccd9"];
+
+function profileValue(key) {
+  return player.value?.visual_profile?.[key] ?? 0;
+}
+function setProfileField(field, value) {
+  setVisualProfileField(field, value);
+}
+function cycle(key, field, max, dir) {
+  const count = max + 1;
+  const next = (profileValue(key) + dir + count) % count;
+  setVisualProfileField(field, next);
+}
+function setMainClothingColor(value) {
+  // "Main clothing color" applies to outfit top and bottom for a cohesive look.
+  setVisualProfileField(4, value);
+  setVisualProfileField(5, value);
+}
+function isSelectedColor(fieldKey, value) {
+  return profileValue(fieldKey) === value;
 }
 </script>
 
@@ -31,12 +56,15 @@ function setScale(delta) {
   >
     <div v-if="show" class="dom-menu-wrap">
       <div class="dom-panel">
-        <template v-if="menu.screen === 'main' || !['saves', 'options'].includes(menu.screen)">
+        <template v-if="menu.screen === 'main' || !['saves', 'options', 'customize'].includes(menu.screen)">
           <button v-if="menu.has_background_game" type="button" class="dom-btn primary" @click.prevent.stop="act(UiAction.MenuResume)">
             {{ labels.resume }}
           </button>
           <button type="button" class="dom-btn primary" @click.prevent.stop="act(UiAction.MenuOpenSaves)">
             {{ labels.play }}
+          </button>
+          <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuOpenCustomize)">
+            {{ labels.character_editor || labels.customize || 'Character Editor' }}
           </button>
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuOpenOptions)">
             {{ labels.options }}
@@ -102,6 +130,66 @@ function setScale(delta) {
               <button type="button" class="dom-btn small" @click.prevent.stop="setScale(0.25)">+</button>
             </div>
           </div>
+
+          <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
+            {{ labels.back }}
+          </button>
+        </template>
+
+        <template v-else-if="menu.screen === 'customize'">
+          <h2 class="dom-title">{{ labels.character_editor || labels.customize || 'Character Editor' }}</h2>
+          <p class="dom-subtitle" style="margin-bottom:10px">
+            {{ labels.customize_hint || 'Changes apply to all animation states (idle, walk, jump, attack, swim, etc.).' }}
+          </p>
+
+          <div v-if="player" class="dom-customize-editor">
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.character || 'Character' }}</div>
+              <div class="dom-option-buttons">
+                <button type="button" class="dom-btn small" :class="{ selected: (player.character_code ?? 0) === 0 }" @click.prevent.stop="setPlayableCharacter(0)">Enzo</button>
+                <button type="button" class="dom-btn small" :class="{ selected: (player.character_code ?? 0) === 1 }" @click.prevent.stop="setPlayableCharacter(1)">Valentina</button>
+              </div>
+            </div>
+
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.skin_tone || 'Skin tone' }}</div>
+              <div class="dom-option-buttons dom-swatch-row">
+                <button v-for="(c, i) in SKIN_COLORS" :key="'s'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('skin_tone', i) }" :style="{ background: c }" :aria-label="(labels.skin_tone||'Skin') + ' ' + (i+1)" @click.prevent.stop="setProfileField(0, i)" />
+              </div>
+            </div>
+
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.hair_color || 'Hair color' }}</div>
+              <div class="dom-option-buttons dom-swatch-row">
+                <button v-for="(c, i) in HAIR_COLORS" :key="'h'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('hair_color', i) }" :style="{ background: c }" :aria-label="(labels.hair_color||'Hair color') + ' ' + (i+1)" @click.prevent.stop="setProfileField(2, i)" />
+              </div>
+            </div>
+
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.hair_style || 'Hair style' }}: {{ (profileValue('hair_style') ?? 0) + 1 }}</div>
+              <div class="dom-option-buttons">
+                <button type="button" class="dom-btn small" @click.prevent.stop="cycle('hair_style', 1, 7, -1)">−</button>
+                <button type="button" class="dom-btn small" @click.prevent.stop="cycle('hair_style', 1, 7, 1)">+</button>
+              </div>
+            </div>
+
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.main_clothing_color || labels.outfit_top || 'Main clothing color' }}</div>
+              <div class="dom-option-buttons dom-swatch-row">
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'c'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top', i) }" :style="{ background: c }" :aria-label="(labels.main_clothing_color||'Clothing') + ' ' + (i+1)" @click.prevent.stop="setMainClothingColor(i)" />
+              </div>
+            </div>
+
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.face || 'Face' }}: {{ (profileValue('face') ?? 0) + 1 }}</div>
+              <div class="dom-option-buttons">
+                <button type="button" class="dom-btn small" @click.prevent.stop="cycle('face', 3, 7, -1)">−</button>
+                <button type="button" class="dom-btn small" @click.prevent.stop="cycle('face', 3, 7, 1)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <p v-else class="dom-subtitle">{{ labels.customize_no_player || 'Start or load a game to edit the character. The WASM preview appears when a character is active.' }}</p>
 
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
             {{ labels.back }}
