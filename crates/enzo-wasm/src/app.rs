@@ -211,6 +211,8 @@ impl App {
                             let dp = save::load_draft_visual_profile(dc);
                             let _ = session.world.set_playable_character(0, dc);
                             let _ = session.world.set_visual_profile(0, dp);
+                            session.world.write_snapshot(&mut session.current);
+                            session.previous = session.current.clone();
                         }
                         self.scene = Scene::Game(Box::new(session));
                     }
@@ -310,6 +312,8 @@ impl App {
                             let _ = session.world.set_playable_character(0, c);
                             let profile = enzo_core::entities::VisualProfile::default_for(c);
                             let _ = session.world.set_visual_profile(0, profile);
+                            let _ = save::store_draft_character(c);
+                            let _ = save::store_draft_visual_profile(profile);
                         }
                     }
                     UiAction::SetVisualProfileField { field, value } => {
@@ -317,6 +321,7 @@ impl App {
                             if let Some(player) = entity.player() {
                                 let profile = player.visual_profile.with_field(field, value);
                                 let _ = session.world.set_visual_profile(0, profile);
+                                let _ = save::store_draft_visual_profile(profile);
                             }
                         }
                     }
