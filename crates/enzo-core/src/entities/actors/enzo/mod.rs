@@ -1,15 +1,9 @@
 //! Playable **Enzo** actor.
 
 use crate::math::Vec2;
-use crate::mechanics::Locomotion;
-use crate::skills::Skills;
 
-use super::player::{PlayerData, PlayerId};
-use crate::entities::base::attributes::{Attributes, Stats};
-use crate::entities::base::components::{Health, TeamId};
-use crate::entities::base::controller::Controller;
-use crate::entities::base::entity::EntityKind;
-use crate::entities::base::equipment::{EquipSlot, Equipment};
+use super::humanoid::PlayableHumanoidConfig;
+use super::player::{PlayableCharacter, PlayerId};
 use crate::entities::spec::EntitySpec;
 
 /// Enzo body size.
@@ -45,37 +39,18 @@ impl EntitySpec {
 
     /// Creates an Enzo playable character.
     pub fn enzo(player_id: PlayerId, pos: Vec2) -> Self {
-        use super::player::{PlayableCharacter, VisualProfile};
-        let attributes = Attributes::default();
-        let stats = Stats::player(attributes);
-        Self {
-            kind: EntityKind::Player(PlayerData::new(
-                player_id,
-                PlayableCharacter::Enzo,
-                VisualProfile::default(),
-                pos,
-                stats,
-            )),
-            controller: Controller::player(),
-            team: TeamId::PLAYERS,
+        Self::playable_humanoid(
+            player_id,
             pos,
-            size: ENZO_SIZE,
-            health: Health::full(stats.max_health),
-            stats,
-            attributes,
-            equipment: Equipment::NONE,
-            equipped: [None; EquipSlot::COUNT],
-            locomotion: Locomotion::player(),
-            skills: Skills::player_default(),
-            velocity: Vec2::ZERO,
-        }
+            PlayableHumanoidConfig::new(PlayableCharacter::Enzo, ENZO_SIZE),
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::entities::EntityStore;
+    use crate::entities::{Attributes, EntityStore, Stats};
     use crate::input::ActionSlot;
     use crate::skills::SkillId;
 
