@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EnzoBallZ Map Editor (Block ID)</title>
+  <style>
+    :root { --bg:#12141a; --panel:#1b2030; --ink:#e8eefc; --muted:#9fb0d0; --accent:#5ef2ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--ink); display:grid; grid-template-columns: 320px 1fr; min-height:100vh; }
+    aside { background:var(--panel); padding:12px; overflow:auto; border-right:1px solid #2a3350; }
+    main { padding:12px; overflow:auto; }
+    h1 { font-size:16px; margin:0 0 8px; }
+    h2 { font-size:13px; margin:12px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .row { display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
+    label { color:var(--muted); font-size:12px; }
+    input, select, button, textarea { background:#0f1320; color:var(--ink); border:1px solid #334; border-radius:6px; padding:6px 8px; font:inherit; }
+    button { cursor:pointer; } button:hover { border-color:var(--accent); }
+    button.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+    #palette { display:grid; grid-template-columns: 1fr; gap:6px; }
+    .block-btn { text-align:left; display:flex; gap:8px; align-items:center; }
+    .swatch { width:18px; height:18px; border-radius:4px; border:1px solid #0006; flex:0 0 auto; }
+    .meta { font-size:11px; color:var(--muted); }
+    canvas { background:#0b1020; image-rendering:pixelated; border:1px solid #334; cursor:crosshair; max-width:100%; }
+    textarea { width:100%; min-height:140px; font:12px/1.3 ui-monospace, monospace; }
+    .hint { color:var(--muted); font-size:12px; margin:6px 0; }
+    .tools button { min-width:72px; }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>Map Editor</h1>
+    <div class="hint">Framework-aligned: blocks are incorporated by <b>ID</b> from <code>assets/definitions/generated/blocks.json</code>.</div>
+    <div class="row">
+      <label>W <input id="w" type="number" min="1" max="400" value="60" style="width:72px"></label>
+      <label>H <input id="h" type="number" min="1" max="200" value="18" style="width:72px"></label>
+      <button id="resize">Resize</button>
+    </div>
+    <h2>Tools</h2>
+    <div class="row tools">
+      <button id="tool-paint" class="active">Paint</button>
+      <button id="tool-erase">Erase</button>
+      <button id="tool-spawn">Spawn P</button>
+      <button id="tool-enemy">Enemy E</button>
+      <button id="tool-flag">Flag F</button>
+    </div>
+    <h2>Blocks (by ID)</h2>
+    <div id="palette">Loading block definitions…</div>
+    <h2>Selected</h2>
+    <div id="selected" class="meta">none</div>
+    <h2>Export / Import</h2>
+    <div class="row">
+      <button id="export-json">Export JSON</button>
+      <button id="export-ascii">Export ASCII</button>
+      <button id="import-json">Import JSON</button>
+    </div>
+    <textarea id="io" spellcheck="false" placeholder="JSON or ASCII export appears here"></textarea>
+    <div class="hint">JSON uses block IDs/names (e.g. <code>ground</code>, <code>crate</code>). ASCII uses symbols for 1x1 blocks with symbols; markers: <code>P E F</code>.</div>
+  </aside>
+  <main>
+    <canvas id="c" width="960" height="288"></canvas>
+    <div class="hint">Left click/drag paints. Right click erases. Coordinates are tile-based (32px conceptually; editor uses 16px cells).</div>
+  </main>
+<script>
+const CELL = 16;
+const COLORS = { empty:'#0b1020', ground:'#7a5230', block:'#8a8f9c', platform:'#caa45a', crate:'#b56a2b', water:'#3aa7ff', ladder:'#d8b070', flag:'#ffd84d' };
+const state = { w:60, h:18, cells:[], spawns:[], enemies:[], flag:null, blocks:[], selected:null, tool:'paint', down:false, erase:false };
+const $ = (id)=>document.getElementById(id);
+const canvas = $('c'), ctx = canvas.getContext('2d');
+
+function idx(x,y){ return y*state.w+x; }
+function inBounds(x,y){ return x>=0 && y>=0 && x<state.w && y<state.h; }
+function emptyGrid(){ state.cells = Array.from({length:state.w*state.h}, ()=> 'empty'); state.spawns=[]; state.enemies=[]; state.flag=null; }
+function colorFor(id){ return COLORS[id] || '#666'; }
+
+async function loadBlocks(){
+  const res = await fetch('../../assets/definitions/generated/blocks.json');
+  const data = await res.json();
+  state.blocks = (data.blocks||[]).filter(b => b.id !== 'empty');
+  renderPalette();
+  if (!state.selected && state.blocks[0]) selectBlock(state.blocks[0].id);
+}
+
+function renderPalette(){
+  const root = $('palette'); root.innerHTML='';
+  for (const b of state.blocks) {
+    const btn = document.createElement('button');
+    btn.className = 'block-btn' + (state.selected===b.id?' active':'');
+    btn.innerHTML = `<span class="swatch" style="background:${colorFor(b.id)}"></span><span><div><b>${b.id}</b> ${b.symbol?`(<code>${b.symbol}</code>)`:''}</div><div class="meta">${b.width}x${b.height} · ${b.collision} · ${b.resistance||b.special||''}</div></span>`;
+    btn.onclick = ()=>{ selectBlock(b.id); setTool('paint'); };
+    root.appendChild(btn);
+  }
+}
+function selectBlock(id){ state.selected=id; $('selected').textContent = id || 'none'; renderPalette(); }
+function setTool(tool){ state.tool=tool; ['paint','erase','spawn','enemy','flag'].forEach(t=>$('tool-'+t).classList.toggle('active', t===tool)); }
+
+function resize(){
+  state.w = Math.max(1, Math.min(400, +$('w').value||60));
+  state.h = Math.max(1, Math.min(200, +$('h').value||18));
+  canvas.width = state.w*CELL; canvas.height = state.h*CELL;
+  emptyGrid(); draw();
+}
+
+function apply(x,y){
+  if (!inBounds(x,y)) return;
+  if (state.tool==='erase' || state.erase) { state.cells[idx(x,y)]='empty'; state.spawns=state.spawns.filter(p=>p[0]!==x||p[1]!==y); state.enemies=state.enemies.filter(p=>p[0]!==x||p[1]!==y); if(state.flag&&state.flag[0]===x&&state.flag[1]===y) state.flag=null; }
+  else if (state.tool==='spawn') { state.spawns = state.spawns.filter(p=>!(p[0]===x&&p[1]===y)); state.spawns.push([x,y]); state.cells[idx(x,y)]='empty'; }
+  else if (state.tool==='enemy') { state.enemies.push([x,y]); state.cells[idx(x,y)]='empty'; }
+  else if (state.tool==='flag') { state.flag=[x,y]; state.cells[idx(x,y)]='empty'; }
+  else if (state.tool==='paint' && state.selected) { state.cells[idx(x,y)] = state.selected; }
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let y=0;y<state.h;y++) for(let x=0;x<state.w;x++){
+    const id = state.cells[idx(x,y)]||'empty';
+    ctx.fillStyle = colorFor(id);
+    ctx.fillRect(x*CELL,y*CELL,CELL,CELL);
+    ctx.strokeStyle = '#ffffff10'; ctx.strokeRect(x*CELL+.5,y*CELL+.5,CELL-1,CELL-1);
+  }
+  ctx.fillStyle='#fff'; ctx.font='10px monospace';
+  for(const [x,y] of state.spawns){ ctx.fillStyle='#7CFF7C'; ctx.fillText('P', x*CELL+4, y*CELL+12); }
+  for(const [x,y] of state.enemies){ ctx.fillStyle='#ff8a8a'; ctx.fillText('E', x*CELL+4, y*CELL+12); }
+  if(state.flag){ const [x,y]=state.flag; ctx.fillStyle='#ffd84d'; ctx.fillText('F', x*CELL+4, y*CELL+12); }
+}
+
+function pos(ev){ const r=canvas.getBoundingClientRect(); return [Math.floor((ev.clientX-r.left)/CELL), Math.floor((ev.clientY-r.top)/CELL)]; }
+canvas.addEventListener('mousedown', ev=>{ state.down=true; state.erase=ev.button===2; const [x,y]=pos(ev); apply(x,y); draw(); ev.preventDefault(); });
+window.addEventListener('mouseup', ()=>{ state.down=false; state.erase=false; });
+canvas.addEventListener('mousemove', ev=>{ if(!state.down) return; const [x,y]=pos(ev); apply(x,y); draw(); });
+canvas.addEventListener('contextmenu', ev=>ev.preventDefault());
+
+function exportJson(){
+  const data = { version:1, format:'block-id-grid', width:state.w, height:state.h, cells:state.cells, spawns:state.spawns, enemies:state.enemies, flag:state.flag, contract:'assets/definitions/generated/blocks.json' };
+  $('io').value = JSON.stringify(data, null, 2);
+}
+function symbolFor(id){ const b = state.blocks.find(x=>x.id===id); return b && b.symbol ? b.symbol : (id==='empty'?'.':'?'); }
+function exportAscii(){
+  const grid = Array.from({length:state.h}, (_,y)=> Array.from({length:state.w},(_,x)=> symbolFor(state.cells[idx(x,y)]||'empty')));
+  for(const [x,y] of state.enemies) if(inBounds(x,y)) grid[y][x]='E';
+  if(state.flag && inBounds(state.flag[0],state.flag[1])) grid[state.flag[1]][state.flag[0]]='F';
+  for(const [x,y] of state.spawns) if(inBounds(x,y)) grid[y][x]='P';
+  $('io').value = grid.map(r=>r.join('')).join('\n');
+}
+function importJson(){
+  try{
+    const data = JSON.parse($('io').value);
+    state.w = data.width||state.w; state.h=data.height||state.h;
+    $('w').value=state.w; $('h').value=state.h;
+    canvas.width=state.w*CELL; canvas.height=state.h*CELL;
+    state.cells = Array.isArray(data.cells) && data.cells.length===state.w*state.h ? data.cells : Array.from({length:state.w*state.h},()=>'empty');
+    state.spawns = data.spawns||[]; state.enemies=data.enemies||[]; state.flag=data.flag||null;
+    draw();
+  }catch(e){ alert('Invalid JSON: '+e.message); }
+}
+
+$('resize').onclick=resize;
+$('tool-paint').onclick=()=>setTool('paint');
+$('tool-erase').onclick=()=>setTool('erase');
+$('tool-spawn').onclick=()=>setTool('spawn');
+$('tool-enemy').onclick=()=>setTool('enemy');
+$('tool-flag').onclick=()=>setTool('flag');
+$('export-json').onclick=exportJson;
+$('export-ascii').onclick=exportAscii;
+$('import-json').onclick=importJson;
+
+resize();
+loadBlocks().catch(e=>{ $('palette').textContent='Failed to load blocks.json: '+e.message; });
+</script>
+</body>
+</html>
