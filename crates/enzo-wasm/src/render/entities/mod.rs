@@ -6,3 +6,4 @@
 pub mod enzo;
 pub mod items;
 pub mod slime;
+pub mod valentina;

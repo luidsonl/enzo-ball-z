@@ -123,13 +123,15 @@ fn draw_players(
         let Some(player) = entity.player.as_ref() else {
             continue;
         };
-        entities::enzo::draw(
-            sprites,
-            entity,
-            player,
-            interpolate(previous, entity, alpha),
-            time,
-        );
+        let pos = interpolate(previous, entity, alpha);
+        match player.character {
+            enzo_core::entities::PlayableCharacter::Valentina => {
+                entities::valentina::draw(sprites, entity, player, pos, time);
+            }
+            _ => {
+                entities::enzo::draw(sprites, entity, player, pos, time);
+            }
+        }
     }
 }
 

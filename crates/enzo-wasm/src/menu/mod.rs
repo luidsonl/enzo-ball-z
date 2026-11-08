@@ -389,6 +389,8 @@ mod tests {
     fn slot_summary_uses_the_selected_language() {
         let data = SaveData {
             version: enzo_core::progression::SAVE_VERSION,
+            character: Default::default(),
+            visual_profile: Default::default(),
             level: 3,
             xp: 20.0,
             points: 2,

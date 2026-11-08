@@ -104,10 +104,12 @@ pub enum Text {
     AttributeStrength,
     AttributeHealth,
     AttributeAura,
+    AttributeEgo,
     EffectSpeed,
     EffectStrength,
     EffectHealth,
     EffectAura,
+    EffectEgo,
     CurrentValue,
     LevelUpTitle,
     PointsToSpend,
@@ -305,14 +307,18 @@ impl I18n {
             (Language::English, Text::AttributeHealth) => "Health",
             (Language::PtBr, Text::AttributeAura) => "Aura",
             (Language::English, Text::AttributeAura) => "Aura",
+            (Language::PtBr, Text::AttributeEgo) => "Ego",
+            (Language::English, Text::AttributeEgo) => "Ego",
             (Language::PtBr, Text::EffectSpeed) => "+10 px/s de caminhada",
             (Language::English, Text::EffectSpeed) => "+10 px/s walk speed",
             (Language::PtBr, Text::EffectStrength) => "+2 dano físico",
             (Language::English, Text::EffectStrength) => "+2 physical damage",
             (Language::PtBr, Text::EffectHealth) => "+10 vida máxima",
             (Language::English, Text::EffectHealth) => "+10 max health",
-            (Language::PtBr, Text::EffectAura) => "+10 aura / +2 Mogging",
-            (Language::English, Text::EffectAura) => "+10 aura / +2 Mogging",
+            (Language::PtBr, Text::EffectAura) => "+10 aura / +2 dano de aura",
+            (Language::English, Text::EffectAura) => "+10 aura / +2 aura damage",
+            (Language::PtBr, Text::EffectEgo) => "+2 poder de ataques de aura",
+            (Language::English, Text::EffectEgo) => "+2 aura attack power",
             (Language::PtBr, Text::CurrentValue) => "atual",
             (Language::English, Text::CurrentValue) => "current",
             (Language::PtBr, Text::LevelUpTitle) => "SUBIU DE NÍVEL!",
@@ -454,6 +460,7 @@ impl I18n {
             Attribute::Strength => self.t(Text::AttributeStrength),
             Attribute::Health => self.t(Text::AttributeHealth),
             Attribute::Aura => self.t(Text::AttributeAura),
+            Attribute::Ego => self.t(Text::AttributeEgo),
         }
     }
 
@@ -499,7 +506,7 @@ mod tests {
     use super::*;
 
     /// List of keys for coverage testing. Keep in sync with the enum.
-    const ALL_TEXT: [Text; 109] = [
+    const ALL_TEXT: [Text; 111] = [
         Text::MenuSubtitle,
         Text::Play,
         Text::Resume,
@@ -550,10 +557,12 @@ mod tests {
         Text::AttributeStrength,
         Text::AttributeHealth,
         Text::AttributeAura,
+        Text::AttributeEgo,
         Text::EffectSpeed,
         Text::EffectStrength,
         Text::EffectHealth,
         Text::EffectAura,
+        Text::EffectEgo,
         Text::CurrentValue,
         Text::LevelUpTitle,
         Text::PointsToSpend,

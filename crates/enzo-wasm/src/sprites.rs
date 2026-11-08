@@ -12,6 +12,7 @@ use macroquad::prelude::*;
 
 const TILES_PATH: &str = "assets/sprites/tiles.png";
 const ENZO_PATH: &str = "assets/sprites/enzo.png";
+const VALENTINA_PATH: &str = "assets/entities/valentina/sheet.png";
 const SLIME_PATH: &str = "assets/sprites/slime.png";
 const FX_PATH: &str = "assets/sprites/fx.png";
 const FLAG_PATH: &str = "assets/sprites/flag.png";
@@ -50,6 +51,19 @@ pub mod enzo {
     pub const FARM_B: usize = 13;
 }
 
+/// Valentina sheet frame indices (assets/entities/valentina/sheet.png).
+pub mod valentina {
+    pub const IDLE: usize = 0;
+    pub const WALK_1: usize = 1;
+    pub const WALK_2: usize = 2;
+    pub const JUMP: usize = 3;
+    pub const KICK: usize = 4;
+    pub const CAST: usize = 5;
+    pub const SIXSEVEN_A: usize = 6;
+    pub const SIXSEVEN_B: usize = 7;
+    pub const HURT: usize = 8;
+}
+
 /// Enemy (slime/minion) sheet frame indices.
 pub mod slime {
     pub const WALK_A: usize = 0;
@@ -82,6 +96,7 @@ pub mod item {
 pub struct Sprites {
     tiles: Texture2D,
     enzo: Texture2D,
+    valentina: Texture2D,
     slime: Texture2D,
     fx: Texture2D,
     flag: Texture2D,
@@ -93,6 +108,7 @@ impl Sprites {
         Self {
             tiles: texture(TILES_PATH, "tiles").await,
             enzo: texture(ENZO_PATH, "enzo").await,
+            valentina: texture(VALENTINA_PATH, "valentina").await,
             slime: texture(SLIME_PATH, "slime").await,
             fx: texture(FX_PATH, "fx").await,
             flag: texture(FLAG_PATH, "flag").await,
@@ -111,6 +127,10 @@ impl Sprites {
 
     pub fn draw_enzo(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {
         draw_sheet(&self.enzo, ACTOR_CELL, frame, dest, flip_x, tint);
+    }
+
+    pub fn draw_valentina(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {
+        draw_sheet(&self.valentina, ACTOR_CELL, frame, dest, flip_x, tint);
     }
 
     pub fn draw_slime(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {

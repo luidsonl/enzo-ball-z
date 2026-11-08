@@ -143,5 +143,6 @@ fn effect_text(i18n: I18n, attribute: Attribute) -> &'static str {
         Attribute::Strength => i18n.t(Text::EffectStrength),
         Attribute::Health => i18n.t(Text::EffectHealth),
         Attribute::Aura => i18n.t(Text::EffectAura),
+        Attribute::Ego => i18n.t(Text::EffectEgo),
     }
 }

@@ -209,6 +209,8 @@ mod tests {
     fn sample() -> SaveData {
         SaveData {
             version: SAVE_VERSION,
+            character: Default::default(),
+            visual_profile: Default::default(),
             level: 4,
             xp: 42.0,
             points: 2,
@@ -217,6 +219,7 @@ mod tests {
                 strength: 2,
                 health: 3,
                 aura: 4,
+                ego: 0,
             },
             loadout: Loadout::player_default(),
         }
