@@ -8,8 +8,10 @@
 //! Each sheet uses a fixed cell: tiles and items are 16x16; actors and effects
 //! are 32x32. Rendering chooses frames from snapshot/state.
 
-use enzo_core::entities::ItemKind;
+use enzo_core::entities::{ItemKind, VisualProfile};
 use macroquad::prelude::*;
+
+use crate::rig::HumanoidRig;
 
 const TILES_PATH: &str = "assets/sprites/tiles.png";
 const ENZO_PATH: &str = "assets/sprites/enzo.png";
@@ -96,8 +98,8 @@ pub mod item {
 
 pub struct Sprites {
     tiles: Texture2D,
-    enzo: Texture2D,
-    valentina: Texture2D,
+    pub enzo_rig: HumanoidRig,
+    pub valentina_rig: HumanoidRig,
     slime: Texture2D,
     fx: Texture2D,
     flag: Texture2D,
@@ -112,10 +114,12 @@ impl Sprites {
             let path = format!("assets/items/{}/equipped.png", kind.id());
             item_equipped.push(texture(&path, kind.id()).await);
         }
+        let enzo_sheet = texture(ENZO_PATH, "enzo").await;
+        let valentina_sheet = texture(VALENTINA_PATH, "valentina").await;
         Self {
             tiles: texture(TILES_PATH, "tiles").await,
-            enzo: texture(ENZO_PATH, "enzo").await,
-            valentina: texture(VALENTINA_PATH, "valentina").await,
+            enzo_rig: HumanoidRig::load("enzo", enzo_sheet).await,
+            valentina_rig: HumanoidRig::load("valentina", valentina_sheet).await,
             slime: texture(SLIME_PATH, "slime").await,
             fx: texture(FX_PATH, "fx").await,
             flag: texture(FLAG_PATH, "flag").await,
@@ -133,12 +137,46 @@ impl Sprites {
         &self.tiles
     }
 
+    /// Legacy frame-index draw against the rig sheet (frame layout may differ from old constants).
     pub fn draw_enzo(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {
-        draw_sheet(&self.enzo, ACTOR_CELL, frame, dest, flip_x, tint);
+        draw_sheet(&self.enzo_rig.sheet, ACTOR_CELL, frame, dest, flip_x, tint);
+    }
+
+    pub fn draw_enzo_rig(
+        &self,
+        clip: &str,
+        time: f32,
+        dest: Rect,
+        flip_x: bool,
+        tint: Color,
+        profile: VisualProfile,
+    ) {
+        self.enzo_rig
+            .draw_composed(clip, time, dest, flip_x, tint, profile);
     }
 
     pub fn draw_valentina(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {
-        draw_sheet(&self.valentina, ACTOR_CELL, frame, dest, flip_x, tint);
+        draw_sheet(
+            &self.valentina_rig.sheet,
+            ACTOR_CELL,
+            frame,
+            dest,
+            flip_x,
+            tint,
+        );
+    }
+
+    pub fn draw_valentina_rig(
+        &self,
+        clip: &str,
+        time: f32,
+        dest: Rect,
+        flip_x: bool,
+        tint: Color,
+        profile: VisualProfile,
+    ) {
+        self.valentina_rig
+            .draw_composed(clip, time, dest, flip_x, tint, profile);
     }
 
     pub fn draw_slime(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {

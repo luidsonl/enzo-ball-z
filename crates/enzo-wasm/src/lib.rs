@@ -14,6 +14,7 @@ pub mod input;
 pub mod menu;
 pub mod pointer;
 pub mod render;
+pub mod rig;
 pub mod save;
 pub mod sprites;
 pub mod tiles;
