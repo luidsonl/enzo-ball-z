@@ -176,76 +176,70 @@ mod tests {
     #[test]
     fn falls_and_lands_on_ground() {
         let level = level("P.\n..\n##\n");
-        // +1,+1 shift from surrounding barrier.
-        let mut body = body_at(10.0 + TILE_SIZE, TILE_SIZE);
+        let mut body = body_at(10.0, 0.0);
         for _ in 0..120 {
             apply_gravity(&mut body, crate::DT);
             integrate(&mut body, &level, crate::DT);
         }
         assert!(body.on_ground);
-        assert_eq!(body.bottom(), 3.0 * TILE_SIZE);
+        assert_eq!(body.bottom(), 2.0 * TILE_SIZE);
         assert_eq!(body.vel.y, 0.0);
     }
 
     #[test]
     fn does_not_tunnel_through_solid_tile() {
         let level = level("P.\n##\n");
-        // +1,+1 shift from surrounding barrier.
-        let mut body = body_at(TILE_SIZE, TILE_SIZE);
+        let mut body = body_at(0.0, 0.0);
         body.vel.y = MAX_FALL_SPEED;
         for _ in 0..10 {
             integrate(&mut body, &level, crate::DT);
         }
-        assert_eq!(body.bottom(), 2.0 * TILE_SIZE);
+        assert_eq!(body.bottom(), TILE_SIZE);
         assert!(body.on_ground);
     }
 
     #[test]
     fn stops_against_wall() {
         let level = level("P.#\n###\n");
-        // +1,+1 shift from surrounding barrier.
-        let mut body = body_at(TILE_SIZE, TILE_SIZE);
+        let mut body = body_at(0.0, 0.0);
         body.vel.x = 300.0;
         for _ in 0..30 {
             integrate(&mut body, &level, crate::DT);
         }
-        assert_eq!(body.right(), 3.0 * TILE_SIZE);
+        assert_eq!(body.right(), 2.0 * TILE_SIZE);
         assert_eq!(body.vel.x, 0.0);
     }
 
     #[test]
     fn one_way_platform_stops_falling_from_above() {
         let level = level("P.\n==\n..\n..\n");
-        // +1,+1 shift from surrounding barrier.
-        let mut body = body_at(10.0 + TILE_SIZE, TILE_SIZE);
+        let mut body = body_at(10.0, 0.0);
         for _ in 0..60 {
             apply_gravity(&mut body, crate::DT);
             integrate(&mut body, &level, crate::DT);
         }
         assert!(body.on_ground);
-        assert_eq!(body.bottom(), 2.0 * TILE_SIZE);
+        assert_eq!(body.bottom(), TILE_SIZE);
     }
 
     #[test]
     fn one_way_platform_is_ignored_from_below() {
         let level = level("P.\n..\n==\n##\n");
-        // +1,+1 shift from surrounding barrier.
-        let mut body = body_at(10.0 + TILE_SIZE, 66.0 + TILE_SIZE);
+        let mut body = body_at(10.0, 66.0);
         body.vel.y = -600.0;
         integrate(&mut body, &level, crate::DT);
         // A plataforma não bloqueia a subida; o corpo continua acima dela.
-        assert!(body.pos.y < 64.0 + TILE_SIZE);
+        assert!(body.pos.y < 64.0);
         assert!(!body.on_ground);
     }
 
     #[test]
     fn ceiling_stops_upward_motion() {
         let level = level("##\n..\nP.\n##\n");
-        // +1,+1 shift from surrounding barrier.
-        let mut body = body_at(TILE_SIZE, 2.0 * TILE_SIZE);
+        let mut body = body_at(0.0, TILE_SIZE);
         body.vel.y = -600.0;
         integrate(&mut body, &level, crate::DT);
-        assert!((body.pos.y - 2.0 * TILE_SIZE).abs() < 0.01);
+        assert!((body.pos.y - TILE_SIZE).abs() < 0.01);
         assert_eq!(body.vel.y, 0.0);
     }
 

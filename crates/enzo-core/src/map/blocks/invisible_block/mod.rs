@@ -2,8 +2,8 @@ use crate::map::block::{BlockDef, BlockId, CollisionKind, RenderKind, Resistance
 use crate::map::visual::BlockVisual;
 
 pub const DEF: BlockDef = BlockDef {
-    id: BlockId::Barrier,
-    name: "barrier",
+    id: BlockId::InvisibleBlock,
+    name: "invisible_block",
     symbol: Some('X'),
     width: 1,
     height: 1,

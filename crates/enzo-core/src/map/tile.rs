@@ -16,7 +16,7 @@ impl Tile {
     pub const FLAG_BOTTOM: Self = Self(BlockId::FlagBottom);
     pub const FLAG_TOP: Self = Self(BlockId::FlagTop);
     pub const BREAKABLE_STONE: Self = Self(BlockId::BreakableStone);
-    pub const BARRIER: Self = Self(BlockId::Barrier);
+    pub const INVISIBLE_BLOCK: Self = Self(BlockId::InvisibleBlock);
 
     pub const fn new(id: BlockId) -> Self {
         Self(id)

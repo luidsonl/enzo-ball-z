@@ -10,7 +10,7 @@ B = block:block
 = = block:platform
 D = block:crate
 S = block:breakable_stone
-X = block:barrier
+X = block:invisible_block
 P = marker:player
 E = enemy:slime
 F = marker:flag
