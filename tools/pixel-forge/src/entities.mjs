@@ -88,17 +88,43 @@ function hexToRgba(hex, a = 255) {
 }
 
 function poseFromFrame(frame) {
-  if (frame.startsWith('walk_')) return { step: ['walk_1','walk_3'].includes(frame) ? 1 : (frame==='walk_2'? -1 : 0), air: 0, crouch: false, run: false, swim: false, fly: false };
-  if (frame.startsWith('run_')) return { step: ['run_1','run_3'].includes(frame) ? 2 : (frame==='run_2'? -2 : 0), air: 0, crouch: false, run: true, swim: false, fly: false };
-  if (frame.startsWith('idle_')) return { step: 0, air: frame==='idle_1'? -1 : 0, crouch: false, run: false, swim: false, fly: false };
-  if (frame === 'crouch_0') return { step: 0, air: 0, crouch: true, run: false, swim: false, fly: false };
-  if (frame === 'jump_rise_0') return { step: 0, air: -3, crouch: false, run: false, swim: false, fly: false };
-  if (frame === 'jump_fall_0' || frame === 'dash_0') return { step: 1, air: -1, crouch: false, run: frame==='dash_0', swim: false, fly: false };
-  if (frame.startsWith('fly_')) return { step: frame==='fly_1'?1:0, air: -2, crouch: false, run: false, swim: false, fly: true };
-  if (frame.startsWith('swim_')) return { step: frame==='swim_1'?1:-1, air: -1, crouch: false, run: false, swim: true, fly: false, climb: false };
-  if (frame.startsWith('climb_')) return { step: frame==='climb_1'?1:-1, air: 0, crouch: false, run: false, swim: false, fly: false, climb: true };
-  if (frame === 'dying_0' || frame === 'dead_0') return { step: 0, air: 0, crouch: true, run: false, swim: false, fly: false, dead: true };
-  return { step: 0, air: 0, crouch: false, run: false, swim: false, fly: false, climb: false };
+  const f = frame;
+  // Rich pose data for expressive 32x32 humanoid animation (keeps 31-frame rig).
+  const base = {
+    step: 0, air: 0, crouch: false, run: false, swim: false, fly: false, climb: false, dead: false,
+    bob: 0, lean: 0, armL: 0, armR: 0, legL: 0, legR: 0, armUpL: false, armUpR: false, armOutL: false, armOutR: false,
+  };
+  if (f.startsWith('idle_')) return { ...base, bob: f === 'idle_1' ? -1 : 0, armL: 1, armR: 1 };
+  if (f === 'walk_0') return { ...base, bob: 0, legL: -1, legR: 1, armL: 2, armR: -1 };
+  if (f === 'walk_1') return { ...base, step: 1, bob: -1, legL: 1, legR: -1, armL: -1, armR: 2 };
+  if (f === 'walk_2') return { ...base, step: -1, bob: 0, legL: -1, legR: 1, armL: 2, armR: -1 };
+  if (f === 'walk_3') return { ...base, step: 1, bob: -1, legL: 1, legR: -1, armL: -1, armR: 2 };
+  if (f === 'run_0') return { ...base, run: true, bob: -1, lean: 1, legL: -2, legR: 2, armL: 3, armR: -2 };
+  if (f === 'run_1') return { ...base, run: true, step: 2, bob: 0, lean: 1, legL: 2, legR: -2, armL: -2, armR: 3 };
+  if (f === 'run_2') return { ...base, run: true, step: -2, bob: -1, lean: 1, legL: -2, legR: 2, armL: 3, armR: -2 };
+  if (f === 'run_3') return { ...base, run: true, step: 2, bob: 0, lean: 1, legL: 2, legR: -2, armL: -2, armR: 3 };
+  if (f === 'crouch_0') return { ...base, crouch: true, bob: 2, armL: 2, armR: 2, legL: 0, legR: 0 };
+  if (f === 'jump_rise_0') return { ...base, air: -3, bob: -1, armUpL: true, armUpR: true, legL: -1, legR: 1 };
+  if (f === 'jump_fall_0') return { ...base, air: -1, step: 1, bob: 1, armOutL: true, armOutR: true, legL: 1, legR: -1 };
+  if (f === 'fly_0') return { ...base, fly: true, air: -2, bob: -1, armOutL: true, armOutR: true, legL: -1, legR: 1 };
+  if (f === 'fly_1') return { ...base, fly: true, air: -2, bob: 0, armOutL: true, armOutR: true, legL: 1, legR: -1 };
+  if (f === 'swim_0') return { ...base, swim: true, air: -1, bob: 1, lean: 1, armUpL: true, armR: 3, legL: -1, legR: 1 };
+  if (f === 'swim_1') return { ...base, swim: true, air: -1, bob: 1, lean: 1, armL: 3, armUpR: true, legL: 1, legR: -1 };
+  if (f === 'climb_0') return { ...base, climb: true, bob: 0, armUpL: true, armR: 2, legL: -1, legR: 1 };
+  if (f === 'climb_1') return { ...base, climb: true, bob: -1, armL: 2, armUpR: true, legL: 1, legR: -1 };
+  if (f === 'dash_0') return { ...base, run: true, step: 1, air: -1, lean: 2, bob: 0, armL: -1, armR: 4, legL: -2, legR: 2 };
+  if (f === 'sixseven_a_0') return { ...base, bob: -1, armUpL: true, armR: 3, legL: 0, legR: 0 }; // aura farming: left up, right down
+  if (f === 'sixseven_b_0') return { ...base, bob: -1, armL: 3, armUpR: true, legL: 0, legR: 0 }; // alternate
+  if (f === 'attack_1_0') return { ...base, lean: 1, armL: 1, armOutR: true, legL: -1, legR: 1 };
+  if (f === 'attack_2_0') return { ...base, lean: 2, armL: 2, armOutR: true, legL: -1, legR: 2 };
+  if (f === 'attack_3_0') return { ...base, lean: 2, bob: -1, armUpL: true, armOutR: true, legL: -1, legR: 2 };
+  if (f === 'kick_0') return { ...base, lean: 1, armL: 2, armR: 2, legL: -1, legR: -3 };
+  if (f === 'cast_0') return { ...base, bob: -1, armL: 1, armOutR: true };
+  if (f === 'shout_0') return { ...base, bob: -1, armOutL: true, armOutR: true, lean: 0 };
+  if (f === 'hurt_0') return { ...base, bob: 1, lean: -1, armL: 2, armR: 2, legL: 1, legR: 0 };
+  if (f === 'dying_0') return { ...base, crouch: true, dead: true, bob: 3, lean: -1, armL: 3, armR: 3, legL: 0, legR: 0 };
+  if (f === 'dead_0') return { ...base, crouch: true, dead: true, bob: 4, lean: -2, armL: 4, armR: 4, legL: 0, legR: 0 };
+  return base;
 }
 
 function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, profile = {}) {
@@ -117,119 +143,154 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, profile = {
   const shoe = '#3a2a1a';
   const hairStyle = layer === 'hair' ? variant : (profile.hair_style ?? 0);
   const faceStyle = layer === 'face' ? variant : (profile.face ?? 0);
-  const y = pose.air + (pose.crouch ? 2 : 0);
+  const y = pose.air + (pose.crouch ? 2 : 0) + (pose.bob || 0);
+  const lean = pose.lean || 0;
   const headY = 6 + y;
   const bodyY = 14 + y;
   const legH = pose.crouch ? 4 : (dead ? 3 : 6);
-  const step = pose.step;
   const draw = (cond, fn) => { if (cond) fn(); };
 
-  // base/skin: head, neck, arms, hands, legs skin
+  const armRect = (x, y0, up, out, dy) => {
+    // expressive arm pose: up = raised overhead, out = extended to the side/forward, else down/side
+    if (up) c.rect(ox + x, bodyY - 3 + dy, 2, 8, skin);
+    else if (out) {
+      if (x > 16) c.rect(ox + x, bodyY + 2 + dy, 7, 3, skin); // right arm extends right
+      else c.rect(ox + x - 5, bodyY + 2 + dy, 7, 3, skin); // left arm extends left
+    } else c.rect(ox + x, bodyY + 1 + dy, 2, pose.crouch ? 4 : 7, skin);
+  };
+
   draw(layer === 'full' || layer === 'base' || layer === 'skin', () => {
-    c.rect(ox + 11, headY, 10, 8, skin); // head
-    c.rect(ox + 13, headY + 8, 6, 2, skin); // neck
+    c.rect(ox + 11 + lean, headY, 10, 8, skin); // head
+    c.rect(ox + 13 + lean, headY + 8, 6, 2, skin); // neck
+    const ldy = pose.armL || 0;
+    const rdy = pose.armR || 0;
+    armRect(8 + lean, bodyY, !!pose.armUpL, !!pose.armOutL, ldy);
+    armRect(22 + lean, bodyY, !!pose.armUpR, !!pose.armOutR, rdy);
+    // legs (skin/base)
+    const ly = 24 + (pose.crouch ? 2 : 0);
+    const ll = Math.max(1, legH - 2 + (pose.legL || 0));
+    const rl = Math.max(1, legH - 2 + (pose.legR || 0));
     if (pose.climb) {
-      const up = frame === 'climb_1';
-      c.rect(ox + 8, bodyY + (up ? -1 : 3), 2, 6, skin); // left arm
-      c.rect(ox + 22, bodyY + (up ? 3 : -1), 2, 6, skin); // right arm
-      c.rect(ox + 11, 25, 4, up ? 3 : 2, skin);
-      c.rect(ox + 17, 25, 4, up ? 2 : 3, skin);
+      c.rect(ox + 11, 25, 4, pose.legL > 0 ? 3 : 2, skin);
+      c.rect(ox + 17, 25, 4, pose.legR > 0 ? 3 : 2, skin);
     } else {
-      c.rect(ox + 8, bodyY + 1, 2, pose.crouch ? 4 : 7, skin); // left arm
-      c.rect(ox + 22, bodyY + 1, 2, pose.crouch ? 4 : 7, skin); // right arm
-      c.rect(ox + 11, 24 + (pose.crouch ? 2 : 0), 4, Math.max(1, legH - 2), skin);
-      c.rect(ox + 17, 24 + (pose.crouch ? 2 : 0), 4, Math.max(1, legH - 2), skin);
+      c.rect(ox + 11, ly - (pose.legL < 0 ? 1 : 0), 4, ll, skin);
+      c.rect(ox + 17, ly - (pose.legR < 0 ? 1 : 0), 4, rl, skin);
     }
   });
   draw(layer === 'full' || layer === 'face', () => {
-    // Eyes vary slightly by face style; keep readable at 32px.
+    const hx = ox + lean;
     const eyeY = headY + 3;
     const eye = dead ? '#7a6a8a' : P.outline;
-    if (faceStyle === 1) { // narrow
-      c.rect(ox + 13, eyeY + 1, 2, 1, eye); c.rect(ox + 17, eyeY + 1, 2, 1, eye);
-    } else if (faceStyle === 2) { // bright
-      c.rect(ox + 13, eyeY, 2, 2, '#ffffff'); c.rect(ox + 17, eyeY, 2, 2, '#ffffff');
-      c.set(ox + 14, eyeY + 1, P.outline); c.set(ox + 18, eyeY + 1, P.outline);
-    } else if (faceStyle === 3) { // determined
-      c.rect(ox + 13, eyeY, 2, 1, eye); c.rect(ox + 13, eyeY+1, 1, 1, eye);
-      c.rect(ox + 17, eyeY, 2, 1, eye); c.rect(ox + 18, eyeY+1, 1, 1, eye);
-    } else if (faceStyle === 4) { // smiley
-      c.rect(ox + 13, eyeY, 2, 2, eye); c.rect(ox + 17, eyeY, 2, 2, eye);
-    } else if (faceStyle === 5) { // wink
-      c.rect(ox + 13, eyeY, 2, 2, eye); c.rect(ox + 17, eyeY + 1, 2, 1, eye);
-    } else if (faceStyle === 6) { // fierce
-      c.rect(ox + 12, eyeY, 3, 1, eye); c.rect(ox + 17, eyeY, 3, 1, eye);
-      c.set(ox + 14, eyeY + 1, eye); c.set(ox + 18, eyeY + 1, eye);
-    } else if (faceStyle === 7) { // soft
-      c.rect(ox + 13, eyeY, 2, 2, '#6b4226'); c.rect(ox + 17, eyeY, 2, 2, '#6b4226');
-      c.set(ox + 14, eyeY, '#ffffff'); c.set(ox + 18, eyeY, '#ffffff');
-    } else {
-      c.rect(ox + 13, eyeY, 2, 2, eye);
-      c.rect(ox + 17, eyeY, 2, 2, eye);
-    }
     const mouthY = headY + 6;
-    if (frame === 'shout_0') c.rect(ox + 14, mouthY - 1, 4, 3, '#4a2030');
-    else if (dead) c.rect(ox + 15, mouthY, 2, 1, '#7a6a8a');
-    else if (faceStyle === 4) { c.rect(ox + 14, mouthY, 4, 1, '#d98b8b'); c.set(ox + 14, mouthY-1, '#d98b8b'); c.set(ox + 17, mouthY-1, '#d98b8b'); }
-    else if (faceStyle === 6) c.rect(ox + 14, mouthY, 4, 1, P.outline);
-    else c.rect(ox + 15, mouthY - 1, 2, 1, '#d98b8b');
+    const fs = Math.max(0, Math.min(7, faceStyle|0));
+    if (isVal) {
+      // Feminine face variants (Valentina exclusive)
+      if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, '#3a2418'); c.rect(hx + 17, eyeY, 2, 2, '#3a2418'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); c.rect(hx + 12, eyeY + 2, 1, 1, '#e8a0b0'); c.rect(hx + 19, eyeY + 2, 1, 1, '#e8a0b0'); }
+      else if (fs === 1) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
+      else if (fs === 2) { c.rect(hx + 13, eyeY, 2, 2, '#ffffff'); c.rect(hx + 17, eyeY, 2, 2, '#ffffff'); c.set(hx + 14, eyeY + 1, '#5a3820'); c.set(hx + 18, eyeY + 1, '#5a3820'); c.rect(hx + 12, eyeY + 2, 2, 1, '#f0b8c0'); c.rect(hx + 18, eyeY + 2, 2, 1, '#f0b8c0'); }
+      else if (fs === 3) { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.set(hx + 13, eyeY + 1, eye); c.set(hx + 18, eyeY + 1, eye); }
+      else if (fs === 4) { c.rect(hx + 13, eyeY, 2, 2, '#6b4226'); c.rect(hx + 17, eyeY, 2, 2, '#6b4226'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); }
+      else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.set(hx + 19, eyeY + 2, '#f0b8c0'); }
+      else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, '#4a2818'); c.rect(hx + 17, eyeY, 3, 2, '#4a2818'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 19, eyeY, '#ffffff'); }
+      else { c.rect(hx + 13, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 17, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 12, eyeY - 1, 1, 1, '#3a2418'); c.rect(hx + 19, eyeY - 1, 1, 1, '#3a2418'); }
+      if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
+      if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
+      else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
+      else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
+      else if (fs === 0 || fs === 2 || fs === 4) { c.rect(hx + 14, mouthY, 4, 1, '#e07a8a'); c.set(hx + 14, mouthY - 1, '#e07a8a'); c.set(hx + 17, mouthY - 1, '#e07a8a'); }
+      else c.rect(hx + 15, mouthY - 1, 2, 1, '#d98b8b');
+    } else {
+      // Masculine face variants (Enzo exclusive)
+      if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
+      else if (fs === 1) { c.rect(hx + 13, eyeY + 1, 2, 1, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY, 4, 1, '#4a3422'); c.rect(hx + 16, eyeY, 4, 1, '#4a3422'); }
+      else if (fs === 2) { c.rect(hx + 12, eyeY, 3, 1, eye); c.rect(hx + 17, eyeY, 3, 1, eye); c.set(hx + 14, eyeY + 1, eye); c.set(hx + 18, eyeY + 1, eye); }
+      else if (fs === 3) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); }
+      else if (fs === 4) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 14, mouthY + 1, 4, 1, '#8a6a4a'); } // stubble hint
+      else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 2, 1, '#3a2418'); }
+      else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, eye); c.rect(hx + 17, eyeY, 3, 2, eye); c.rect(hx + 13, mouthY + 1, 6, 1, '#6a4a32'); } // beard hint
+      else { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 8, 1, '#3a2418'); }
+      if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
+      if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
+      else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
+      else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
+      else if (fs === 2) c.rect(hx + 14, mouthY, 4, 1, P.outline);
+      else c.rect(hx + 15, mouthY - 1, 2, 1, '#b07060');
+    }
   });
   draw(layer === 'full' || layer === 'hair', () => {
-    const hs = isVal ? (hairStyle === 0 ? 2 : hairStyle) : hairStyle;
-    // Style variants designed to read clearly in all animation frames.
-    if (hs === 0) { // short
-      c.rect(ox + 11, headY, 10, 3, hair); c.rect(ox + 10, headY + 1, 1, 2, hair); c.rect(ox + 21, headY + 1, 1, 2, hair);
-    } else if (hs === 1) { // spiky
-      c.rect(ox + 11, headY, 10, 3, hair); c.rect(ox + 12, headY - 1, 2, 1, hair); c.rect(ox + 15, headY - 2, 2, 2, hair); c.rect(ox + 18, headY - 1, 2, 1, hair);
-    } else if (hs === 2) { // long sides (Valentina default feel)
-      c.rect(ox + 10, headY - 1, 12, 4, hair); c.rect(ox + 9, headY + 2, 2, 8, hair); c.rect(ox + 21, headY + 2, 2, 8, hair);
-    } else if (hs === 3) { // top knot / pony hint
-      c.rect(ox + 11, headY, 10, 3, hair); c.rect(ox + 15, headY - 2, 2, 2, hair); c.rect(ox + 21, headY + 2, 2, 6, hair);
-    } else if (hs === 4) { // curly/wide
-      c.rect(ox + 10, headY - 1, 12, 4, hair); c.rect(ox + 9, headY + 1, 2, 4, hair); c.rect(ox + 21, headY + 1, 2, 4, hair); c.rect(ox + 10, headY + 4, 2, 2, hair); c.rect(ox + 20, headY + 4, 2, 2, hair);
-    } else if (hs === 5) { // buzz
-      c.rect(ox + 11, headY + 1, 10, 2, hair);
-    } else if (hs === 6) { // swept
-      c.rect(ox + 10, headY, 11, 3, hair); c.rect(ox + 9, headY + 1, 2, 2, hair); c.rect(ox + 20, headY, 2, 1, hair);
-    } else { // long back
-      c.rect(ox + 10, headY - 1, 12, 4, hair); c.rect(ox + 9, headY + 2, 3, 9, hair); c.rect(ox + 20, headY + 2, 3, 9, hair);
+    const hx = ox + lean;
+    const hs = Math.max(0, Math.min(7, hairStyle|0));
+    if (isVal) {
+      // Feminine hair variants (Valentina exclusive)
+      if (hs === 0) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, 10, hair); c.rect(hx + 21, headY + 2, 2, 10, hair); } // long straight
+      else if (hs === 1) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 21, headY + 2, 2, 8, hair); c.rect(hx + 22, headY + 8, 1, 2, hair); } // ponytail
+      else if (hs === 2) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, 8, hair); c.rect(hx + 21, headY + 2, 2, 8, hair); } // long sides
+      else if (hs === 3) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 3, 6, hair); c.rect(hx + 20, headY + 1, 3, 6, hair); c.rect(hx + 10, headY + 6, 2, 2, hair); c.rect(hx + 20, headY + 6, 2, 2, hair); } // wavy
+      else if (hs === 4) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, 5, hair); c.rect(hx + 21, headY + 2, 2, 5, hair); } // bob
+      else if (hs === 5) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 9, headY + 2, 2, 7, hair); c.rect(hx + 21, headY + 2, 2, 7, hair); c.rect(hx + 9, headY + 8, 1, 2, hair); c.rect(hx + 22, headY + 8, 1, 2, hair); } // braided/pigtails hint
+      else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 14, headY - 3, 4, 2, hair); c.rect(hx + 9, headY + 2, 2, 4, hair); c.rect(hx + 21, headY + 2, 2, 4, hair); } // bun/updo
+      else { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 3, 9, hair); c.rect(hx + 20, headY + 2, 3, 9, hair); c.rect(hx + 12, headY + 10, 8, 1, hair); } // long back
+    } else {
+      // Masculine hair variants (Enzo exclusive). 0 = bald.
+      if (hs === 0) { /* bald */ }
+      else if (hs === 1) { c.rect(hx + 11, headY + 1, 10, 2, hair); c.rect(hx + 10, headY + 2, 1, 1, hair); c.rect(hx + 21, headY + 2, 1, 1, hair); } // short
+      else if (hs === 2) { c.rect(hx + 11, headY + 1, 10, 1, hair); } // buzz
+      else if (hs === 3) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 12, headY - 1, 2, 1, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 18, headY - 1, 2, 1, hair); } // spiky
+      else if (hs === 4) { c.rect(hx + 10, headY, 11, 3, hair); c.rect(hx + 9, headY + 1, 2, 2, hair); c.rect(hx + 20, headY, 2, 1, hair); } // swept/side part
+      else if (hs === 5) { c.rect(hx + 11, headY, 10, 2, hair); c.rect(hx + 10, headY + 1, 1, 2, hair); c.rect(hx + 21, headY + 1, 1, 2, hair); c.rect(hx + 14, headY - 1, 4, 1, hair); } // crew
+      else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 2, 3, hair); c.rect(hx + 21, headY + 1, 2, 3, hair); } // curly short
+      else { c.rect(hx + 10, headY, 12, 3, hair); c.rect(hx + 9, headY + 2, 2, 3, hair); c.rect(hx + 21, headY + 2, 2, 2, hair); } // medium masculine
     }
   });
   draw(layer === 'full' || layer === 'outfit_top' || layer === 'shirt', () => {
-    c.rect(ox + 10, bodyY, 12, pose.crouch ? 7 : 10, shirt);
-    c.rect(ox + 10, bodyY, 12, 1, hurt ? '#ffaaaa' : (isVal ? '#ff9fc8' : '#7fa0ff')); // highlight
+    const tx = ox + lean;
+    c.rect(tx + 10, bodyY, 12, pose.crouch ? 7 : 10, shirt);
+    c.rect(tx + 10, bodyY, 12, 1, hurt ? '#ffaaaa' : (isVal ? '#ff9fc8' : '#7fa0ff'));
+    // sleeves hint (follow arm direction lightly)
+    if (pose.armUpL) c.rect(tx + 8, bodyY - 1, 3, 3, shirt);
+    else c.rect(tx + 8, bodyY + 1, 3, 2, shirt);
+    if (pose.armUpR) c.rect(tx + 21, bodyY - 1, 3, 3, shirt);
+    else if (pose.armOutR) c.rect(tx + 21, bodyY + 2, 3, 2, shirt);
+    else c.rect(tx + 21, bodyY + 1, 3, 2, shirt);
   });
   draw(layer === 'full' || layer === 'outfit_bottom' || layer === 'pants', () => {
+    const ly = 23 + (pose.crouch ? 2 : 0);
     if (pose.climb) {
       c.rect(ox + 11, 24, 4, frame === 'climb_1' ? 5 : 4, pants);
       c.rect(ox + 17, 24, 4, frame === 'climb_1' ? 4 : 5, pants);
     } else {
-      c.rect(ox + 11, 23 + (pose.crouch ? 2 : 0), 4, legH + (step === 1 || step === 2 ? 1 : 0), pants);
-      c.rect(ox + 17, 23 + (pose.crouch ? 2 : 0), 4, legH + (step === -1 || step === -2 ? 1 : 0), pants);
+      c.rect(ox + 11, ly - (pose.legL < 0 ? 1 : 0), 4, legH + Math.max(0, pose.legL || 0), pants);
+      c.rect(ox + 17, ly - (pose.legR < 0 ? 1 : 0), 4, legH + Math.max(0, pose.legR || 0), pants);
     }
   });
   draw(layer === 'full' || layer === 'shoes', () => {
     const fy = 29;
     if (!dead) {
-      c.rect(ox + 10, fy, 5, 2, shoe); c.rect(ox + 17, fy, 5, 2, shoe);
+      const ls = pose.legL < 0 ? -1 : 0;
+      const rs = pose.legR < 0 ? -1 : 0;
+      c.rect(ox + 10 + (frame === 'kick_0' ? 0 : 0), fy + ls, 5, 2, shoe);
+      c.rect(ox + 17 + (frame === 'kick_0' ? 3 : 0), fy + rs + (frame === 'kick_0' ? -3 : 0), 6, 2, shoe);
+      if (frame === 'kick_0') c.rect(ox + 22, fy - 4, 2, 3, pants); // extended kicking leg hint
     } else {
       c.rect(ox + 8, fy - 1, 8, 2, shoe); c.rect(ox + 16, fy - 1, 8, 2, shoe);
     }
   });
 
-  // action overlays baked into full fallback for readability; layer system can add/override
   if (layer === 'full' || layer === 'action_overlay') {
-    if (frame === 'sixseven_a_0') { c.rect(ox + 6, bodyY - 2, 2, 8, skin); c.rect(ox + 24, bodyY + 4, 2, 8, skin); }
-    if (frame === 'sixseven_b_0') { c.rect(ox + 6, bodyY + 4, 2, 8, skin); c.rect(ox + 24, bodyY - 2, 2, 8, skin); }
-    if (frame === 'attack_1_0') c.rect(ox + 23, bodyY + 2, 6, 3, skin);
-    if (frame === 'attack_2_0') c.rect(ox + 23, bodyY + 4, 7, 3, skin);
-    if (frame === 'attack_3_0') c.rect(ox + 22, bodyY + 1, 8, 4, skin);
-    if (frame === 'kick_0') c.rect(ox + 22, 24, 7, 2, shoe);
-    if (frame === 'cast_0') c.rect(ox + 22, bodyY + 1, 6, 4, '#5ef2ff88');
-    if (frame === 'shout_0') { c.rect(ox + 14, headY + 5, 4, 3, '#4a2030'); c.rect(ox + 5, bodyY - 1, 4, 3, '#f6c44566'); c.rect(ox + 23, bodyY - 1, 4, 3, '#f6c44566'); }
-    if (frame === 'fly_0' || frame === 'fly_1') c.rect(ox + 12, 27, 8, 2, '#5ef2ff55');
-    if (frame === 'swim_0' || frame === 'swim_1') c.rect(ox + 6, 26, 20, 3, '#4f7cff44');
-    if (frame === 'dash_0') c.rect(ox + 3, bodyY + 4, 6, 8, '#ffffff22');
+    // reinforce key actions for readability
+    if (frame === 'sixseven_a_0') { c.rect(ox + 9, bodyY - 5, 3, 3, skin); c.rect(ox + 20, bodyY + 8, 3, 3, skin); }
+    if (frame === 'sixseven_b_0') { c.rect(ox + 9, bodyY + 8, 3, 3, skin); c.rect(ox + 20, bodyY - 5, 3, 3, skin); }
+    if (frame === 'attack_1_0') c.rect(ox + 24, bodyY + 2, 6, 3, skin);
+    if (frame === 'attack_2_0') c.rect(ox + 24, bodyY + 3, 7, 3, skin);
+    if (frame === 'attack_3_0') { c.rect(ox + 23, bodyY + 1, 8, 4, skin); c.rect(ox + 26, bodyY, 3, 2, '#ffffff55'); }
+    if (frame === 'kick_0') c.rect(ox + 23, 25, 7, 2, shoe);
+    if (frame === 'cast_0') { c.rect(ox + 24, bodyY + 1, 5, 3, skin); c.rect(ox + 27, bodyY, 3, 5, '#5ef2ff88'); }
+    if (frame === 'shout_0') { c.rect(ox + 4, bodyY - 2, 4, 3, '#f6c44566'); c.rect(ox + 24, bodyY - 2, 4, 3, '#f6c44566'); c.rect(ox + 13, headY - 2, 6, 2, '#f6c44544'); }
+    if (frame === 'fly_0' || frame === 'fly_1') c.rect(ox + 10, 28, 12, 2, frame === 'fly_1' ? '#5ef2ff77' : '#5ef2ff44');
+    if (frame === 'swim_0' || frame === 'swim_1') c.rect(ox + 5, 27, 22, 2, '#4f7cff55');
+    if (frame === 'hurt_0') c.rect(ox + 24, bodyY - 2, 4, 4, '#ff9aa844');
+    if (frame === 'dash_0') c.rect(ox + 2, bodyY + 3, 7, 10, '#ffffff22');
   }
 }
 
@@ -290,13 +351,20 @@ function buildLayerStrip(id, layer, variant = 0, cell = 32) {
 function buildHumanoid(id, cell = 32) {
   const dir = join(ROOT, 'assets/entities', id);
   mkdirSync(join(dir, 'layers'), { recursive: true });
-  const sheet = buildLayerStrip(id, 'full', 0, cell);
-  writePng(join(dir, 'sheet.png'), sheet);
+  // Gender-exclusive defaults: Enzo base is short hair (not bald), Valentina keeps feminine default.
+  const defaultHair = id === 'valentina' ? 0 : 1;
+  const defaultFace = 0;
+  const sheet = buildLayerStrip(id, 'full', 0, cell); // full fallback; runtime uses rig layers/variants
+  // For the base sheet fallback, render with defaults by drawing full then overriding is complex;
+  // keep deterministic full(0) and rely on rig layer composition/variants in runtime.
+  writePng(join(dir, 'sheet.png'), buildLayerStrip(id, 'full', 0, cell));
 
-  for (const layer of ['base', 'face', 'hair', 'outfit_top', 'outfit_bottom', 'shoes']) {
+  for (const layer of ['base', 'outfit_top', 'outfit_bottom', 'shoes']) {
     const c = buildLayerStrip(id, layer, 0, cell);
     writePng(join(dir, 'layers', `${layer}.png`), c);
   }
+  writePng(join(dir, 'layers', 'hair.png'), buildLayerStrip(id, 'hair', defaultHair, cell));
+  writePng(join(dir, 'layers', 'face.png'), buildLayerStrip(id, 'face', defaultFace, cell));
   // Style/face variants as full rig-aligned strips (all animation states).
   for (let i = 0; i < CUSTOMIZATION_VARIANTS.hair_style; i++) {
     writePng(join(dir, 'layers', `hair_style_${i}.png`), buildLayerStrip(id, 'hair', i, cell));
