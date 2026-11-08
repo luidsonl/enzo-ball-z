@@ -216,10 +216,12 @@ pub fn store_draft_character(
     write_key(DRAFT_CHARACTER_KEY, &character.code().to_string())
 }
 
-pub fn load_draft_visual_profile() -> enzo_core::entities::VisualProfile {
+pub fn load_draft_visual_profile(
+    character: enzo_core::entities::PlayableCharacter,
+) -> enzo_core::entities::VisualProfile {
     read_key(DRAFT_VISUAL_PROFILE_KEY)
         .and_then(|raw| serde_json::from_str::<enzo_core::entities::VisualProfile>(&raw).ok())
-        .unwrap_or_default()
+        .unwrap_or_else(|| enzo_core::entities::VisualProfile::default_for(character))
 }
 
 pub fn store_draft_visual_profile(

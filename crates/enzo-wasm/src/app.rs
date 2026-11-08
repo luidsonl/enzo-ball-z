@@ -208,7 +208,7 @@ impl App {
                         // New games inherit the character editor draft; loaded saves keep their data.
                         if is_new_game {
                             let dc = save::load_draft_character();
-                            let dp = save::load_draft_visual_profile();
+                            let dp = save::load_draft_visual_profile(dc);
                             let _ = session.world.set_playable_character(0, dc);
                             let _ = session.world.set_visual_profile(0, dp);
                         }
@@ -308,6 +308,8 @@ impl App {
                             enzo_core::entities::PlayableCharacter::from_code(character)
                         {
                             let _ = session.world.set_playable_character(0, c);
+                            let profile = enzo_core::entities::VisualProfile::default_for(c);
+                            let _ = session.world.set_visual_profile(0, profile);
                         }
                     }
                     UiAction::SetVisualProfileField { field, value } => {
@@ -367,9 +369,13 @@ impl App {
                             enzo_core::entities::PlayableCharacter::from_code(character)
                         {
                             let _ = game.world.set_playable_character(0, c);
+                            let profile = enzo_core::entities::VisualProfile::default_for(c);
+                            let _ = game.world.set_visual_profile(0, profile);
                             game.world.write_snapshot(&mut game.current);
                             menu.draft_character = c;
+                            menu.draft_visual_profile = profile;
                             let _ = save::store_draft_character(c);
+                            let _ = save::store_draft_visual_profile(profile);
                         }
                     }
                     UiAction::SetVisualProfileField { field, value } => {

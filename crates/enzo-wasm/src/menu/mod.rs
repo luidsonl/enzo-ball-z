@@ -70,7 +70,10 @@ impl Menu {
             toast: None,
             time: 0.0,
             draft_character: save::load_draft_character(),
-            draft_visual_profile: save::load_draft_visual_profile(),
+            draft_visual_profile: {
+                let c = save::load_draft_character();
+                save::load_draft_visual_profile(c)
+            },
         }
     }
 
@@ -196,9 +199,12 @@ impl Menu {
             UiAction::SetPlayableCharacter { character } => {
                 if let Some(c) = enzo_core::entities::PlayableCharacter::from_code(character) {
                     self.draft_character = c;
+                    // Exclusive hair/face catalogs per character: reset to sensible defaults.
+                    self.draft_visual_profile = enzo_core::entities::VisualProfile::default_for(c);
                     if let Err(err) = save::store_draft_character(c) {
                         self.toast = Some((format!("{}: {err}", i18n.t(Text::SaveFailed)), 2.4));
                     }
+                    let _ = save::store_draft_visual_profile(self.draft_visual_profile);
                 }
                 None
             }

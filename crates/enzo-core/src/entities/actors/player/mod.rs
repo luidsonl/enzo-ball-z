@@ -85,12 +85,38 @@ impl VisualProfile {
     pub const FIELD_OUTFIT_BOTTOM: u8 = 5;
     pub const FIELD_SHOES: u8 = 6;
 
+    /// Sensible defaults per character (hair/face indices map to gender-exclusive catalogs).
+    pub fn default_for(character: PlayableCharacter) -> Self {
+        match character {
+            // Enzo: short masculine hair by default (index 0 is bald option).
+            PlayableCharacter::Enzo => Self {
+                skin_tone: 0,
+                hair_style: 1,
+                hair_color: 0,
+                face: 0,
+                outfit_top: 0,
+                outfit_bottom: 0,
+                shoes: 0,
+            },
+            // Valentina: feminine default.
+            PlayableCharacter::Valentina => Self {
+                skin_tone: 0,
+                hair_style: 0,
+                hair_color: 1,
+                face: 0,
+                outfit_top: 1,
+                outfit_bottom: 1,
+                shoes: 0,
+            },
+        }
+    }
+
     pub fn with_field(mut self, field: u8, value: u8) -> Self {
         match field {
             Self::FIELD_SKIN_TONE => self.skin_tone = value,
-            Self::FIELD_HAIR_STYLE => self.hair_style = value,
+            Self::FIELD_HAIR_STYLE => self.hair_style = value.min(7),
             Self::FIELD_HAIR_COLOR => self.hair_color = value,
-            Self::FIELD_FACE => self.face = value,
+            Self::FIELD_FACE => self.face = value.min(7),
             Self::FIELD_OUTFIT_TOP => self.outfit_top = value,
             Self::FIELD_OUTFIT_BOTTOM => self.outfit_bottom = value,
             Self::FIELD_SHOES => self.shoes = value,
