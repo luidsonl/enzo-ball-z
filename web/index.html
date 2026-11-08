@@ -41,6 +41,18 @@
       // before sapp_jsutils.js defines it. The game does not use networking; this
       // stub avoids a harmless console error.
       var register_plugin = function () {};
+      // Prevent WebGL buffer loss/black flashes when async asset downloads yield.
+      (function () {
+        var c = document.getElementById("glcanvas");
+        if (!c) return;
+        var orig = c.getContext.bind(c);
+        c.getContext = function (type, attrs) {
+          if (type === "webgl" || type === "webgl2" || type === "experimental-webgl") {
+            attrs = Object.assign({ preserveDrawingBuffer: true }, attrs || {});
+          }
+          return orig(type, attrs);
+        };
+      })();
     </script>
     <script src="/mq_js_bundle.js"></script>
     <script src="/sapp_jsutils.js"></script>

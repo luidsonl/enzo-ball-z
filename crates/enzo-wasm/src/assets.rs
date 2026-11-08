@@ -1,21 +1,47 @@
 //! Lazy texture asset cache for WASM/web builds.
 //!
-//! Textures are loaded on demand when first requested by rendering code, with
-//! in-flight deduplication. Call [`pump_assets`] from the main async loop to
-//! progress queued loads. Missing/pending assets draw placeholders without
-//! blocking the render loop. Single-threaded (macroquad main thread).
+//! Textures are loaded on demand with in-flight deduplication.
+//! [`pump_assets`] polls in-flight loads without blocking the render loop,
+//! so frames keep rendering with placeholders while downloads complete.
+//! Single-threaded (macroquad main thread).
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::future::Future;
+use std::pin::Pin;
 use std::rc::Rc;
+use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 use macroquad::prelude::*;
 
+type BoxFut<T> = Pin<Box<dyn Future<Output = T>>>;
+
+fn noop_waker() -> Waker {
+    fn clone(_: *const ()) -> RawWaker {
+        RawWaker::new(std::ptr::null(), &VTABLE)
+    }
+    fn wake(_: *const ()) {}
+    fn wake_by_ref(_: *const ()) {}
+    fn drop(_: *const ()) {}
+    static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, wake, wake_by_ref, drop);
+    unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) }
+}
+
+fn poll_once<T>(fut: &mut BoxFut<T>) -> Poll<T> {
+    let waker = noop_waker();
+    let mut cx = Context::from_waker(&waker);
+    fut.as_mut().poll(&mut cx)
+}
+
 #[derive(Clone)]
 enum LoadState {
-    Loading,
     Ready(Texture2D),
     Failed,
+}
+
+struct PendingLoad {
+    path: String,
+    fut: BoxFut<Option<Texture2D>>,
 }
 
 #[derive(Default)]
@@ -23,11 +49,30 @@ struct StoreInner {
     textures: HashMap<String, LoadState>,
     queued: HashSet<String>,
     queue: VecDeque<String>,
+    in_flight: Vec<PendingLoad>,
+    max_in_flight: usize,
 }
 
-#[derive(Clone, Default)]
+impl StoreInner {
+    fn new() -> Self {
+        Self {
+            max_in_flight: 2,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct AssetStore {
     inner: Rc<RefCell<StoreInner>>,
+}
+
+impl Default for AssetStore {
+    fn default() -> Self {
+        Self {
+            inner: Rc::new(RefCell::new(StoreInner::new())),
+        }
+    }
 }
 
 impl AssetStore {
@@ -41,7 +86,7 @@ impl AssetStore {
             if let Some(LoadState::Ready(tex)) = inner.textures.get(path) {
                 return Some(tex.clone());
             }
-            if inner.textures.contains_key(path) {
+            if inner.textures.contains_key(path) || inner.queued.contains(path) {
                 return None;
             }
         }
@@ -59,7 +104,6 @@ impl AssetStore {
             return;
         }
         inner.queued.insert(path.clone());
-        inner.textures.insert(path.clone(), LoadState::Loading);
         inner.queue.push_back(path);
     }
 
@@ -79,42 +123,62 @@ impl AssetStore {
     }
 
     pub fn pending(&self) -> usize {
-        self.inner.borrow().queue.len()
+        let inner = self.inner.borrow();
+        inner.queue.len() + inner.in_flight.len()
     }
 
-    fn pop(&self) -> Option<String> {
+    fn start_queued(&self) {
         let mut inner = self.inner.borrow_mut();
-        let path = inner.queue.pop_front()?;
-        inner.queued.remove(&path);
-        Some(path)
+        while inner.in_flight.len() < inner.max_in_flight {
+            let Some(path) = inner.queue.pop_front() else {
+                break;
+            };
+            inner.queued.remove(&path);
+            let p = path.clone();
+            inner.in_flight.push(PendingLoad {
+                path,
+                fut: Box::pin(load_texture_async(p)),
+            });
+        }
     }
 
-    fn store_result(&self, path: String, tex: Option<Texture2D>) {
+    fn poll_in_flight(&self) {
         let mut inner = self.inner.borrow_mut();
-        match tex {
-            Some(t) => {
-                inner.textures.insert(path, LoadState::Ready(t));
-            }
-            None => {
-                inner.textures.insert(path, LoadState::Failed);
+        let mut i = 0;
+        while i < inner.in_flight.len() {
+            let ready = {
+                let load = &mut inner.in_flight[i];
+                match poll_once(&mut load.fut) {
+                    Poll::Ready(tex) => Some((load.path.clone(), tex)),
+                    Poll::Pending => None,
+                }
+            };
+            if let Some((path, tex)) = ready {
+                inner.in_flight.swap_remove(i);
+                match tex {
+                    Some(t) => {
+                        inner.textures.insert(path, LoadState::Ready(t));
+                    }
+                    None => {
+                        inner.textures.insert(path, LoadState::Failed);
+                    }
+                }
+            } else {
+                i += 1;
             }
         }
     }
 }
 
-/// Loads up to `max` queued textures. Safe to call from the async main loop.
-pub async fn pump_assets(store: &AssetStore, max: usize) {
-    for _ in 0..max {
-        let Some(path) = store.pop() else {
-            break;
-        };
-        let result = load_texture_async(&path).await;
-        store.store_result(path, result);
-    }
+/// Polls in-flight downloads/decodes without blocking. Call every frame.
+/// Renders continue showing placeholders until textures are ready.
+pub fn pump_assets(store: &AssetStore, _max: usize) {
+    store.start_queued();
+    store.poll_in_flight();
 }
 
-pub async fn load_texture_async(path: &str) -> Option<Texture2D> {
-    let bytes = macroquad::file::load_file(path).await.ok()?;
+pub async fn load_texture_async(path: String) -> Option<Texture2D> {
+    let bytes = macroquad::file::load_file(&path).await.ok()?;
     let image = Image::from_file_with_format(&bytes, Some(ImageFormat::Png)).ok()?;
     let tex = Texture2D::from_image(&image);
     tex.set_filter(FilterMode::Nearest);

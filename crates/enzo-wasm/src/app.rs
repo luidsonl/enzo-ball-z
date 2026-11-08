@@ -99,6 +99,8 @@ impl App {
                 self.handle_ui_actions(ui_actions);
             }
 
+            // Safety: prevent black flashes when assets load or draw paths miss.
+            clear_background(Color::from_rgba(16, 16, 28, 255));
             let transition = match &mut self.scene {
                 Scene::Menu(menu) => {
                     // Keep canvas stable (no black flashing) while DOM menu is shown.
@@ -192,8 +194,8 @@ impl App {
                 }
             }
 
-            // Lazy-load textures/rigs on demand (deduped, non-blocking per request queue).
-            self.sprites.pump().await;
+            // Poll lazy asset/rig downloads without blocking rendering (prevents flashes).
+            self.sprites.pump();
             next_frame().await;
         }
     }
@@ -202,18 +204,9 @@ impl App {
         match transition {
             Transition::None => {}
             Transition::Start { slot, save } => {
-                let is_new_game = save.is_none();
                 match GameSession::new(slot, save, self.sprites.assets.clone(), self.i18n) {
-                    Ok(mut session) => {
+                    Ok(session) => {
                         // New games inherit the character editor draft; loaded saves keep their data.
-                        if is_new_game {
-                            let dc = save::load_draft_character();
-                            let dp = save::load_draft_visual_profile(dc);
-                            let _ = session.world.set_playable_character(0, dc);
-                            let _ = session.world.set_visual_profile(0, dp);
-                            session.world.write_snapshot(&mut session.current);
-                            session.previous = session.current.clone();
-                        }
                         self.scene = Scene::Game(Box::new(session));
                     }
                     Err(err) => {
@@ -453,6 +446,12 @@ impl GameSession {
         let mut world = World::new(LEVEL_1)?;
         if let Some(data) = save {
             world.load_save(&data);
+        } else {
+            // New game: inherit character editor draft (menu customization).
+            let dc = save::load_draft_character();
+            let dp = save::load_draft_visual_profile(dc);
+            let _ = world.set_playable_character(0, dc);
+            let _ = world.set_visual_profile(0, dp);
         }
 
         let tiles = TileRenderer::new(world.level(), assets);
