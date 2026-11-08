@@ -103,6 +103,14 @@ impl App {
                 Scene::Menu(menu) => {
                     // Keep canvas stable (no black flashing) while DOM menu is shown.
                     draw_menu_canvas_background(self.time);
+                    if menu.current() == crate::menu::MenuScreen::Customize {
+                        draw_character_preview(
+                            &self.sprites,
+                            menu.draft_character,
+                            menu.draft_visual_profile,
+                            self.time,
+                        );
+                    }
                     match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                         Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
                         Some(MenuAction::Resume) => Transition::None,
@@ -124,13 +132,27 @@ impl App {
                     // Preview character in idle while customizing (rendered by WASM).
                     if menu.current() == crate::menu::MenuScreen::Customize {
                         let player = game
-                        .current
-                        .player()
-                        .and_then(|e| e.player.as_ref())
-                        .or_else(|| game.current.entities.iter().find_map(|e| e.player.as_ref()));
-                    if let Some(player) = player {
-                        draw_character_preview(&self.sprites, player, self.time);
-                    }
+                            .current
+                            .player()
+                            .and_then(|e| e.player.as_ref())
+                            .or_else(|| {
+                                game.current.entities.iter().find_map(|e| e.player.as_ref())
+                            });
+                        if let Some(player) = player {
+                            draw_character_preview(
+                                &self.sprites,
+                                player.character,
+                                player.visual_profile,
+                                self.time,
+                            );
+                        } else {
+                            draw_character_preview(
+                                &self.sprites,
+                                menu.draft_character,
+                                menu.draft_visual_profile,
+                                self.time,
+                            );
+                        }
                     }
                     match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                         Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
@@ -178,8 +200,18 @@ impl App {
         match transition {
             Transition::None => {}
             Transition::Start { slot, save } => {
+                let is_new_game = save.is_none();
                 match GameSession::new(slot, save, self.sprites.assets.clone(), self.i18n) {
-                    Ok(session) => self.scene = Scene::Game(Box::new(session)),
+                    Ok(mut session) => {
+                        // New games inherit the character editor draft; loaded saves keep their data.
+                        if is_new_game {
+                            let dc = save::load_draft_character();
+                            let dp = save::load_draft_visual_profile();
+                            let _ = session.world.set_playable_character(0, dc);
+                            let _ = session.world.set_visual_profile(0, dp);
+                        }
+                        self.scene = Scene::Game(Box::new(session));
+                    }
                     Err(err) => {
                         if let Scene::Menu(menu) = &mut self.scene {
                             menu.notify(format!("{}: {err}", self.i18n.t(Text::LevelLoadFailed)));
@@ -752,7 +784,8 @@ fn draw_menu_canvas_background(time: f32) {
 
 fn draw_character_preview(
     sprites: &Sprites,
-    player: &enzo_core::snapshot::PlayerSnapshot,
+    character: enzo_core::entities::PlayableCharacter,
+    profile: enzo_core::entities::VisualProfile,
     time: f32,
 ) {
     set_default_camera();
@@ -793,12 +826,12 @@ fn draw_character_preview(
         size,
     );
     let tint = WHITE;
-    match player.character {
+    match character {
         enzo_core::entities::PlayableCharacter::Valentina => {
-            sprites.draw_valentina_rig("idle", time, dest, false, tint, player.visual_profile);
+            sprites.draw_valentina_rig("idle", time, dest, false, tint, profile);
         }
         _ => {
-            sprites.draw_enzo_rig("idle", time, dest, false, tint, player.visual_profile);
+            sprites.draw_enzo_rig("idle", time, dest, false, tint, profile);
         }
     }
 }

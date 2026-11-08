@@ -72,7 +72,6 @@ const tabs = computed(() => [
   ["equipment", labels.value.equipment || "Equipment", false],
   ["skills", labels.value.skills || "Skills", false],
   ["items", labels.value.inventory || "Items", false],
-  ["customize", labels.value.customize || "Customize", false],
 ]);
 
 const SKIN_COLORS = ["#f2c9a0","#e3b07a","#f5d0b5","#c68642","#e8c39e","#d9a066","#f0c8a0","#b97a56"];

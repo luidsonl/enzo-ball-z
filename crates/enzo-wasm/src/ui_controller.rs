@@ -402,6 +402,44 @@ fn equip_slot_code(slot: EquipSlot) -> &'static str {
     }
 }
 
+fn draft_player_state(
+    character: enzo_core::entities::PlayableCharacter,
+    visual_profile: enzo_core::entities::VisualProfile,
+) -> UiPlayerState {
+    UiPlayerState {
+        character: format!("{:?}", character),
+        character_code: character.code(),
+        visual_profile: UiVisualProfile {
+            skin_tone: visual_profile.skin_tone,
+            hair_style: visual_profile.hair_style,
+            hair_color: visual_profile.hair_color,
+            face: visual_profile.face,
+            outfit_top: visual_profile.outfit_top,
+            outfit_bottom: visual_profile.outfit_bottom,
+            shoes: visual_profile.shoes,
+        },
+        health: 100.0,
+        max_health: 100.0,
+        aura: 100.0,
+        max_aura: 100.0,
+        level: 1,
+        xp: 0.0,
+        xp_to_next: 0.0,
+        points: 0,
+        pending_level_up: false,
+        attributes: UiAttributes {
+            speed: 0,
+            strength: 0,
+            health: 0,
+            aura: 0,
+        },
+        slots: Vec::new(),
+        catalog: Vec::new(),
+        equipment_slots: Vec::new(),
+        inventory: Vec::new(),
+    }
+}
+
 fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
     let p = entity.player.as_ref()?;
     let slots = p
@@ -501,7 +539,7 @@ pub fn build_state(
     i18n: I18n,
     game_toast: Option<&str>,
 ) -> UiState {
-    let (phase, player) = if let Some(snapshot) = snapshot {
+    let (phase, mut player) = if let Some(snapshot) = snapshot {
         (
             Some(format!("{:?}", snapshot.phase)),
             snapshot.player().and_then(|e| player_state(e, i18n)),
@@ -509,6 +547,14 @@ pub fn build_state(
     } else {
         (None, None)
     };
+    if player.is_none() {
+        if let Some(menu) = menu {
+            player = Some(draft_player_state(
+                menu.draft_character,
+                menu.draft_visual_profile,
+            ));
+        }
+    }
     UiState {
         scene: scene.to_owned(),
         phase,
@@ -552,6 +598,9 @@ pub fn apply_menu_action(
         }
         UiAction::MenuOpenSaves
         | UiAction::MenuOpenOptions
+        | UiAction::MenuOpenCustomize
+        | UiAction::SetPlayableCharacter { .. }
+        | UiAction::SetVisualProfileField { .. }
         | UiAction::MenuStart { .. }
         | UiAction::MenuResume
         | UiAction::MenuRequestDelete { .. }

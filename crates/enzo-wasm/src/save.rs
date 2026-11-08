@@ -200,6 +200,35 @@ fn remove_key(key: &str) -> Result<(), String> {
     Ok(())
 }
 
+const DRAFT_CHARACTER_KEY: &str = "enzoballz.draft_character";
+const DRAFT_VISUAL_PROFILE_KEY: &str = "enzoballz.draft_visual_profile";
+
+pub fn load_draft_character() -> enzo_core::entities::PlayableCharacter {
+    read_key(DRAFT_CHARACTER_KEY)
+        .and_then(|raw| raw.trim().parse::<u8>().ok())
+        .and_then(enzo_core::entities::PlayableCharacter::from_code)
+        .unwrap_or_default()
+}
+
+pub fn store_draft_character(
+    character: enzo_core::entities::PlayableCharacter,
+) -> Result<(), String> {
+    write_key(DRAFT_CHARACTER_KEY, &character.code().to_string())
+}
+
+pub fn load_draft_visual_profile() -> enzo_core::entities::VisualProfile {
+    read_key(DRAFT_VISUAL_PROFILE_KEY)
+        .and_then(|raw| serde_json::from_str::<enzo_core::entities::VisualProfile>(&raw).ok())
+        .unwrap_or_default()
+}
+
+pub fn store_draft_visual_profile(
+    profile: enzo_core::entities::VisualProfile,
+) -> Result<(), String> {
+    let raw = serde_json::to_string(&profile).map_err(|err| err.to_string())?;
+    write_key(DRAFT_VISUAL_PROFILE_KEY, &raw)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

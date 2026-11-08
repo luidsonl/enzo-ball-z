@@ -54,6 +54,10 @@ pub struct Menu {
     pub has_background_game: bool,
     pub(super) toast: Option<(String, f32)>,
     time: f32,
+    /// Draft character customization used when no saved game is active.
+    /// Persisted separately so the character editor works from the main menu.
+    pub draft_character: enzo_core::entities::PlayableCharacter,
+    pub draft_visual_profile: enzo_core::entities::VisualProfile,
 }
 
 impl Menu {
@@ -65,6 +69,8 @@ impl Menu {
             has_background_game: false,
             toast: None,
             time: 0.0,
+            draft_character: save::load_draft_character(),
+            draft_visual_profile: save::load_draft_visual_profile(),
         }
     }
 
@@ -185,6 +191,22 @@ impl Menu {
                 let scale = (percent as f32 / 100.0).clamp(0.75, 2.0);
                 crate::ui::set_interface_scale(scale);
                 let _ = save::store_interface_scale(scale);
+                None
+            }
+            UiAction::SetPlayableCharacter { character } => {
+                if let Some(c) = enzo_core::entities::PlayableCharacter::from_code(character) {
+                    self.draft_character = c;
+                    if let Err(err) = save::store_draft_character(c) {
+                        self.toast = Some((format!("{}: {err}", i18n.t(Text::SaveFailed)), 2.4));
+                    }
+                }
+                None
+            }
+            UiAction::SetVisualProfileField { field, value } => {
+                self.draft_visual_profile = self.draft_visual_profile.with_field(field, value);
+                if let Err(err) = save::store_draft_visual_profile(self.draft_visual_profile) {
+                    self.toast = Some((format!("{}: {err}", i18n.t(Text::SaveFailed)), 2.4));
+                }
                 None
             }
             _ => None,
@@ -371,6 +393,8 @@ mod tests {
             has_background_game: false,
             toast: None,
             time: 0.0,
+            draft_character: Default::default(),
+            draft_visual_profile: Default::default(),
         }
     }
 

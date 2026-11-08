@@ -189,7 +189,7 @@ function isSelectedColor(fieldKey, value) {
             </div>
           </div>
 
-          <p v-else class="dom-subtitle">{{ labels.customize_no_player || 'Start or load a game to edit the character. The WASM preview appears when a character is active.' }}</p>
+          <p v-else class="dom-subtitle">{{ labels.customize_no_player || 'Character editor unavailable.' }}</p>
 
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
             {{ labels.back }}
