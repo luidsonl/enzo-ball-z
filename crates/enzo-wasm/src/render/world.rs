@@ -61,7 +61,8 @@ fn draw_flag(sprites: &Sprites, snapshot: &WorldSnapshot, time: f32) {
         26.0 + pulse * 5.0,
         Color::from_rgba(246, 196, 69, 22),
     );
-    sprites.draw_flag(Rect::new(flag.x - 5.0, flag.y - 1.0, 32.0, 64.0), WHITE);
+    // Flag visual is rendered as 2 map blocks (flag_bottom + flag_top).
+    let _ = sprites;
 }
 
 fn draw_items(

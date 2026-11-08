@@ -20,7 +20,6 @@ pub const ACTOR_CELL: f32 = 32.0;
 pub const ITEM_WORLD_SIZE: f32 = 16.0;
 
 pub const TILES_SHEET_PATH: &str = "assets/blocks/tiles.png";
-pub const FLAG_PATH: &str = "assets/props/flag/flag.png";
 pub const SLIME_SHEET_PATH: &str = "assets/entities/slime/sheet.png";
 
 /// Skill effect asset paths (new modular system).
@@ -50,6 +49,11 @@ pub mod tile {
     pub const CRATE: usize = 4;
     pub const CRATE_DAMAGED_1: usize = 5;
     pub const CRATE_DAMAGED_2: usize = 6;
+    pub const FLAG_BOTTOM: usize = 7;
+    pub const FLAG_TOP: usize = 8;
+    pub const BREAKABLE_STONE: usize = 9;
+    pub const BREAKABLE_STONE_DAMAGED_1: usize = 10;
+    pub const BREAKABLE_STONE_DAMAGED_2: usize = 11;
 }
 
 #[derive(Clone)]
@@ -84,7 +88,6 @@ impl Sprites {
         let assets = AssetStore::new();
         // Pre-request critical map assets; downloads are pumped asynchronously.
         assets.request(TILES_SHEET_PATH.to_owned());
-        assets.request(FLAG_PATH.to_owned());
         Self {
             assets,
             enzo_rig: RefCell::new(LazyRig::new("enzo")),
@@ -205,23 +208,10 @@ impl Sprites {
         );
     }
 
-    pub fn draw_flag(&self, dest: Rect, tint: Color) {
-        if !draw_lazy(&self.assets, FLAG_PATH, None, dest, false, tint) {
-            draw_rectangle(
-                dest.x + dest.w * 0.1,
-                dest.y,
-                dest.w * 0.12,
-                dest.h,
-                Color::from_rgba(90, 70, 50, 220),
-            );
-            let wave = (get_time() as f32 * 3.0).sin() * 2.0;
-            draw_triangle(
-                vec2(dest.x + dest.w * 0.22, dest.y + 4.0),
-                vec2(dest.x + dest.w * 0.95, dest.y + dest.h * 0.22 + wave),
-                vec2(dest.x + dest.w * 0.22, dest.y + dest.h * 0.42),
-                Color::from_rgba(246, 196, 69, 230),
-            );
-        }
+    /// Flag visuals are rendered as 2 map blocks (flag_bottom/flag_top). Keep a glow.
+    pub fn draw_flag(&self, _dest: Rect, _tint: Color) {
+        // no-op: blocks are in the tilemap; world draws pulse using snapshot rect.
+        let _ = self;
     }
 
     pub fn draw_item_world(&self, kind: ItemKind, dest: Rect, tint: Color) {

@@ -138,10 +138,23 @@ fn build_chunk(level: &Level, cx: usize, cy: usize, texture: &Texture2D, atlas: 
                         _ => sprites::tile::CRATE_DAMAGED_2,
                     }
                 }
+                RenderKind::FlagBottom => sprites::tile::FLAG_BOTTOM,
+                RenderKind::FlagTop => sprites::tile::FLAG_TOP,
+                RenderKind::BreakableStone => {
+                    let damage = if tx >= 0 && ty >= 0 {
+                        level.block_damage(tx as usize, ty as usize)
+                    } else {
+                        0
+                    };
+                    match damage {
+                        0 => sprites::tile::BREAKABLE_STONE,
+                        1 => sprites::tile::BREAKABLE_STONE_DAMAGED_1,
+                        _ => sprites::tile::BREAKABLE_STONE_DAMAGED_2,
+                    }
+                }
                 // Placeholders until dedicated sprites are generated via pixel-forge.
                 RenderKind::Water => sprites::tile::PLATFORM,
                 RenderKind::Ladder => sprites::tile::BLOCK,
-                RenderKind::Flag => sprites::tile::BLOCK,
             };
             push_tile(&mut vertices, &mut indices, tx, ty, frame, atlas);
         }
