@@ -3,81 +3,123 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EnzoBallZ Map Editor (Block ID)</title>
+  <title>EnzoBallZ Map Editor</title>
   <style>
-    :root { --bg:#12141a; --panel:#1b2030; --ink:#e8eefc; --muted:#9fb0d0; --accent:#5ef2ff; }
+    :root { --bg:#12141a; --panel:#1b2030; --ink:#e8eefc; --muted:#9fb0d0; --accent:#5ef2ff; --danger:#ff8a8a; }
     * { box-sizing: border-box; }
-    body { margin:0; font:14px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--ink); display:grid; grid-template-columns: 320px 1fr; min-height:100vh; }
+    body { margin:0; font:13px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--ink); display:grid; grid-template-columns: 340px 1fr; min-height:100vh; }
     aside { background:var(--panel); padding:12px; overflow:auto; border-right:1px solid #2a3350; }
     main { padding:12px; overflow:auto; }
     h1 { font-size:16px; margin:0 0 8px; }
-    h2 { font-size:13px; margin:12px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    h2 { font-size:12px; margin:12px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
     .row { display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
-    label { color:var(--muted); font-size:12px; }
+    label { color:var(--muted); font-size:12px; display:flex; gap:6px; align-items:center; }
     input, select, button, textarea { background:#0f1320; color:var(--ink); border:1px solid #334; border-radius:6px; padding:6px 8px; font:inherit; }
+    input[type=text], input[type=number], select { width:100%; }
     button { cursor:pointer; } button:hover { border-color:var(--accent); }
     button.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
-    #palette { display:grid; grid-template-columns: 1fr; gap:6px; }
-    .block-btn { text-align:left; display:flex; gap:8px; align-items:center; }
+    #palette { display:grid; grid-template-columns: 1fr; gap:6px; max-height:220px; overflow:auto; }
+    .block-btn { text-align:left; display:flex; gap:8px; align-items:center; width:100%; }
     .swatch { width:18px; height:18px; border-radius:4px; border:1px solid #0006; flex:0 0 auto; }
     .meta { font-size:11px; color:var(--muted); }
     canvas { background:#0b1020; image-rendering:pixelated; border:1px solid #334; cursor:crosshair; max-width:100%; }
-    textarea { width:100%; min-height:140px; font:12px/1.3 ui-monospace, monospace; }
+    textarea { width:100%; min-height:160px; font:12px/1.3 ui-monospace, monospace; }
     .hint { color:var(--muted); font-size:12px; margin:6px 0; }
-    .tools button { min-width:72px; }
+    .tools button { min-width:64px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .legend-box { background:#0f1320; border:1px solid #334; border-radius:6px; padding:8px; max-height:180px; overflow:auto; font:12px ui-monospace, monospace; white-space:pre-wrap; }
   </style>
 </head>
 <body>
   <aside>
     <h1>Map Editor</h1>
-    <div class="hint">Framework-aligned: blocks are incorporated by <b>ID</b> from <code>assets/definitions/generated/blocks.json</code>.</div>
+    <div class="hint">New map format: metadata + <code>[legend]</code> (block/enemy IDs) + <code>[map]</code>. Framework-aligned with block IDs.</div>
+
+    <h2>Metadata</h2>
+    <div class="grid2">
+      <label style="flex-direction:column;align-items:stretch">Name<input id="meta-name" type="text" value="Level 1"></label>
+      <label style="flex-direction:column;align-items:stretch">Stage<input id="meta-stage" type="number" min="1" value="1"></label>
+    </div>
+    <div class="grid2">
+      <label style="flex-direction:column;align-items:stretch">World<input id="meta-world" type="text" value="green_hills"></label>
+      <label style="flex-direction:column;align-items:stretch">Background<input id="meta-bg" type="text" value="hills_day"></label>
+    </div>
     <div class="row">
       <label>W <input id="w" type="number" min="1" max="400" value="60" style="width:72px"></label>
       <label>H <input id="h" type="number" min="1" max="200" value="18" style="width:72px"></label>
       <button id="resize">Resize</button>
     </div>
+
     <h2>Tools</h2>
     <div class="row tools">
       <button id="tool-paint" class="active">Paint</button>
       <button id="tool-erase">Erase</button>
       <button id="tool-spawn">Spawn P</button>
-      <button id="tool-enemy">Enemy E</button>
+      <button id="tool-enemy">Enemy</button>
       <button id="tool-flag">Flag F</button>
     </div>
+    <div class="row">
+      <label style="flex:1">Enemy ID<select id="enemy-kind"><option value="slime">slime</option></select></label>
+    </div>
+
     <h2>Blocks (by ID)</h2>
     <div id="palette">Loading block definitions…</div>
     <h2>Selected</h2>
     <div id="selected" class="meta">none</div>
+
+    <h2>Legend Preview</h2>
+    <div id="legend-preview" class="legend-box"></div>
+
     <h2>Export / Import</h2>
     <div class="row">
+      <button id="export-txt">Export TXT</button>
       <button id="export-json">Export JSON</button>
-      <button id="export-ascii">Export ASCII</button>
-      <button id="import-json">Import JSON</button>
+      <button id="import">Import (TXT/JSON)</button>
     </div>
-    <textarea id="io" spellcheck="false" placeholder="JSON or ASCII export appears here"></textarea>
-    <div class="hint">JSON uses block IDs/names (e.g. <code>ground</code>, <code>crate</code>). ASCII uses symbols for 1x1 blocks with symbols; markers: <code>P E F</code>.</div>
+    <textarea id="io" spellcheck="false" placeholder="Map TXT (metadata+[legend]+[map]) or JSON appears here"></textarea>
+    <div class="hint">TXT format: metadata, <code>[legend]</code> with <code>symbol = block:id</code> / <code>enemy:id</code> / markers, then <code>[map]</code> grid. Legacy ASCII grid import is supported.</div>
   </aside>
   <main>
     <canvas id="c" width="960" height="288"></canvas>
-    <div class="hint">Left click/drag paints. Right click erases. Coordinates are tile-based (32px conceptually; editor uses 16px cells).</div>
+    <div class="hint">Left click/drag paints. Right click erases. Flag is a 2-tile marker (bottom/top blocks placed by parser). 16px editor cells.</div>
   </main>
 <script>
 const CELL = 16;
-const COLORS = { empty:'#0b1020', ground:'#7a5230', block:'#8a8f9c', platform:'#caa45a', crate:'#b56a2b', water:'#3aa7ff', ladder:'#d8b070', flag:'#ffd84d' };
-const state = { w:60, h:18, cells:[], spawns:[], enemies:[], flag:null, blocks:[], selected:null, tool:'paint', down:false, erase:false };
+const COLORS = { empty:'#0b1020', ground:'#7a5230', block:'#8a8f9c', platform:'#caa45a', crate:'#b56a2b', flag_bottom:'#c9a227', flag_top:'#ffd84d', water:'#3aa7ff', ladder:'#d8b070' };
+const state = {
+  w:60, h:18, cells:[], spawns:[], enemies:[], flag:null,
+  blocks:[], selected:null, tool:'paint', down:false, erase:false,
+  meta: { name:'Level 1', world:'green_hills', background:'hills_day', stage:1 },
+};
 const $ = (id)=>document.getElementById(id);
 const canvas = $('c'), ctx = canvas.getContext('2d');
 
 function idx(x,y){ return y*state.w+x; }
 function inBounds(x,y){ return x>=0 && y>=0 && x<state.w && y<state.h; }
 function emptyGrid(){ state.cells = Array.from({length:state.w*state.h}, ()=> 'empty'); state.spawns=[]; state.enemies=[]; state.flag=null; }
-function colorFor(id){ return COLORS[id] || '#666'; }
+function colorFor(id){ return COLORS[id] || (id && id.startsWith('flag') ? '#ffd84d' : '#556'); }
+function enemyKind(){ return $('enemy-kind').value || 'slime'; }
+
+function readMetaFromUi(){
+  state.meta.name = $('meta-name').value || 'Level';
+  state.meta.world = $('meta-world').value || '';
+  state.meta.background = $('meta-bg').value || $('meta-background')?.value || '';
+  state.meta.stage = Math.max(1, parseInt($('meta-stage').value||'1',10)||1);
+}
+function writeMetaToUi(){
+  $('meta-name').value = state.meta.name || '';
+  $('meta-world').value = state.meta.world || '';
+  $('meta-bg').value = state.meta.background || '';
+  $('meta-stage').value = String(state.meta.stage || 1);
+}
 
 async function loadBlocks(){
   const res = await fetch('../../assets/definitions/generated/blocks.json');
   const data = await res.json();
-  state.blocks = (data.blocks||[]).filter(b => b.id !== 'empty');
+  const all = data.blocks || [];
+  state.blocks = all.filter(b => b.id !== 'empty' && b.symbol); // placeable by symbol in grid
   renderPalette();
+  renderLegendPreview();
   if (!state.selected && state.blocks[0]) selectBlock(state.blocks[0].id);
 }
 
@@ -86,28 +128,46 @@ function renderPalette(){
   for (const b of state.blocks) {
     const btn = document.createElement('button');
     btn.className = 'block-btn' + (state.selected===b.id?' active':'');
-    btn.innerHTML = `<span class="swatch" style="background:${colorFor(b.id)}"></span><span><div><b>${b.id}</b> ${b.symbol?`(<code>${b.symbol}</code>)`:''}</div><div class="meta">${b.width}x${b.height} · ${b.collision} · ${b.resistance||b.special||''}</div></span>`;
+    btn.innerHTML = `<span class="swatch" style="background:${colorFor(b.id)}"></span><span><div><b>${b.id}</b> ${b.symbol?`(<code>${b.symbol}</code>)`:''}</div><div class="meta">${b.collision} · ${b.special||b.resistance||''}</div></span>`;
     btn.onclick = ()=>{ selectBlock(b.id); setTool('paint'); };
     root.appendChild(btn);
   }
 }
-function selectBlock(id){ state.selected=id; $('selected').textContent = id || 'none'; renderPalette(); }
+function selectBlock(id){ state.selected=id; $('selected').textContent = id || 'none'; renderPalette(); renderLegendPreview(); }
 function setTool(tool){ state.tool=tool; ['paint','erase','spawn','enemy','flag'].forEach(t=>$('tool-'+t).classList.toggle('active', t===tool)); }
 
 function resize(){
   state.w = Math.max(1, Math.min(400, +$('w').value||60));
   state.h = Math.max(1, Math.min(200, +$('h').value||18));
   canvas.width = state.w*CELL; canvas.height = state.h*CELL;
-  emptyGrid(); draw();
+  emptyGrid(); draw(); renderLegendPreview();
 }
 
+function removeEnemyAt(x,y){ state.enemies = state.enemies.filter(e => !(e[0]===x && e[1]===y)); }
 function apply(x,y){
   if (!inBounds(x,y)) return;
-  if (state.tool==='erase' || state.erase) { state.cells[idx(x,y)]='empty'; state.spawns=state.spawns.filter(p=>p[0]!==x||p[1]!==y); state.enemies=state.enemies.filter(p=>p[0]!==x||p[1]!==y); if(state.flag&&state.flag[0]===x&&state.flag[1]===y) state.flag=null; }
-  else if (state.tool==='spawn') { state.spawns = state.spawns.filter(p=>!(p[0]===x&&p[1]===y)); state.spawns.push([x,y]); state.cells[idx(x,y)]='empty'; }
-  else if (state.tool==='enemy') { state.enemies.push([x,y]); state.cells[idx(x,y)]='empty'; }
-  else if (state.tool==='flag') { state.flag=[x,y]; state.cells[idx(x,y)]='empty'; }
-  else if (state.tool==='paint' && state.selected) { state.cells[idx(x,y)] = state.selected; }
+  if (state.tool==='erase' || state.erase) {
+    state.cells[idx(x,y)]='empty';
+    state.spawns=state.spawns.filter(p=>p[0]!==x||p[1]!==y);
+    removeEnemyAt(x,y);
+    if(state.flag&&state.flag[0]===x&&state.flag[1]===y) state.flag=null;
+  } else if (state.tool==='spawn') {
+    state.spawns = state.spawns.filter(p=>!(p[0]===x&&p[1]===y));
+    state.spawns.push([x,y]); removeEnemyAt(x,y); state.cells[idx(x,y)]='empty';
+  } else if (state.tool==='enemy') {
+    removeEnemyAt(x,y);
+    state.enemies.push([x,y, enemyKind()]);
+    state.spawns = state.spawns.filter(p=>!(p[0]===x&&p[1]===y));
+    state.cells[idx(x,y)]='empty';
+  } else if (state.tool==='flag') {
+    state.flag=[x,y]; removeEnemyAt(x,y); state.cells[idx(x,y)]='empty';
+  } else if (state.tool==='paint' && state.selected) {
+    state.cells[idx(x,y)] = state.selected;
+    state.spawns = state.spawns.filter(p=>!(p[0]===x&&p[1]===y));
+    removeEnemyAt(x,y);
+    if(state.flag&&state.flag[0]===x&&state.flag[1]===y) state.flag=null;
+  }
+  renderLegendPreview();
 }
 
 function draw(){
@@ -118,9 +178,11 @@ function draw(){
     ctx.fillRect(x*CELL,y*CELL,CELL,CELL);
     ctx.strokeStyle = '#ffffff10'; ctx.strokeRect(x*CELL+.5,y*CELL+.5,CELL-1,CELL-1);
   }
-  ctx.fillStyle='#fff'; ctx.font='10px monospace';
+  // flag is 2 tiles tall in-game; show hint above marker
+  if(state.flag){ const [x,y]=state.flag; if(inBounds(x,y-1)){ ctx.strokeStyle='#ffd84d66'; ctx.strokeRect(x*CELL+1,(y-1)*CELL+1,CELL-2,CELL-2); } }
+  ctx.font='10px monospace';
   for(const [x,y] of state.spawns){ ctx.fillStyle='#7CFF7C'; ctx.fillText('P', x*CELL+4, y*CELL+12); }
-  for(const [x,y] of state.enemies){ ctx.fillStyle='#ff8a8a'; ctx.fillText('E', x*CELL+4, y*CELL+12); }
+  for(const e of state.enemies){ const [x,y,k]=e; ctx.fillStyle='#ff8a8a'; ctx.fillText((k&&k[0]?k[0]:'E').toUpperCase(), x*CELL+4, y*CELL+12); }
   if(state.flag){ const [x,y]=state.flag; ctx.fillStyle='#ffd84d'; ctx.fillText('F', x*CELL+4, y*CELL+12); }
 }
 
@@ -130,71 +192,217 @@ window.addEventListener('mouseup', ()=>{ state.down=false; state.erase=false; })
 canvas.addEventListener('mousemove', ev=>{ if(!state.down) return; const [x,y]=pos(ev); apply(x,y); draw(); });
 canvas.addEventListener('contextmenu', ev=>ev.preventDefault());
 
+function symbolFor(id){ const b = state.blocks.find(x=>x.id===id); return b && b.symbol ? b.symbol : (id==='empty'?'.':null); }
+function blockBySymbol(sym){ return state.blocks.find(b=>b.symbol===sym); }
+function usedEnemyKinds(){ const s=new Set(['slime']); for(const e of state.enemies) if(e[2]) s.add(e[2]); return [...s]; }
+
+function buildLegend(){
+  // deterministic symbol assignment for enemy kinds beyond the default 'E'->first.
+  const enemySyms = ['E','S','M','G','R','T','K'];
+  const kinds = usedEnemyKinds();
+  const enemyMap = {};
+  kinds.forEach((k,i)=> enemyMap[k] = enemySyms[i] || enemySyms[0]);
+  if (!enemyMap.slime) enemyMap.slime = 'E';
+  const lines = [];
+  lines.push('. = block:empty');
+  for(const b of state.blocks){ if(b.symbol) lines.push(`${b.symbol} = block:${b.id}`); }
+  lines.push('P = marker:player');
+  for(const [kind,sym] of Object.entries(enemyMap)) lines.push(`${sym} = enemy:${kind}`);
+  lines.push('F = marker:flag');
+  return { text: lines.join('\n'), enemyMap };
+}
+function renderLegendPreview(){ $('legend-preview').textContent = buildLegend().text; }
+
+function buildGrid(legend){
+  const invEnemy = {};
+  for(const [kind,sym] of Object.entries(legend.enemyMap)) invEnemy[kind]=sym;
+  const grid = Array.from({length:state.h}, (_,y)=> Array.from({length:state.w},(_,x)=> {
+    const sym = symbolFor(state.cells[idx(x,y)]||'empty');
+    return sym || '?';
+  }));
+  for(const e of state.enemies){ const [x,y,k]=e; if(inBounds(x,y)) grid[y][x]=invEnemy[k||'slime']||'E'; }
+  if(state.flag && inBounds(state.flag[0],state.flag[1])) grid[state.flag[1]][state.flag[0]]='F';
+  for(const [x,y] of state.spawns) if(inBounds(x,y)) grid[y][x]='P';
+  return grid.map(r=>r.join('')).join('\n');
+}
+
+function exportTxt(){
+  readMetaFromUi();
+  if (!state.spawns.length) { $('io').value = '# error: add at least one Spawn (P)\n'; return; }
+  const legend = buildLegend();
+  $('io').value = [
+    `name: ${state.meta.name}`,
+    `world: ${state.meta.world}`,
+    `background: ${state.meta.background}`,
+    `stage: ${state.meta.stage}`,
+    '',
+    '[legend]',
+    legend.text,
+    '',
+    '[map]',
+    buildGrid(legend),
+    ''
+  ].join('\n');
+  renderLegendPreview();
+}
+
 function exportJson(){
+  readMetaFromUi();
   if (!state.spawns.length) {
     $('io').value = JSON.stringify({ error: 'Add at least one Spawn (P) before exporting a playable map.' }, null, 2);
     return;
   }
-  const data = { version:1, format:'block-id-grid', width:state.w, height:state.h, cells:state.cells, spawns:state.spawns, enemies:state.enemies, flag:state.flag, contract:'assets/definitions/generated/blocks.json' };
-  $('io').value = JSON.stringify(data, null, 2);
+  $('io').value = JSON.stringify({
+    version:2, format:'enzo-map',
+    metadata: state.meta,
+    width:state.w, height:state.h,
+    cells:state.cells,
+    spawns:state.spawns,
+    enemies:state.enemies,
+    flag:state.flag,
+    legend: buildLegend().text,
+    contract:'assets/definitions/generated/blocks.json',
+  }, null, 2);
 }
-function symbolFor(id){ const b = state.blocks.find(x=>x.id===id); return b && b.symbol ? b.symbol : (id==='empty'?'.':'?'); }
-function exportAscii(){
-  const grid = Array.from({length:state.h}, (_,y)=> Array.from({length:state.w},(_,x)=> symbolFor(state.cells[idx(x,y)]||'empty')));
-  for(const [x,y] of state.enemies) if(inBounds(x,y)) grid[y][x]='E';
-  if(state.flag && inBounds(state.flag[0],state.flag[1])) grid[state.flag[1]][state.flag[0]]='F';
-  for(const [x,y] of state.spawns) if(inBounds(x,y)) grid[y][x]='P';
-  $('io').value = grid.map(r=>r.join('')).join('\n');
-}
-function clampInt(v, min, max, fallback){
-  const n = Number.parseInt(v, 10);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}
-function normalizeMarkers(markers, w, h){
+
+function clampInt(v, min, max, fallback){ const n=Number.parseInt(v,10); return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback; }
+function normalizeMarkers(markers, w, h, withKind=false){
   if (!Array.isArray(markers)) return [];
   const out = [];
   for (const m of markers) {
     if (!Array.isArray(m) || m.length < 2) continue;
-    const x = clampInt(m[0], 0, w - 1, -1), y = clampInt(m[1], 0, h - 1, -1);
-    if (x >= 0 && y >= 0) out.push([x, y]);
+    const x=clampInt(m[0],0,w-1,-1), y=clampInt(m[1],0,h-1,-1);
+    if (x<0||y<0) continue;
+    if (withKind) out.push([x,y, typeof m[2]==='string'&&m[2]?m[2]:'slime']);
+    else out.push([x,y]);
   }
   return out;
 }
-function importJson(){
-  try{
-    const data = JSON.parse($('io').value);
-    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected a JSON object.');
-    state.w = clampInt(data.width, 1, 400, state.w);
-    state.h = clampInt(data.height, 1, 200, state.h);
-    $('w').value=state.w; $('h').value=state.h;
-    canvas.width=state.w*CELL; canvas.height=state.h*CELL;
-    const total = state.w * state.h;
-    state.cells = Array.isArray(data.cells)
-      ? Array.from({length: total}, (_, i) => typeof data.cells[i] === 'string' ? data.cells[i] : 'empty')
-      : Array.from({length: total}, ()=>'empty');
-    state.spawns = normalizeMarkers(data.spawns, state.w, state.h);
-    state.enemies = normalizeMarkers(data.enemies, state.w, state.h);
-    if (Array.isArray(data.flag) && data.flag.length >= 2) {
-      const fx = clampInt(data.flag[0], 0, state.w - 1, -1), fy = clampInt(data.flag[1], 0, state.h - 1, -1);
-      state.flag = (fx >= 0 && fy >= 0) ? [fx, fy] : null;
-    } else state.flag = null;
-    draw();
-  }catch(e){ alert('Invalid JSON: '+e.message); }
+
+function parseTxtMap(text){
+  const src = text.replace(/\r\n/g,'\n');
+  const hasNew = /\[map\]|\[legend\]/i.test(src) || /^(name|world|background|stage|level)\s*:/im.test(src);
+  let metadata = { name:'Level', world:'', background:'', stage:1 };
+  let legendMap = {}; // symbol -> {type,id}
+  let gridText = src;
+  if (hasNew) {
+    let section = 'metadata';
+    const grid = [];
+    for (const raw of src.split('\n')) {
+      const line = raw.trimEnd();
+      const t = line.trim();
+      const low = t.toLowerCase();
+      if (low==='[legend]'){ section='legend'; continue; }
+      if (low==='[map]'||low==='[grid]'){ section='map'; continue; }
+      if (low==='[metadata]'){ section='metadata'; continue; }
+      if (section !== 'map' && (!t || t.startsWith('#'))) continue;
+      if (section==='metadata') {
+        const m = t.match(/^([^:]+):\s*(.*)$/);
+        if (m) {
+          const k=m[1].trim().toLowerCase(), v=m[2].trim();
+          if (k==='name'||k==='title') metadata.name=v;
+          else if (k==='world') metadata.world=v;
+          else if (k==='background'||k==='bg') metadata.background=v;
+          else if (k==='stage'||k==='level') metadata.stage=parseInt(v,10)||1;
+        }
+      } else if (section==='legend') {
+        const m = t.match(/^(.+?)\s*=\s*(.+)$/);
+        if (m) {
+          const sym = m[1].trim()[0];
+          const val = m[2].trim();
+          const mm = val.match(/^([^:]+):\s*(.*)$/);
+          legendMap[sym] = mm ? {type:mm[1].trim(), id:mm[2].trim()} : {type:'block', id:val};
+        }
+      } else if (section==='map') {
+        grid.push(line);
+      }
+    }
+    // if no [map] section found but structured header existed, treat remaining as legacy-ish
+    if (!grid.length && !/\[map\]/i.test(src)) {
+      // fallback: find first grid-like block after legend/metadata
+      const lines = src.split('\n');
+      let seenLegend=false, started=false;
+      for(const l of lines){ const t=l.trim().toLowerCase(); if(t==='[legend]') seenLegend=true; if(seenLegend && !t.startsWith('[') && t && !t.includes('=') && !t.includes(':')) { started=true; grid.push(l); } else if(started && t) grid.push(l); else if(started && !t) break; }
+    }
+    gridText = grid.join('\n');
+  }
+  const lines = gridText.replace(/\n+$/,'').split('\n');
+  const h = lines.length || 1;
+  const w = Math.max(1, ...lines.map(l=>l.length));
+  const cells = Array.from({length:w*h}, ()=>'empty');
+  const spawns=[], enemies=[]; let flag=null;
+  const symToEnemy = {};
+  for(const [sym,v] of Object.entries(legendMap)) if(v.type==='enemy') symToEnemy[sym]=v.id||'slime';
+  for(let y=0;y<h;y++){
+    const row = (lines[y]||'').padEnd(w,'.');
+    for(let x=0;x<w;x++){
+      const ch = row[x];
+      if (ch==='P') { spawns.push([x,y]); continue; }
+      if (ch==='F') { flag=[x,y]; continue; }
+      const lv = legendMap[ch];
+      if (lv && lv.type==='enemy') { enemies.push([x,y, lv.id||'slime']); continue; }
+      if (lv && lv.type==='marker' && (lv.id==='player')) { spawns.push([x,y]); continue; }
+      if (lv && lv.type==='marker' && (lv.id==='flag')) { flag=[x,y]; continue; }
+      if (symToEnemy[ch]) { enemies.push([x,y,symToEnemy[ch]]); continue; }
+      if (ch==='E') { enemies.push([x,y,'slime']); continue; }
+      if (lv && lv.type==='block') { cells[idx2(x,y,w)] = lv.id||'empty'; continue; }
+      const b = blockBySymbol(ch);
+      if (b) cells[idx2(x,y,w)] = b.id;
+      else if (ch!=='.') {
+        // unknown treated as empty
+      }
+    }
+  }
+  return { metadata, w, h, cells, spawns, enemies, flag };
+}
+function idx2(x,y,w){ return y*w+x; }
+
+function importAny(){
+  const text = $('io').value || '';
+  try {
+    const t = text.trim();
+    if (t.startsWith('{')) {
+      const data = JSON.parse(text);
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected a JSON object.');
+      state.meta = { name: data.metadata?.name || 'Level', world: data.metadata?.world||'', background: data.metadata?.background||'', stage: data.metadata?.stage||1 };
+      state.w = clampInt(data.width, 1, 400, state.w);
+      state.h = clampInt(data.height, 1, 200, state.h);
+      $('w').value=state.w; $('h').value=state.h;
+      canvas.width=state.w*CELL; canvas.height=state.h*CELL;
+      const total = state.w * state.h;
+      state.cells = Array.isArray(data.cells)
+        ? Array.from({length: total}, (_, i) => typeof data.cells[i] === 'string' ? data.cells[i] : 'empty')
+        : Array.from({length: total}, ()=>'empty');
+      state.spawns = normalizeMarkers(data.spawns, state.w, state.h);
+      state.enemies = normalizeMarkers(data.enemies, state.w, state.h, true);
+      if (Array.isArray(data.flag) && data.flag.length >= 2) {
+        const fx=clampInt(data.flag[0],0,state.w-1,-1), fy=clampInt(data.flag[1],0,state.h-1,-1);
+        state.flag = (fx>=0&&fy>=0)?[fx,fy]:null;
+      } else state.flag=null;
+    } else {
+      const r = parseTxtMap(text);
+      state.meta = r.metadata; state.w=r.w; state.h=r.h; state.cells=r.cells;
+      state.spawns=r.spawns; state.enemies=r.enemies; state.flag=r.flag;
+      $('w').value=state.w; $('h').value=state.h;
+      canvas.width=state.w*CELL; canvas.height=state.h*CELL;
+    }
+    writeMetaToUi(); draw(); renderLegendPreview();
+  } catch(e){ alert('Invalid map: '+e.message); }
 }
 
-$('resize').onclick=resize;
+$('resize').onclick=()=>{ readMetaFromUi(); resize(); };
 $('tool-paint').onclick=()=>setTool('paint');
 $('tool-erase').onclick=()=>setTool('erase');
 $('tool-spawn').onclick=()=>setTool('spawn');
 $('tool-enemy').onclick=()=>setTool('enemy');
 $('tool-flag').onclick=()=>setTool('flag');
+$('export-txt').onclick=exportTxt;
 $('export-json').onclick=exportJson;
-$('export-ascii').onclick=exportAscii;
-$('import-json').onclick=importJson;
+$('import').onclick=importAny;
+['meta-name','meta-world','meta-bg','meta-stage'].forEach(id=>$(id).addEventListener('change', ()=>{ readMetaFromUi(); renderLegendPreview(); }));
 
 resize();
-loadBlocks().catch(e=>{ $('palette').textContent='Failed to load blocks.json: '+e.message; });
+loadBlocks().catch(e=>{ $('palette').textContent='Failed to load blocks.json: '+e.message; renderLegendPreview(); });
 </script>
 </body>
 </html>
