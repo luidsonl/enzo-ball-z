@@ -24,7 +24,9 @@
 | Functional loadout-editing UI | **Partial** | DOM HUD/Skills panel can select a slot and assign/clear **unlocked** skills via `loadoutAssign`/`loadoutClear` (core-authoritative). Full UX remains pending: requirement lock reasons/toasts in editor, swap/move clarity in all flows, polish, and pause/loadout-edit flow integration. |
 | `KeyBindings` persistence + rebind UI | **Not done** | Defaults are hardcoded; no `enzoballz.bindings.v1` model/UI yet. |
 | HTML/mobile/DOM bridge (`UiState`, exports, touch) | **Partial** | Implemented in parts: Rust `ui_bridge`/`ui_controller` export `UiState` JSON and semantic actions (`enzo_ui_action`, `enzo_loadout_assign/clear`, `enzo_action_down/up`); `web/ui/*` renders DOM menus, HUD tabs/panels (Status point distribution, Skills, Equipment, Items), and mobile controls. Remaining/planned: full HTML-bridge packaging as originally scoped, broader touch UX polish, and eventual migration of DOM UI implementation to Vue/Vite if adopted. |
-| Placeholder skills finalized (`NutellaShot`, `Shout`) | **Partial** | Modules/placeholders exist; balance, visuals, and gameplay integration need refinement. |
+| Placeholder skills finalized (`NutellaShot`, `Shout`, `Kick`) | **Partial / Planned** | `NutellaShot`/`Shout` placeholders exist; **Kick** is a planned new slot skill. Balance, ranges, visuals, particles, icons, and gameplay integration need implementation/refinement. |
+| Crouch mechanic + new combat animations | **Planned** | Add crouch mechanic (not a skill slot) with crouch animation frames and body/collision height halved while crouching; add shout and kick animation frames and wire combat animations (including Mogging triggering punch animation). |
+| Unified stat/damage rebalancing (Ego as intelligence) | **Planned** | Keep/clarify **Ego** as intelligence status attribute (Aura = mana). Rebalance scale so base health/aura `100 -> 10` and equalize point effects with damage/aura/health values; Slime contact damage target `2–4`; rebalance melee/skill damage and aura costs accordingly. |
 | Expanded slot/loadout/save/determinism scenario tests | **Partial** | Core tests pass; targeted slot/loadout/cooldown/lock/save migration scenario coverage should be expanded (see plan). |
 
 ## 1. Why refactor
@@ -454,14 +456,17 @@ sequence at the same tick boundaries.
 
 ### 6.1 `SkillId`
 
-`SkillId` is the stable identity of an equippable skill. Walking and SixSeven
-are **not** `SkillId`s.
+`SkillId` is the stable identity of an equippable skill. Walking, SixSeven, and
+crouch are **not** `SkillId`s (mechanics outside slots).
 
 - `SkillId` uses stable `snake_case` in serialization.
 - `ALL` order is iteration/cooldown order; a test should guarantee
   `ALL[i].index() == i`.
 - `SkillId` is append-only at the end to avoid breaking saves/snapshots.
   Removing or reordering requires migration.
+- **Planned:** add `Kick` as a new slotted skill (`snake_case` id appended per
+  append-only rule) and promote `Shout` from placeholder to a fully implemented
+  ranged skill. Crouch remains a mechanic (no `SkillId`, no slot).
 
 ### 6.2 `SkillDef`
 
@@ -510,14 +515,26 @@ Module rules:
 | Melee (`Melee`) | Attack | Press | playable, level 1 | 0 | combo window | Post-physics | Implemented (core) |
 | Mogging (`Mogging`) | Attack | Press | playable, level 1 | 25 | 0.35 s | Post-physics | Implemented (core) |
 | Nutella Shot (`NutellaShot`) | Attack | Press | playable, level 1, `NUTELLA_GUN` | 0 | 0.25 s | Post-physics | Placeholder (core) |
-| Shout (`Shout`) | Utility | Press | playable, level 1 | 10 | 2.0 s | Post-physics | Placeholder (core) |
+| Shout (`Shout`) | Utility | Press | playable, level 1 | TBD (aura) | TBD | Post-physics | Planned/Placeholder |
+| Kick (`Kick`) | Attack | Press | playable, level 1 (TBD) | TBD | TBD | Post-physics | Planned |
 
 Notes:
 
-- Nutella Shot/Shout numbers are placeholders; balancing comes later.
+- Nutella Shot/Shout/Kick numbers are placeholders; balancing comes later and
+  must follow the planned unified stat/damage rebalance.
 - `Melee` is the current “punch” (3-hit combo). Internal name remains `Melee`;
   UI may display “Punch”.
 - `Fly` uses `move_y`; it does not need a separate action beyond the slot.
+- **Crouch** is a mechanic outside skill slots (down intent + grounded state as
+  implemented), not a `SkillId`. While crouching, character height/collision body
+  becomes half and crouch animation frames are used.
+- **Mogging (planned animation change):** firing Mogging should also trigger the
+  character punch animation.
+- **Shout (planned):** must have a defined range, play shout animation frames,
+  emit particles/effects in addition to character animation, and have a dedicated
+  icon and modular assets.
+- **Kick (planned):** must have a defined range, play kick animation frames, and
+  have a dedicated icon and modular assets.
 - `SixSeven` is not a slot skill; it remains in `mechanics/sixseven.rs`.
 
 ### 6.4 Runtime state
@@ -941,7 +958,52 @@ crates/enzo-wasm/src/
 | 10 | `feat(assets): generate skill icons and effects` | `gen-sprites.mjs`, assets, existence test | **Not done** |
 | 11 | `test(core): cover slot swaps and requirement changes` | level-up/item/cooldown scenarios + determinism | **Partial** |
 
-## 12. Risks and open decisions
+## 12. Planned additions (documented before implementation)
+
+### 12.1 Status attribute and stat/damage rebalance
+
+- **Ego (status attribute):** intelligence attribute. **Aura** functions as
+  mana/resource. Ego contributes to aura attack power (and may be used by future
+  skill requirements/effects). `AllocateEgo` and attribute plumbing already exist
+  in parts of the codebase/docs; this plan clarifies its role and planned
+  balance impact.
+- **Unified scale rebalance (planned):** equalize attribute point effects with
+  damage and aura/health values.
+  - Base health and base aura: `100 -> 10`.
+  - Rebalance per-point gains (`Health`, `Aura`, and relevant `Ego`/damage
+    scaling), melee damage, aura skill costs/damage, restoration/healing values,
+    and enemy stats to the same scale.
+  - **Slime:** contact damage target `2–4` (from current `10` on old scale).
+  - Update progression/UI/save-facing assumptions and tests to match the new
+    balance.
+
+### 12.2 Crouch mechanic and new animations/skills
+
+- **Crouch (mechanic, not a skill slot):**
+  - Input/behavior: crouch via down intent while grounded (exact state rules to
+    be defined in implementation; no `SkillId`/loadout slot).
+  - Physics/body: character collision/body height becomes **half** while
+    crouching and restores when standing (if space allows).
+  - Assets/animation: add crouch animation frames for playable humanoids.
+- **Mogging animation:** activating Mogging must also trigger the character
+  punch animation (in addition to projectile/effect behavior).
+- **Shout skill (planned implementation):**
+  - Slotted attack/utility skill with a defined **range/distance**.
+  - Plays shout animation frames and emits particles/effects (plus character
+    animation).
+  - Requires a dedicated skill icon and modular assets (`assets/skills/shout/`).
+  - Cost/cooldown/damage-or-effect values to be defined and balanced.
+- **Kick skill (planned new `SkillId`):**
+  - Slotted attack skill with a defined **range/distance**.
+  - Plays kick animation frames.
+  - Requires a dedicated skill icon and modular assets (`assets/skills/kick/`).
+  - Cost/cooldown/damage values to be defined and balanced.
+- **Animation/assets work (planned):** add/declare animation frames for crouch,
+  shout, and kick in the appropriate rig/clip/asset pipeline (core logical state
+  where needed; client/pixel-forge assets and rendering), and generate/wire
+  shout/kick icons.
+
+## 13. Risks and open decisions
 
 | Risk/decision | State | Mitigation |
 | --- | --- | --- |
@@ -957,7 +1019,9 @@ crates/enzo-wasm/src/
 | Key conflicts | Decided | Editor rejects; defaults have no conflicts. |
 | `Tab` vs browser focus | Open | `preventDefault`; fallback `Q`. |
 | Menu open during `LevelUp` | Open | Proposal: disable. |
-| Utility skill (Shout) effect | Example/placeholder | Define effect before final implementation. |
+| Shout/Kick exact ranges, costs, cooldowns, and effects | Planned | Define during implementation and balance on unified scale. |
+| Crouch input/state rules (stand-up clearance, transitions) | Planned | Define during implementation. |
+| Unified rebalance exact formulas (`100 -> 10`, per-point scaling, damage/costs) | Planned | Finalize in implementation with tests. |
 | Unknown `SkillId` in future save | Open | Version + migration; avoid silent fallback without warning. |
 | Catalog size in snapshot | Low cost now | ~7–12 entries per player; measure if it grows. |
 | HTML UI duplicating rules | Risk | HTML only emits actions and renders `UiState`. |

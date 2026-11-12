@@ -133,31 +133,41 @@ intent and as a jump press trigger for slot 1.
 - **Fly (skill):** implemented as a slotted/available skill with hold behavior
   driven by `move_y` (not granted by default to the MVP player in the base
   design; availability depends on requirements/loadout).
+- **Crouch (planned mechanic):** holding the down intent while on the ground
+  (and not in conflicting states such as dashing/flying as defined by
+  implementation) makes the character crouch. Crouch is **not** a skill slot.
+  While crouching, the character uses crouch animation frames and the collision
+  body height becomes half (hitbox/body adjusted accordingly). Standing up
+  restores normal height when space allows.
 - AABB collision against tiles; resolve X, then Y.
 
-Walking and SixSeven are mechanics outside skill slots. Jump, Dash, Fly, Melee,
-Mogging, Nutella Shot, and Shout are skill modules with requirements and typed
-state.
+Walking, SixSeven, and crouch are mechanics outside skill slots. Jump, Dash,
+Fly, Melee, Mogging, Nutella Shot, Shout, and Kick are skill modules with
+requirements and typed state (Shout/Kick are planned additions).
 
 ## 7. Aura and SixSeven
 
-- Base aura bar: `100`.
+- Base aura bar: `100` (current); **planned rebalance:** base aura becomes `10`
+  on the new unified scale.
 - **SixSeven** is the aura-farming mechanic: alternating `6 → 7 → 6 → 7` counts
   as a hit. It is **not** a skill slot action.
 - Repeating the same key (e.g., `6, 6`) resets the combo and generates no aura.
-- Each hit generates `2` aura × multiplier.
+- Each hit generates `2` aura × multiplier (current value; rebalance planned).
 - Multiplier: `1 + 0.15 × combo`, capped at `3.0`.
 - Combo window: `0.9 s` without a hit → combo resets to zero.
 - While the combo is active, Enzo's speed drops to `45%`.
 - Aura does not regenerate by itself. Only SixSeven restores it.
-- Aura is spent by skills that consume it (e.g., Mogging).
+- Aura is spent by skills that consume it (e.g., Mogging). Aura functions as
+  **mana**; **Ego** is the intelligence/status attribute used for aura attack
+  power scaling (see progression rebalancing plan).
 
 ## 8. Combat
 
 ### 8.1 Physical combo (Melee skill)
 
 - Three chained hits within `0.5 s` between hits.
-- Base damage: `6`, `6`, `12` (+ Strength bonus).
+- Base damage: `6`, `6`, `12` (+ Strength bonus) (current; **planned rebalance**
+  on the new scale).
 - Range: `34 px` in the facing direction, height `26 px`.
 - The third hit applies knockback of `220 px/s`.
 - No aura cost.
@@ -167,8 +177,9 @@ state.
 ### 8.2 Mogging (skill)
 
 - Instant horizontal projectile in the facing direction.
-- Cost: `25` aura.
-- Damage: `20` + `2 × Aura points` + `2 × Ego points` (aura attack power).
+- Cost: `25` aura (current; **planned rebalance** on the new scale).
+- Damage: `20` + `2 × Aura points` + `2 × Ego points` (aura attack power)
+  (current formula/values; **planned rebalance**).
 - Speed: `620 px/s`; lifetime: `1.4 s`.
 - Pierces enemies (each enemy takes damage once per projectile).
 - Disappears on solid tile collision.
@@ -176,17 +187,32 @@ state.
   alignment).
 - Can be used while walking, running, or in the air.
 - Not enough aura: does not fire (feedback should be shown in the UI).
+- **Planned:** activating Mogging should also trigger the character's punch
+  animation.
 
-### 8.3 Placeholder skills
+### 8.3 Shout and Kick skills (planned)
 
-- **Nutella Shot** and **Shout** exist as skill modules/placeholders and may
-  require specific equipment/tags (e.g., `NUTELLA_GUN`). Their balance and
-  visuals are not final.
+- **Shout (`Shout`)**: slot skill with a defined attack/effect **range**
+  (distance-limited). Activating it plays the character shout animation and
+  emits particles/effects (in addition to the character animation). Aura cost,
+  cooldown, damage/effect, and exact range are to be defined/balanced in
+  implementation.
+- **Kick (`Kick`)**: slot skill with a defined attack **range** (distance-limited
+  melee/strike). Activating it plays the character kick animation. Damage,
+  cooldown, aura cost (if any), and exact range are to be defined/balanced in
+  implementation.
+- Both skills require dedicated icons and modular skill assets.
+
+### 8.4 Placeholder skills
+
+- **Nutella Shot** exists as a skill module/placeholder and may require specific
+  equipment/tags (e.g., `NUTELLA_GUN`). Its balance and visuals are not final.
 
 ## 9. Enemy: Slime
 
-- Health: `30`.
-- Contact damage: `10`, with `1.0 s` of player invulnerability.
+- Health: `30` (current; **planned rebalance** on the new scale).
+- Contact damage: `10` (current), with `1.0 s` of player invulnerability.
+  **Planned rebalance:** Slime contact damage becomes `2` to `4`.
 - Patrols at `60 px/s`, turns at walls and ledges.
 - XP on death: `25`.
 - Knockback when damaged.
@@ -211,7 +237,10 @@ Systems must not assemble entities by hand or duplicate attributes.
   - restores health and aura to maximum;
   - pauses simulation and opens the distribution UI.
 - Starting attributes: `0` points each.
-- Effect per point:
+- Status attributes include **Speed, Strength, Health, Aura, and Ego**.
+  - **Aura** functions as mana/resource for aura-based skills.
+  - **Ego** is the intelligence attribute and contributes to aura attack power.
+- Effect per point (current):
 
 | Attribute | Effect per point |
 | --- | --- |
@@ -221,11 +250,19 @@ Systems must not assemble entities by hand or duplicate attributes.
 | Aura | `+10` max aura and `+2` aura attack damage |
 | Ego | `+2` aura attack power (intelligence equivalent) |
 
+- **Planned stat/damage rebalancing (unified scale):** equalize attribute point
+  effects with damage and aura/health values. Base/player/enemy health and aura
+  scale down from the current `100` baseline to `10` (e.g. `100` health becomes
+  `10`), and all related values are rebalanced accordingly: per-point
+  health/aura gains, melee and skill damage, aura costs, healing/restoration, and
+  enemy stats (Slime contact damage target `2–4`). Exact formulas and values will
+  be finalized during implementation and covered by updated tests.
 - The level-up UI allows spending multiple points before confirming.
 
 ## 11. Health, death, and victory
 
-- Base health: `100`; base aura: `100`.
+- Base health: `100`; base aura: `100` (current). **Planned rebalance:** base
+  health and base aura become `10` on the unified scale.
 - Contact damage can reduce health to `0` → `Dead` phase for `1.2 s`.
 - Respawn at the level start with full health/aura.
 - XP, level, points, and attributes are kept.
