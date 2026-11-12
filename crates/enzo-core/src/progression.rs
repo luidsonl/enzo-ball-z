@@ -12,7 +12,8 @@ pub const SAVE_VERSION_V1: u16 = 1;
 
 /// XP necessário para sair do nível atual.
 pub fn xp_to_next(level: u32) -> f32 {
-    100.0 * level.max(1) as f32
+    let level = level.max(1) as f32;
+    50.0 * level * level + 100.0 * level
 }
 
 /// Adiciona XP ao jogador e processa todos os level-ups alcançados.
@@ -35,7 +36,7 @@ pub fn grant_xp(entity: &mut Entity, amount: f32, events: &mut Vec<GameEvent>) {
         while player.xp >= xp_to_next(player.level) {
             player.xp -= xp_to_next(player.level);
             player.level += 1;
-            player.points += 1;
+            player.points += 5;
             player.pending_level_up = true;
             player.aura = max_aura;
             leveled = true;
@@ -219,13 +220,13 @@ mod tests {
 
     #[test]
     fn xp_curve_scales_with_level() {
-        assert_eq!(xp_to_next(1), 100.0);
-        assert_eq!(xp_to_next(2), 200.0);
-        assert_eq!(xp_to_next(3), 300.0);
+        assert_eq!(xp_to_next(1), 150.0);
+        assert_eq!(xp_to_next(2), 400.0);
+        assert_eq!(xp_to_next(3), 750.0);
     }
 
     #[test]
-    fn level_up_grants_point_restores_and_pauses() {
+    fn level_up_grants_points_restores_and_pauses() {
         let mut entity = player();
         entity.health.current = 1.0;
         if let Some(data) = entity.player_mut() {
@@ -233,12 +234,12 @@ mod tests {
         }
         let mut events = Vec::new();
 
-        grant_xp(&mut entity, 100.0, &mut events);
+        grant_xp(&mut entity, 150.0, &mut events);
 
         let data = entity.player().unwrap();
         assert_eq!(data.level, 2);
         assert_eq!(data.xp, 0.0);
-        assert_eq!(data.points, 1);
+        assert_eq!(data.points, 5);
         assert!(data.pending_level_up);
         assert_eq!(data.aura, 10.0);
         assert_eq!(entity.health.current, 10.0);
@@ -252,11 +253,12 @@ mod tests {
         let mut entity = player();
         let mut events = Vec::new();
 
-        grant_xp(&mut entity, 300.0, &mut events);
+        // 150 (lvl1) + 400 (lvl2) = 550 for two levels
+        grant_xp(&mut entity, 550.0, &mut events);
 
         let data = entity.player().unwrap();
         assert_eq!(data.level, 3);
-        assert_eq!(data.points, 2);
+        assert_eq!(data.points, 10);
         assert_eq!(data.xp, 0.0);
         assert_eq!(
             events
