@@ -102,7 +102,9 @@
 .dom-game-panel {
   width: min(94vw, 720px);
   max-height: calc(100vh - 120px);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: rgba(12, 14, 32, 0.97);
   border: 1px solid rgba(94, 242, 255, 0.35);
   border-radius: 14px;
@@ -117,9 +119,18 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+  flex: 0 0 auto;
 }
 .dom-game-panel-header .dom-title { margin: 0; text-align: left; }
-.dom-game-panel-body { display: grid; gap: 10px; }
+.dom-game-panel-body {
+  display: grid;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
 
 .dom-status-grid, .dom-list, .dom-skill-list { display: grid; gap: 6px; }
 .dom-status-row, .dom-list-row {
