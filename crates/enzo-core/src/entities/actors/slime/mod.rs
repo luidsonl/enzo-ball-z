@@ -16,7 +16,8 @@ use crate::entities::spec::EntitySpec;
 /// Slime body size and combat tuning.
 pub const SLIME_SIZE: Vec2 = Vec2::new(26.0, 26.0);
 pub const SLIME_XP_REWARD: f32 = 25.0;
-pub const SLIME_CONTACT_DAMAGE: f32 = 10.0;
+/// Slime contact damage (rebalance target 2-4, integer). Fixed at 3 for determinism.
+pub const SLIME_CONTACT_DAMAGE: f32 = 3.0;
 
 /// Visual/animation contract (pure data). Rendering resolves frames from this.
 pub mod visual {
@@ -41,7 +42,7 @@ impl Stats {
             run_speed: 60.0,
             jump_speed: 0.0,
             strength: 0.0,
-            max_health: 30.0,
+            max_health: 3.0,
             max_aura: 0.0,
             mogging_damage: 0.0,
         }

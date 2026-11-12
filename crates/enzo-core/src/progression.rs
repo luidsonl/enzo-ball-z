@@ -227,9 +227,9 @@ mod tests {
     #[test]
     fn level_up_grants_point_restores_and_pauses() {
         let mut entity = player();
-        entity.health.current = 10.0;
+        entity.health.current = 1.0;
         if let Some(data) = entity.player_mut() {
-            data.aura = 5.0;
+            data.aura = 0.0;
         }
         let mut events = Vec::new();
 
@@ -240,8 +240,8 @@ mod tests {
         assert_eq!(data.xp, 0.0);
         assert_eq!(data.points, 1);
         assert!(data.pending_level_up);
-        assert_eq!(data.aura, 100.0);
-        assert_eq!(entity.health.current, 100.0);
+        assert_eq!(data.aura, 10.0);
+        assert_eq!(entity.health.current, 10.0);
         assert!(events
             .iter()
             .any(|event| matches!(event, GameEvent::LevelUp { level: 2, .. })));
@@ -278,13 +278,13 @@ mod tests {
     }
 
     #[test]
-    fn allocating_health_heals_ten() {
+    fn allocating_health_increases_max_and_heals_one() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
-        entity.health.current = 50.0;
+        entity.health.current = 5.0;
         assert!(allocate_point(&mut entity, Attribute::Health));
-        assert_eq!(entity.stats.max_health, 110.0);
-        assert_eq!(entity.health.current, 60.0);
+        assert_eq!(entity.stats.max_health, 11.0);
+        assert_eq!(entity.health.current, 6.0);
     }
 
     #[test]
@@ -292,8 +292,8 @@ mod tests {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
         assert!(allocate_point(&mut entity, Attribute::Aura));
-        assert_eq!(entity.stats.max_aura, 110.0);
-        assert_eq!(entity.stats.mogging_damage, 22.0);
+        assert_eq!(entity.stats.max_aura, 11.0);
+        assert_eq!(entity.stats.mogging_damage, 3.0);
     }
 
     #[test]
@@ -301,8 +301,8 @@ mod tests {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
         assert!(allocate_point(&mut entity, Attribute::Strength));
-        assert_eq!(entity.stats.melee_damage(0), 8.0);
-        assert_eq!(entity.stats.melee_damage(2), 14.0);
+        assert_eq!(entity.stats.melee_damage(0), 2.0);
+        assert_eq!(entity.stats.melee_damage(2), 3.0);
     }
 
     #[test]

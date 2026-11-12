@@ -10,7 +10,7 @@ use super::{
     SkillId, SkillResult, SkillSource, SkillTiming,
 };
 
-pub const MOGGING_COST: f32 = 25.0;
+pub const MOGGING_COST: f32 = 3.0;
 pub const MOGGING_COOLDOWN: f32 = 0.35;
 pub const MOGGING_SIZE: Vec2 = Vec2::new(24.0, 12.0);
 pub const MOGGING_SPEED: f32 = 620.0;

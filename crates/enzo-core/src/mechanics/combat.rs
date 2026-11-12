@@ -91,17 +91,17 @@ mod tests {
         let mut events = Vec::new();
 
         contact_damage(&mut store, &mut events);
-        assert_eq!(store.get(player).unwrap().health.current, 90.0);
+        assert_eq!(store.get(player).unwrap().health.current, 7.0);
         assert_eq!(store.get(player).unwrap().health.iframes, CONTACT_IFRAMES);
         assert!(events
             .iter()
             .any(|event| matches!(event, GameEvent::PlayerDamaged { .. })));
 
         contact_damage(&mut store, &mut events);
-        assert_eq!(store.get(player).unwrap().health.current, 90.0);
+        assert_eq!(store.get(player).unwrap().health.current, 7.0);
 
         tick_timers(&mut store, CONTACT_IFRAMES + crate::DT);
         contact_damage(&mut store, &mut events);
-        assert_eq!(store.get(player).unwrap().health.current, 80.0);
+        assert_eq!(store.get(player).unwrap().health.current, 4.0);
     }
 }

@@ -21,6 +21,7 @@ pub fn apply_sixseven(
     }
 
     let gain = (sixseven::AURA_PER_HIT * multiplier)
+        .round()
         .min(max_aura - player.aura)
         .max(0.0);
     player.aura = (player.aura + gain).min(max_aura);
@@ -55,7 +56,7 @@ mod tests {
     }
 
     fn press(player: &mut PlayerData, sixseven: &mut SixSeven, key: SixSevenKey) -> f32 {
-        apply_sixseven(player, sixseven, key, 100.0)
+        apply_sixseven(player, sixseven, key, 10.0)
     }
 
     #[test]
@@ -68,11 +69,11 @@ mod tests {
         let third = press(&mut player, &mut sixseven, SixSevenKey::Six);
         assert_eq!(sixseven.combo, 3);
         assert!(first > 0.0);
-        assert!(second > first);
-        assert!(third > second);
-        assert!((first - 2.3).abs() < 0.001);
-        assert!((second - 2.6).abs() < 0.001);
-        assert!((third - 2.9).abs() < 0.001);
+        assert!(second >= first);
+        assert!(third >= second);
+        assert_eq!(first, 1.0);
+        assert_eq!(second, 1.0);
+        assert_eq!(third, 1.0);
     }
 
     #[test]
@@ -94,9 +95,9 @@ mod tests {
     fn aura_never_exceeds_max() {
         let mut player = player();
         let mut sixseven = SixSeven::default();
-        player.aura = 99.0;
+        player.aura = 9.0;
         press(&mut player, &mut sixseven, SixSevenKey::Six);
-        assert_eq!(player.aura, 100.0);
+        assert_eq!(player.aura, 10.0);
     }
 
     #[test]
@@ -120,11 +121,11 @@ mod tests {
     #[test]
     fn spend_requires_full_cost() {
         let mut player = player();
-        player.aura = 20.0;
-        assert!(!spend(&mut player, 25.0));
-        assert_eq!(player.aura, 20.0);
-        player.aura = 30.0;
-        assert!(spend(&mut player, 25.0));
-        assert_eq!(player.aura, 5.0);
+        player.aura = 2.0;
+        assert!(!spend(&mut player, 3.0));
+        assert_eq!(player.aura, 2.0);
+        player.aura = 5.0;
+        assert!(spend(&mut player, 3.0));
+        assert_eq!(player.aura, 2.0);
     }
 }

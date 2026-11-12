@@ -12,7 +12,7 @@ use crate::entities::{AttributeSet, EquipmentTags};
 use crate::input::SixSevenKey;
 use crate::skills::{EntityType, Requirements};
 
-pub const AURA_PER_HIT: f32 = 2.0;
+pub const AURA_PER_HIT: f32 = 1.0;
 pub const COMBO_MULTIPLIER_STEP: f32 = 0.15;
 pub const MAX_MULTIPLIER: f32 = 3.0;
 pub const COMBO_WINDOW: f32 = 0.9;

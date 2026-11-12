@@ -218,12 +218,12 @@ mod tests {
 
         assert_eq!(player.team, TeamId::PLAYERS);
         assert_eq!(enemy.team, TeamId::ENEMIES);
-        assert_eq!(player.stats.max_health, 100.0);
-        assert_eq!(enemy.stats.max_health, 30.0);
+        assert_eq!(player.stats.max_health, 10.0);
+        assert_eq!(enemy.stats.max_health, 3.0);
         assert_eq!(player.body.size, ENZO_SIZE);
         assert_eq!(enemy.body.size, SLIME_SIZE);
-        assert_eq!(player.health.current, 100.0);
-        assert_eq!(enemy.health.current, 30.0);
+        assert_eq!(player.health.current, 10.0);
+        assert_eq!(enemy.health.current, 3.0);
         assert!(player.is_actor());
         assert!(enemy.is_actor());
         assert!(player.is_playable());

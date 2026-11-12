@@ -14,7 +14,7 @@ impl ItemData {
             &[EntityType::Playable],
             AttributeSet::ZERO.with(AttributeId::AURA, 1),
         ),
-        heal: 30.0,
+        heal: 3.0,
     };
 }
 

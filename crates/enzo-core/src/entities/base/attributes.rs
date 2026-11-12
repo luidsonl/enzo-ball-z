@@ -170,17 +170,17 @@ impl Stats {
             walk_speed: 220.0 + 10.0 * speed,
             run_speed: 340.0 + 6.0 * speed,
             jump_speed: 560.0 + 2.0 * speed,
-            strength: 2.0 * attributes.strength as f32,
-            max_health: 100.0 + 10.0 * attributes.health as f32,
-            max_aura: 100.0 + 10.0 * attributes.aura as f32,
+            strength: attributes.strength as f32,
+            max_health: 10.0 + attributes.health as f32,
+            max_aura: 10.0 + attributes.aura as f32,
             // Ego (intelligence) increases aura attack power.
-            mogging_damage: 20.0 + 2.0 * attributes.aura as f32 + 2.0 * attributes.ego as f32,
+            mogging_damage: 2.0 + attributes.aura as f32 + attributes.ego as f32,
         }
     }
 
     /// `hit_index` is 0, 1, or 2 (first, second, third hit).
     pub fn melee_damage(&self, hit_index: usize) -> f32 {
-        let base = if hit_index >= 2 { 12.0 } else { 6.0 };
+        let base = if hit_index >= 2 { 2.0 } else { 1.0 };
         base + self.strength
     }
 }
@@ -247,11 +247,11 @@ mod tests {
         assert_eq!(stats.walk_speed, 240.0);
         assert_eq!(stats.run_speed, 352.0);
         assert_eq!(stats.jump_speed, 564.0);
-        assert_eq!(stats.strength, 6.0);
-        assert_eq!(stats.max_health, 110.0);
-        assert_eq!(stats.max_aura, 140.0);
-        assert_eq!(stats.mogging_damage, 32.0); // 20 + 2*aura(4) + 2*ego(2)
-        assert_eq!(stats.melee_damage(0), 12.0);
-        assert_eq!(stats.melee_damage(2), 18.0);
+        assert_eq!(stats.strength, 3.0);
+        assert_eq!(stats.max_health, 11.0);
+        assert_eq!(stats.max_aura, 14.0);
+        assert_eq!(stats.mogging_damage, 8.0); // 2 + aura(4) + ego(2)
+        assert_eq!(stats.melee_damage(0), 4.0);
+        assert_eq!(stats.melee_damage(2), 5.0);
     }
 }
