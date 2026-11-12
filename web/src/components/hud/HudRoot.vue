@@ -129,6 +129,16 @@ const unlockedSkills = computed(() => (player.value?.catalog || []).filter((entr
 const showActionBar = computed(() => showHud.value && player.value && !mobileControlsVisible(state.value?.settings, state.value?.scene));
 const showPhaseOverlay = computed(() => showHud.value && (phase.value === "Dead" || phase.value === "Victory"));
 
+const controls = computed(() => state.value?.controls || []);
+function primaryKeyForAction(actionName) {
+  const entry = controls.value.find((c) => c && c.action === actionName);
+  if (entry && Array.isArray(entry.keys) && entry.keys.length > 0) return entry.keys[0];
+  return "";
+}
+function slotKeyLabel(index) {
+  return primaryKeyForAction(`Slot${index + 1}`) || String(index + 1);
+}
+
 function skillMeta(entry) {
   const parts = [entry.category || ""];
   if (entry.equipped_slot != null) parts.push(`${labels.value.equipped || "Slot"} ${entry.equipped_slot + 1}`);
@@ -198,8 +208,9 @@ function slotSkillName(slotState) {
           :title="slot.lock_reason || ''"
           @click.prevent.stop="togglePanel('skills')"
         >
-          <span class="slot-num">{{ index + 1 }}</span>
-          <span class="slot-skill">{{ slot.skill_name || (slot.skill != null ? `S${slot.skill}` : '—') }}</span>
+          <span class="slot-num">{{ slotKeyLabel(index) }}</span>
+          <img v-if="slot.skill_icon" class="slot-skill-icon" :src="slot.skill_icon" :alt="slot.skill_name || ''" :title="slot.skill_name || ''" />
+          <span v-else class="slot-skill">—</span>
           <span v-if="slot.cooldown > 0.01" class="slot-cd">{{ slot.cooldown.toFixed(1) }}</span>
         </button>
       </div>
@@ -342,10 +353,22 @@ function slotSkillName(slotState) {
                   v-for="i in [0,1,2,3]"
                   :key="i"
                   type="button"
-                  class="dom-btn small"
+                  class="dom-btn small dom-slot-pick-btn"
                   :class="{ selected: selectedSkillSlot === i }"
                   @click.prevent.stop="selectedSkillSlot = i"
-                >{{ i + 1 }}: {{ slotSkillName((player.slots || []).find(s => s.slot === i)) }}</button>
+                >
+                  <span>{{ slotKeyLabel(i) }}:</span>
+                  <template v-if="(player.slots || []).find(s => s.slot === i)?.skill_icon">
+                    <img
+                      class="dom-skill-icon sm"
+                      :src="(player.slots || []).find(s => s.slot === i).skill_icon"
+                      :alt="(player.slots || []).find(s => s.slot === i)?.skill_name || ''"
+                      :title="(player.slots || []).find(s => s.slot === i)?.skill_name || ''"
+                    />
+                    <span>{{ (player.slots || []).find(s => s.slot === i)?.skill_name || '—' }}</span>
+                  </template>
+                  <span v-else>—</span>
+                </button>
               </div>
               <div class="dom-option-row">
                 <button type="button" class="dom-btn small danger" @click.prevent.stop="loadoutClear(selectedSkillSlot)">{{ labels.clear || 'Clear' }}</button>
@@ -358,9 +381,12 @@ function slotSkillName(slotState) {
                   class="dom-skill-row"
                   :class="{ equipped: entry.equipped_slot != null }"
                 >
-                  <div class="dom-skill-info">
-                    <div class="dom-skill-name">{{ entry.name || `Skill ${entry.skill}` }}</div>
-                    <div class="dom-skill-meta">{{ skillMeta(entry) }}</div>
+                  <div class="dom-skill-info dom-skill-info--icon">
+                    <img v-if="entry.icon" class="dom-skill-icon" :src="entry.icon" :alt="entry.name || ''" :title="entry.name || ''" />
+                    <div>
+                      <div class="dom-skill-name">{{ entry.name || `Skill ${entry.skill}` }}</div>
+                      <div class="dom-skill-meta">{{ skillMeta(entry) }}</div>
+                    </div>
                   </div>
                   <div class="dom-skill-actions">
                     <button type="button" class="dom-btn small primary" @click.prevent.stop="loadoutAssign(selectedSkillSlot, entry.skill)">{{ labels.assign || 'Assign' }}</button>

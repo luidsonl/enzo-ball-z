@@ -286,16 +286,17 @@ impl Sprites {
         flip_x: bool,
         tint: Color,
     ) {
+        // In-world equipped items must render as rig-aligned overlays (not UI icons).
+        // Icons are shown only in UI/buttons/menus.
         let overlay = format!("assets/items/{}/layers/humanoid_overlay.png", kind.id());
         if let (Some(src), Some(tex)) = (source, self.assets.get_optional(&overlay)) {
             crate::rig::draw_sheet_tex(&tex, src, dest, flip_x, tint);
             return;
         }
+        // Request overlay for future frames when a rig frame is available.
         if source.is_some() && kind.data().slot().is_some() {
-            let _ = self.assets.get_optional(&overlay);
+            let _ = self.assets.get_or_request(&overlay);
         }
-        let equipped = format!("assets/items/{}/equipped.png", kind.id());
-        draw_lazy(&self.assets, &equipped, None, dest, flip_x, tint);
     }
 
     pub fn draw_skill_fx(&self, path: &str, dest: Rect, flip_x: bool, tint: Color) {

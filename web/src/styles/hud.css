@@ -185,7 +185,7 @@
 .dom-action-slot.active { border-color: #5ef2ff; box-shadow: 0 0 0 1px rgba(94, 242, 255, 0.35) inset; }
 .dom-action-slot.locked { opacity: 0.55; }
 .dom-action-slot.cooldown { filter: saturate(0.7); }
-.slot-num { color: #f6c445; font-size: 11px; }
+.slot-num { color: #f6c445; font-size: 10px; line-height: 1.1; max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slot-cd { position: absolute; right: 4px; bottom: 3px; font-size: 9px; color: #fff; }
 
 .dom-game-toast {
@@ -225,4 +225,35 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin: 10px 0;
+}
+
+/* Skill icons in HUD/buttons/menus (UI only) */
+.slot-skill-icon {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  object-fit: contain;
+}
+.dom-skill-icon {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+.dom-skill-icon.sm {
+  width: 20px;
+  height: 20px;
+}
+.dom-slot-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dom-skill-info--icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
