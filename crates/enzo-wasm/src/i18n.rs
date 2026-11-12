@@ -287,9 +287,9 @@ impl I18n {
             (Language::English, Text::DragHint) => "Drag by the title",
             (Language::PtBr, Text::Close) => "Fechar",
             (Language::English, Text::Close) => "Close",
-            (Language::PtBr, Text::MoggingReady) => "MOGGING PRONTO (25 aura)",
+            (Language::PtBr, Text::MoggingReady) => "MOGADA PRONTA (25 aura)",
             (Language::English, Text::MoggingReady) => "MOGGING READY (25 aura)",
-            (Language::PtBr, Text::MoggingCooldown) => "MOGGING",
+            (Language::PtBr, Text::MoggingCooldown) => "MOGADA",
             (Language::English, Text::MoggingCooldown) => "MOGGING",
             (Language::PtBr, Text::SavedPrefix) => "SALVO",
             (Language::English, Text::SavedPrefix) => "SAVED",
@@ -369,7 +369,7 @@ impl I18n {
             (Language::English, Text::MoveSixSeven) => "Aura farming",
             (Language::PtBr, Text::MoveMelee) => "Soco (Punch)",
             (Language::English, Text::MoveMelee) => "Punch (Soco)",
-            (Language::PtBr, Text::MoveMogging) => "Mogging",
+            (Language::PtBr, Text::MoveMogging) => "Mogada",
             (Language::English, Text::MoveMogging) => "Mogging",
             (Language::PtBr, Text::SkillNutellaShot) => "Tiro de Nutela",
             (Language::English, Text::SkillNutellaShot) => "Nutella Shot",
@@ -402,7 +402,7 @@ impl I18n {
             (Language::PtBr, Text::PhaseBanner) => "FASE 1  ·  CHEGUE À BANDEIRA",
             (Language::English, Text::PhaseBanner) => "STAGE 1  ·  REACH THE FLAG",
             (Language::PtBr, Text::ControlsLine1) => {
-                "A/D ou ←/→ mover   ·   ESPAÇO pular   ·   SHIFT dash   ·   J atacar   ·   K Mogging"
+                "A/D ou ←/→ mover   ·   ESPAÇO pular   ·   SHIFT dash   ·   J atacar   ·   K Mogada"
             }
             (Language::English, Text::ControlsLine1) => {
                 "A/D or ←/→ move   ·   SPACE jump   ·   SHIFT dash   ·   J attack   ·   K Mogging"
@@ -413,7 +413,7 @@ impl I18n {
             (Language::English, Text::ControlsLine2) => {
                 "Click the dots to open windows   ·   1-4 spend points   ·   ENTER confirm   ·   R restart"
             }
-            (Language::PtBr, Text::DeathTitle) => "VOCÊ CAIU!",
+            (Language::PtBr, Text::DeathTitle) => "Não sobrou nada pro beta",
             (Language::English, Text::DeathTitle) => "YOU FELL!",
             (Language::PtBr, Text::RespawnIn) => "Renascendo em",
             (Language::English, Text::RespawnIn) => "Respawning in",
@@ -431,7 +431,7 @@ impl I18n {
             (Language::English, Text::ReturnToMenu) => "Return to menu",
 
             // Efeitos
-            (Language::PtBr, Text::EffectMogging) => "MOGGING!",
+            (Language::PtBr, Text::EffectMogging) => "MOGADA!",
             (Language::English, Text::EffectMogging) => "MOGGING!",
             (Language::PtBr, Text::EffectBlocked) => "BLOQUEADO",
             (Language::English, Text::EffectBlocked) => "BLOCKED",
@@ -439,7 +439,7 @@ impl I18n {
             (Language::English, Text::EffectLevel) => "LEVEL",
             (Language::PtBr, Text::EffectNoAura) => "Sem aura!",
             (Language::English, Text::EffectNoAura) => "No aura!",
-            (Language::PtBr, Text::EffectDeath) => "VOCÊ CAIU!",
+            (Language::PtBr, Text::EffectDeath) => "Não sobrou nada pro beta",
             (Language::English, Text::EffectDeath) => "YOU FELL!",
             (Language::PtBr, Text::EffectVictory) => "FASE CONCLUÍDA!",
             (Language::English, Text::EffectVictory) => "STAGE CLEARED!",
@@ -658,6 +658,7 @@ mod tests {
     fn switching_language_changes_labels() {
         let mut i18n = I18n::new(Language::PtBr);
         assert_eq!(i18n.t(Text::Play), "Jogar");
+        assert_eq!(i18n.skill(SkillId::Mogging), "Mogada");
         i18n.set_language(Language::English);
         assert_eq!(i18n.t(Text::Play), "Play");
         assert_eq!(i18n.attribute(Attribute::Speed), "Speed");
