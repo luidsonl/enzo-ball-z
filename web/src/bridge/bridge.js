@@ -20,6 +20,7 @@ export const Action = Object.freeze({
   Restart: 15,
   OpenMenu: 16,
   OpenSkills: 17,
+  AllocateEgo: 18,
 });
 
 export const MobileMode = Object.freeze({ Off: 0, On: 1, Auto: 2 });

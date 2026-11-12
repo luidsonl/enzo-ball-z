@@ -17,6 +17,15 @@ pub const COMBO_MULTIPLIER_STEP: f32 = 0.15;
 pub const MAX_MULTIPLIER: f32 = 3.0;
 pub const COMBO_WINDOW: f32 = 0.9;
 pub const SLOW_FACTOR: f32 = 0.45;
+/// Successful alternations needed to fully fill the aura bar.
+/// Tuned so 10 max aura takes ~4 alternations per point, 20 takes 2, 40 takes 1,
+/// and 80 grants 2 aura per alternation (constant 40 alternations to fill).
+pub const AURA_FILL_HITS: u32 = 40;
+
+/// Target alternations to fill `max_aura`.
+pub fn aura_fill_hits_for_max(_max_aura: f32) -> u32 {
+    AURA_FILL_HITS
+}
 
 /// SixSeven é exclusivo de jogáveis no MVP.
 pub const REQUIREMENTS: Requirements = Requirements::new(
@@ -110,6 +119,25 @@ impl SixSeven {
 
 pub fn combo_multiplier(combo: u32) -> f32 {
     (1.0 + COMBO_MULTIPLIER_STEP * combo as f32).min(MAX_MULTIPLIER)
+}
+
+/// Integer aura gain for a successful alternation at `combo` (1-based within streak).
+/// Distributed deterministically so filling `max_aura` takes [`AURA_FILL_HITS`]
+/// alternations. This yields fractional-per-point pacing (e.g. 1 aura every 2-4 hits
+/// at low max aura) and multiple aura per hit at high max aura.
+pub fn aura_gain_for_combo(combo: u32, max_aura: f32) -> f32 {
+    if combo == 0 {
+        return 0.0;
+    }
+    let total = max_aura.max(0.0).round() as i32;
+    let hits = AURA_FILL_HITS as i32;
+    if total <= 0 {
+        return 0.0;
+    }
+    let c = combo as i32;
+    let prev = ((c - 1) * total) / hits;
+    let curr = (c * total) / hits;
+    (curr - prev).max(0) as f32
 }
 
 #[cfg(test)]

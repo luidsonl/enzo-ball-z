@@ -122,6 +122,7 @@ const attrDefs = computed(() => {
     ["Strength", attrs.strength ?? 0, 1],
     ["Health", attrs.health ?? 0, 2],
     ["Aura", attrs.aura ?? 0, 3],
+    ["Ego", attrs.ego ?? 0, 4],
   ];
 });
 

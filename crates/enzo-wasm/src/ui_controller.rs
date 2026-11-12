@@ -113,7 +113,7 @@ impl UiLabels {
             game_over: if i18n.language().code() == "en" {
                 "Game Over".to_owned()
             } else {
-                "Fim de jogo".to_owned()
+                "Sobrou nada pro beta".to_owned()
             },
             status: i18n.t(Text::Status).to_owned(),
             equipment: i18n.t(Text::Equipment).to_owned(),
@@ -300,6 +300,7 @@ pub struct UiAttributes {
     pub strength: u32,
     pub health: u32,
     pub aura: u32,
+    pub ego: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -454,6 +455,7 @@ fn draft_player_state(
             strength: 0,
             health: 0,
             aura: 0,
+            ego: 0,
         },
         slots: Vec::new(),
         catalog: Vec::new(),
@@ -548,6 +550,7 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
             strength: p.attributes.strength,
             health: p.attributes.health,
             aura: p.attributes.aura,
+            ego: p.attributes.ego,
         },
         slots,
         catalog,
