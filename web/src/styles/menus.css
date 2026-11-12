@@ -145,3 +145,49 @@
   text-align: center;
 }
 .dom-keycap.muted { color: rgba(232, 236, 255, 0.45); }
+
+/* Controls configuration (Options > Controls) */
+.dom-controls-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.dom-controls-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  padding-right: 4px;
+}
+.dom-control-config-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+.dom-control-config-main {
+  min-width: 180px;
+  flex: 1 1 220px;
+}
+.dom-control-config-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.dom-control-select {
+  max-width: 220px;
+  background: rgba(20, 24, 36, 0.95);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+}

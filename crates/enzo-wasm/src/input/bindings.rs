@@ -66,6 +66,45 @@ impl KeyBindings {
         *self.keys_mut(action) = keys;
     }
 
+    /// Removes `key` from every action except `keep_in` (if provided).
+    pub fn remove_key_globally(&mut self, key: KeyCode, keep_in: Option<InputAction>) {
+        for action in InputAction::ALL {
+            if Some(action) == keep_in {
+                continue;
+            }
+            self.remove_key(action, key);
+        }
+    }
+
+    /// Binds `key` to `action`, ensuring the key is not used by other actions.
+    /// If `replace` is true, action keeps only this key; otherwise the key is added/made primary.
+    pub fn bind_key_exclusive(&mut self, action: InputAction, key: KeyCode, replace: bool) {
+        self.remove_key_globally(key, Some(action));
+        if replace {
+            self.set_keys(action, vec![key]);
+            return;
+        }
+        let keys = self.keys_mut(action);
+        keys.retain(|k| *k != key);
+        keys.insert(0, key);
+    }
+
+    /// Enforces invariant: a key may belong to at most one action.
+    /// Keeps the first occurrence in `InputAction::ALL` order.
+    pub fn sanitize_exclusive_keys(&mut self) {
+        use std::collections::HashSet;
+        let mut seen: HashSet<KeyCode> = HashSet::new();
+        for action in InputAction::ALL {
+            let mut unique = Vec::new();
+            for key in self.keys(action).iter().copied() {
+                if seen.insert(key) {
+                    unique.push(key);
+                }
+            }
+            self.set_keys(action, unique);
+        }
+    }
+
     /// Adds `key` to `action` if it is not already present.
     pub fn add_key(&mut self, action: InputAction, key: KeyCode) {
         let keys = self.keys_mut(action);
@@ -117,6 +156,60 @@ impl KeyBindings {
         self.primary_key(action)
             .map(Self::key_label)
             .unwrap_or_else(|| "—".to_owned())
+    }
+
+    /// Serialize bindings to a JSON-compatible map: action code (string) -> key names.
+    pub fn to_serializable(&self) -> serde_json::Map<String, serde_json::Value> {
+        let mut map = serde_json::Map::new();
+        for action in InputAction::ALL {
+            let names: Vec<serde_json::Value> = self
+                .keys(action)
+                .iter()
+                .filter_map(|k| {
+                    super::keycode::key_to_name(*k).map(|n| serde_json::Value::String(n.to_owned()))
+                })
+                .collect();
+            map.insert(action.code().to_string(), serde_json::Value::Array(names));
+        }
+        map
+    }
+
+    /// Deserialize bindings from a map produced by [`Self::to_serializable`].
+    /// Unknown actions/keys are ignored. Aura farming (Six/Seven) is always kept at defaults.
+    pub fn from_serializable(value: &serde_json::Value) -> Option<Self> {
+        let obj = value.as_object()?;
+        let defaults = Self::default();
+        let mut bindings = defaults.clone();
+        for (k, v) in obj {
+            let Ok(code) = k.parse::<u8>() else { continue };
+            let Some(action) = InputAction::from_code(code) else {
+                continue;
+            };
+            if matches!(action, InputAction::Six | InputAction::Seven) {
+                continue;
+            }
+            let Some(arr) = v.as_array() else { continue };
+            let keys: Vec<KeyCode> = arr
+                .iter()
+                .filter_map(|x| x.as_str())
+                .filter_map(super::keycode::key_from_name)
+                .collect();
+            bindings.set_keys(action, keys);
+        }
+        bindings.set_keys(InputAction::Six, defaults.keys(InputAction::Six).to_vec());
+        bindings.set_keys(
+            InputAction::Seven,
+            defaults.keys(InputAction::Seven).to_vec(),
+        );
+        // A key cannot perform more than one action.
+        bindings.sanitize_exclusive_keys();
+        // Re-enforce fixed aura farming keys after sanitization.
+        bindings.set_keys(InputAction::Six, defaults.keys(InputAction::Six).to_vec());
+        bindings.set_keys(
+            InputAction::Seven,
+            defaults.keys(InputAction::Seven).to_vec(),
+        );
+        Some(bindings)
     }
 }
 

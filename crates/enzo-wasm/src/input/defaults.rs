@@ -34,13 +34,9 @@ pub fn default_bindings() -> KeyBindings {
         &[KeyCode::S, KeyCode::Down],
     );
 
-    // Slot 1 is Jump by default. Space is the primary key; W/Up also trigger
-    // jump for quality-of-life while still providing MoveUp/fly intent.
-    bind(
-        &mut bindings,
-        InputAction::Slot1,
-        &[KeyCode::Space, KeyCode::W, KeyCode::Up],
-    );
+    // Slot 1 is Jump by default. A key cannot perform more than one action,
+    // so jump uses Space by default (movement/climb/fly use W/Up).
+    bind(&mut bindings, InputAction::Slot1, &[KeyCode::Space]);
     bind(
         &mut bindings,
         InputAction::Slot2,
@@ -103,13 +99,14 @@ mod tests {
     }
 
     #[test]
-    fn defaults_make_up_trigger_jump_slot() {
+    fn defaults_keep_jump_and_move_keys_exclusive() {
         let bindings = default_bindings();
         assert!(bindings.keys(InputAction::MoveUp).contains(&KeyCode::Up));
         assert!(bindings.keys(InputAction::MoveUp).contains(&KeyCode::W));
-        assert!(bindings.keys(InputAction::Slot1).contains(&KeyCode::Up));
-        assert!(bindings.keys(InputAction::Slot1).contains(&KeyCode::W));
         assert!(bindings.keys(InputAction::Slot1).contains(&KeyCode::Space));
+        assert!(!bindings.keys(InputAction::Slot1).contains(&KeyCode::Up));
+        assert!(!bindings.keys(InputAction::Slot1).contains(&KeyCode::W));
+        assert!(bindings.conflicts().is_empty());
     }
 
     #[test]

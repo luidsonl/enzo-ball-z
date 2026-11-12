@@ -337,8 +337,16 @@ pub struct UiPlayerState {
 #[derive(Debug, Clone, Serialize)]
 pub struct UiControlBinding {
     pub action: String,
+    pub action_code: u8,
     pub label: String,
     pub keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSupportedKey {
+    pub index: u8,
+    pub name: String,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -351,6 +359,7 @@ pub struct UiState {
     pub settings: UiSettings,
     pub labels: UiLabels,
     pub controls: Vec<UiControlBinding>,
+    pub supported_keys: Vec<UiSupportedKey>,
 }
 
 // --- State building ---
@@ -382,6 +391,7 @@ fn menu_state(menu: &Menu) -> UiMenuState {
         MenuScreen::Saves => "saves",
         MenuScreen::Options => "options",
         MenuScreen::Customize => "customize",
+        MenuScreen::Controls => "controls",
     };
     let mut slots = Vec::with_capacity(SLOT_COUNT);
     for i in 0..SLOT_COUNT {
@@ -587,6 +597,15 @@ pub fn build_state(
         settings: UiSettings::current(),
         labels: UiLabels::from_i18n(i18n),
         controls: control_bindings(bindings, i18n),
+        supported_keys: crate::input::keycode::SUPPORTED_KEYS
+            .iter()
+            .enumerate()
+            .map(|(index, (name, label))| UiSupportedKey {
+                index: index as u8,
+                name: (*name).to_owned(),
+                label: (*label).to_owned(),
+            })
+            .collect(),
     }
 }
 
@@ -609,7 +628,8 @@ fn control_bindings(bindings: &KeyBindings, i18n: I18n) -> Vec<UiControlBinding>
     let mut out = Vec::new();
     for action in InputAction::ALL {
         // Attribute allocation is performed via the in-game UI, not keyboard buttons.
-        if action.attribute().is_some() {
+        // Aura farming (Six/Seven alternation) is a fixed mechanic and must not be rebound.
+        if action.attribute().is_some() || matches!(action, InputAction::Six | InputAction::Seven) {
             continue;
         }
         let keys: Vec<String> = bindings
@@ -619,6 +639,7 @@ fn control_bindings(bindings: &KeyBindings, i18n: I18n) -> Vec<UiControlBinding>
             .collect();
         out.push(UiControlBinding {
             action: format!("{:?}", action),
+            action_code: action.code(),
             label: action_label(action, is_en).to_owned(),
             keys,
         });
@@ -741,6 +762,10 @@ pub fn apply_menu_action(
         UiAction::MenuOpenSaves
         | UiAction::MenuOpenOptions
         | UiAction::MenuOpenCustomize
+        | UiAction::MenuOpenControls
+        | UiAction::ControlsResetDefaults
+        | UiAction::ControlsSetKey { .. }
+        | UiAction::ControlsClearAction { .. }
         | UiAction::SetPlayableCharacter { .. }
         | UiAction::SetVisualProfileField { .. }
         | UiAction::MenuStart { .. }

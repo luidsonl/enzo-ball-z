@@ -23,30 +23,67 @@ pub enum UiAction {
     MenuOpenSaves,
     MenuOpenOptions,
     MenuOpenCustomize,
-    MenuStart { slot: u8, new_game: bool },
+    MenuOpenControls,
+    MenuStart {
+        slot: u8,
+        new_game: bool,
+    },
+    ControlsResetDefaults,
+    ControlsSetKey {
+        action: u8,
+        key_index: u8,
+        replace: bool,
+    },
+    ControlsClearAction {
+        action: u8,
+    },
     MenuResume,
-    MenuRequestDelete { slot: u8 },
+    MenuRequestDelete {
+        slot: u8,
+    },
     MenuCancelDelete,
     MenuConfirmDelete,
-    SetLanguage { code: u8 }, // 0=pt-BR, 1=en
-    SetMobileControls { mode: u8 },
-    SetInterfaceScale { percent: u16 },
-    HudAllocate { attribute: u8 },
+    SetLanguage {
+        code: u8,
+    }, // 0=pt-BR, 1=en
+    SetMobileControls {
+        mode: u8,
+    },
+    SetInterfaceScale {
+        percent: u16,
+    },
+    HudAllocate {
+        attribute: u8,
+    },
     HudConfirmLevelUp,
     HudRestart,
     HudOpenMenu,
     HudOpenSkills,
-    LoadoutAssign { slot: u8, skill: u8 },
-    LoadoutClear { slot: u8 },
-    EquipInventoryItem { item: u8 },
-    UnequipSlot { slot: u8 },
-    SetPlayableCharacter { character: u8 },
-    SetVisualProfileField { field: u8, value: u8 },
+    LoadoutAssign {
+        slot: u8,
+        skill: u8,
+    },
+    LoadoutClear {
+        slot: u8,
+    },
+    EquipInventoryItem {
+        item: u8,
+    },
+    UnequipSlot {
+        slot: u8,
+    },
+    SetPlayableCharacter {
+        character: u8,
+    },
+    SetVisualProfileField {
+        field: u8,
+        value: u8,
+    },
 }
 
 impl UiAction {
     /// Parse the generic `enzo_ui_action` FFI payload.
-    pub fn from_ffi(code: u8, a: u8, b: u8, _c: u8) -> Option<Self> {
+    pub fn from_ffi(code: u8, a: u8, b: u8, c: u8) -> Option<Self> {
         Some(match code {
             1 => UiAction::MenuBack,
             2 => UiAction::MenuOpenSaves,
@@ -57,6 +94,14 @@ impl UiAction {
             },
             5 => UiAction::MenuResume,
             23 => UiAction::MenuOpenCustomize,
+            24 => UiAction::MenuOpenControls,
+            25 => UiAction::ControlsResetDefaults,
+            26 => UiAction::ControlsSetKey {
+                action: a,
+                key_index: b,
+                replace: c != 0,
+            },
+            27 => UiAction::ControlsClearAction { action: a },
             6 => UiAction::MenuRequestDelete { slot: a },
             7 => UiAction::MenuCancelDelete,
             8 => UiAction::MenuConfirmDelete,
@@ -219,7 +264,9 @@ pub extern "C" fn enzo_set_visual_profile_field(field: u8, value: u8) {
 /// 9=set language(a), 10=set mobile controls(a), 11=set interface scale percent(a*256+b),
 /// 12=allocate attribute(a), 13=confirm level up, 14=restart, 15=open menu, 16=open skills,
 /// 19=equip inventory item(a=item code), 20=unequip slot(a=slot code),
-/// 21=set playable character(a=code), 22=set visual profile field(a=field,b=value)
+/// 21=set playable character(a=code), 22=set visual profile field(a=field,b=value),
+/// 23=open customize, 24=open controls, 25=reset controls to defaults,
+/// 26=set control key(a=input action code,b=supported key index,c=1 replace/0 add), 27=clear action keys(a=input action code)
 #[no_mangle]
 pub extern "C" fn enzo_ui_action(code: u8, a: u8, b: u8, c: u8) {
     if let Some(action) = UiAction::from_ffi(code, a, b, c) {

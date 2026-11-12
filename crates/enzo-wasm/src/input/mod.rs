@@ -7,6 +7,7 @@
 
 pub mod bindings;
 pub mod defaults;
+pub mod keycode;
 
 use enzo_core::input::{
     axis, ActionSlot, Attribute, InputAction, PlayerCommand, SixSevenKey, SlotInput,
@@ -68,9 +69,10 @@ impl InputState {
     }
 
     pub fn poll(&mut self) {
+        let (move_up_pressed, move_up_held) = self.action_active(InputAction::MoveUp);
         self.left = self.action_active(InputAction::MoveLeft).1;
         self.right = self.action_active(InputAction::MoveRight).1;
-        self.up = self.action_active(InputAction::MoveUp).1;
+        self.up = move_up_held;
         self.down = self.action_active(InputAction::MoveDown).1;
 
         for (index, slot) in ActionSlot::ALL.iter().copied().enumerate() {
@@ -78,6 +80,12 @@ impl InputState {
                 continue;
             };
             let (pressed, held) = self.action_active(action);
+            // Moving up must always trigger jump (Slot1), regardless of key configuration.
+            let (pressed, held) = if slot == ActionSlot::Slot1 {
+                (pressed || move_up_pressed, held || move_up_held)
+            } else {
+                (pressed, held)
+            };
             self.slots_held[index] = held;
             self.slots_pressed[index] |= pressed;
         }
@@ -246,6 +254,10 @@ mod tests {
             .keys(InputAction::Slot1)
             .contains(&KeyCode::Space));
         assert!(input
+            .bindings
+            .keys(InputAction::MoveUp)
+            .contains(&KeyCode::W));
+        assert!(!input
             .bindings
             .keys(InputAction::Slot1)
             .contains(&KeyCode::W));

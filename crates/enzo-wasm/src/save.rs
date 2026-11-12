@@ -231,6 +231,21 @@ pub fn store_draft_visual_profile(
     write_key(DRAFT_VISUAL_PROFILE_KEY, &raw)
 }
 
+const KEYBINDINGS_KEY: &str = "enzoballz.keybindings";
+
+pub fn load_keybindings() -> crate::input::KeyBindings {
+    read_key(KEYBINDINGS_KEY)
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|v| crate::input::KeyBindings::from_serializable(&v))
+        .unwrap_or_default()
+}
+
+pub fn store_keybindings(bindings: &crate::input::KeyBindings) -> Result<(), String> {
+    let value = serde_json::Value::Object(bindings.to_serializable());
+    let raw = serde_json::to_string(&value).map_err(|err| err.to_string())?;
+    write_key(KEYBINDINGS_KEY, &raw)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

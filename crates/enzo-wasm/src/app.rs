@@ -67,18 +67,23 @@ pub struct App {
     pointer: Pointer,
     ui_publish_accum: f32,
     time: f32,
+    bindings: crate::input::KeyBindings,
 }
 
 impl App {
     pub async fn new() -> Self {
         let sprites = Sprites::new();
+        let bindings = save::load_keybindings();
+        let mut menu = Menu::new();
+        menu.bindings = bindings.clone();
         let app = Self {
-            scene: Scene::Menu(Menu::new()),
+            scene: Scene::Menu(menu),
             sprites,
             i18n: I18n::new(save::load_language()),
             pointer: Pointer::default(),
             ui_publish_accum: 0.0,
             time: 0.0,
+            bindings,
         };
 
         ui::set_interface_scale(save::load_interface_scale());
@@ -174,9 +179,14 @@ impl App {
             if had_ui_actions || self.ui_publish_accum >= (1.0 / 15.0) {
                 self.ui_publish_accum = 0.0;
                 match &self.scene {
-                    Scene::Menu(menu) => {
-                        ui_controller::publish("menu", None, Some(menu), self.i18n, None, None)
-                    }
+                    Scene::Menu(menu) => ui_controller::publish(
+                        "menu",
+                        None,
+                        Some(menu),
+                        self.i18n,
+                        None,
+                        Some(&menu.bindings),
+                    ),
                     Scene::Game(session) => ui_controller::publish(
                         "game",
                         Some(&session.current),
@@ -206,7 +216,13 @@ impl App {
         match transition {
             Transition::None => {}
             Transition::Start { slot, save } => {
-                match GameSession::new(slot, save, self.sprites.assets.clone(), self.i18n) {
+                match GameSession::new(
+                    slot,
+                    save,
+                    self.sprites.assets.clone(),
+                    self.i18n,
+                    self.bindings.clone(),
+                ) {
                     Ok(session) => {
                         // New games inherit the character editor draft; loaded saves keep their data.
                         self.scene = Scene::Game(Box::new(session));
@@ -222,18 +238,24 @@ impl App {
                 if let Scene::Game(mut game) =
                     std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
                 {
+                    self.bindings = game.input.bindings.clone();
                     let mut menu = Menu::new();
+                    menu.bindings = self.bindings.clone();
                     menu.has_background_game = true;
                     game.paused = true;
                     self.scene = Scene::MenuOverGame { menu, game };
                 } else {
-                    self.scene = Scene::Menu(Menu::new());
+                    let mut menu = Menu::new();
+                    menu.bindings = self.bindings.clone();
+                    self.scene = Scene::Menu(menu);
                 }
             }
             Transition::Resume => {
-                if let Scene::MenuOverGame { mut game, .. } =
+                if let Scene::MenuOverGame { mut game, menu } =
                     std::mem::replace(&mut self.scene, Scene::Menu(Menu::new()))
                 {
+                    self.bindings = menu.bindings.clone();
+                    game.input.bindings = self.bindings.clone();
                     game.paused = false;
                     game.i18n = self.i18n;
                     self.scene = Scene::Game(game);
@@ -242,10 +264,88 @@ impl App {
         }
     }
 
+    fn apply_controls_action_to(
+        bindings: &mut crate::input::KeyBindings,
+        action: ui_bridge::UiAction,
+    ) -> bool {
+        use ui_bridge::UiAction;
+        match action {
+            UiAction::ControlsResetDefaults => {
+                *bindings = crate::input::KeyBindings::default();
+                let _ = save::store_keybindings(bindings);
+                true
+            }
+            UiAction::ControlsClearAction { action } => {
+                if let Some(input_action) = enzo_core::input::InputAction::from_code(action) {
+                    if matches!(
+                        input_action,
+                        enzo_core::input::InputAction::Six | enzo_core::input::InputAction::Seven
+                    ) {
+                        return true;
+                    }
+                    bindings.set_keys(input_action, Vec::new());
+                    let _ = save::store_keybindings(bindings);
+                }
+                true
+            }
+            UiAction::ControlsSetKey {
+                action,
+                key_index,
+                replace,
+            } => {
+                if let (Some(input_action), Some((name, _))) = (
+                    enzo_core::input::InputAction::from_code(action),
+                    crate::input::keycode::supported_key_by_index(key_index),
+                ) {
+                    if matches!(
+                        input_action,
+                        enzo_core::input::InputAction::Six | enzo_core::input::InputAction::Seven
+                    ) {
+                        return true;
+                    }
+                    if let Some(key) = crate::input::keycode::key_from_name(name) {
+                        // A key cannot perform more than one action; an action can have multiple keys.
+                        bindings.bind_key_exclusive(input_action, key, replace);
+                        // Keep fixed aura farming actions immutable.
+                        let defaults = crate::input::KeyBindings::default();
+                        bindings.set_keys(
+                            enzo_core::input::InputAction::Six,
+                            defaults.keys(enzo_core::input::InputAction::Six).to_vec(),
+                        );
+                        bindings.set_keys(
+                            enzo_core::input::InputAction::Seven,
+                            defaults.keys(enzo_core::input::InputAction::Seven).to_vec(),
+                        );
+                        let _ = save::store_keybindings(bindings);
+                    }
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn handle_ui_actions(&mut self, actions: Vec<ui_bridge::UiAction>) {
         use ui_bridge::UiAction;
         let mut transition = Transition::None;
         for action in actions {
+            // Controls config is menu-only (Options > Controls), but may appear while paused over game.
+            match &mut self.scene {
+                Scene::Menu(menu) => {
+                    if Self::apply_controls_action_to(&mut menu.bindings, action) {
+                        self.bindings = menu.bindings.clone();
+                        continue;
+                    }
+                }
+                Scene::MenuOverGame { menu, game } => {
+                    if Self::apply_controls_action_to(&mut menu.bindings, action) {
+                        self.bindings = menu.bindings.clone();
+                        game.input.bindings = self.bindings.clone();
+                        continue;
+                    }
+                }
+                Scene::Game(_) => {}
+            }
             match &mut self.scene {
                 Scene::Menu(menu) => {
                     if let Some(menu_action) = menu.apply_ui_action(action, &mut self.i18n) {
@@ -444,6 +544,7 @@ impl GameSession {
         save: Option<SaveData>,
         assets: crate::assets::AssetStore,
         i18n: I18n,
+        bindings: crate::input::KeyBindings,
     ) -> Result<Self, LevelError> {
         let mut world = World::new(LEVEL_1)?;
         if let Some(data) = save {
@@ -469,7 +570,7 @@ impl GameSession {
             background: Background::new(),
             camera,
             effects: Effects::new(),
-            input: InputState::default(),
+            input: InputState::with_bindings(bindings),
             hud: Hud::new(),
             i18n,
             previous: current.clone(),

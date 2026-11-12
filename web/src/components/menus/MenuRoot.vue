@@ -6,6 +6,7 @@ const props = defineProps({
   state: { type: Object, default: null },
 });
 
+import { onBeforeUnmount } from "vue";
 const showHelp = ref(false);
 
 const menu = computed(() => props.state?.menu ?? null);
@@ -14,14 +15,92 @@ const settings = computed(() => props.state?.settings ?? {});
 const player = computed(() => props.state?.player ?? null);
 const show = computed(() => !!(props.state && (props.state.scene === "menu" || props.state.scene === "menu_over_game") && menu.value));
 const controls = computed(() => props.state?.controls ?? []);
+const supportedKeys = computed(() => props.state?.supported_keys ?? []);
 const isEnglish = computed(() => (settings.value?.language || "pt-BR") === "en");
 const isMainScreen = computed(() => {
   const s = menu.value?.screen || "main";
-  return s === "main" || !["saves", "options", "customize"].includes(s);
+  return s === "main" || !["saves", "options", "customize", "controls"].includes(s);
 });
 
-watch(show, (v) => { if (!v) showHelp.value = false; });
-watch(() => menu.value?.screen, () => { showHelp.value = false; });
+const capturing = ref(false);
+const capturingActionCode = ref(null);
+
+function supportedIndexByName(name) {
+  const found = supportedKeys.value.find((k) => k.name === name);
+  return found ? found.index : null;
+}
+
+function stopCapture() {
+  capturing.value = false;
+  capturingActionCode.value = null;
+}
+
+function startCapture(actionCode) {
+  capturing.value = true;
+  capturingActionCode.value = actionCode;
+}
+
+function onSelectKey(actionCode, ev) {
+  const idx = ev?.target?.value;
+  if (idx === "" || idx == null) return;
+  uiAction(UiAction.ControlsSetKey, actionCode, Number(idx), 1);
+  if (ev && ev.target) ev.target.value = "";
+}
+
+function normalizeCaptureCode(ev) {
+  const code = ev.code || "";
+  if (code && supportedIndexByName(code) != null) return code;
+  // Some browsers/environments may report different values; try common fallbacks.
+  const key = ev.key || "";
+  const fallbacks = {
+    " ": "Space",
+    Esc: "Escape",
+    ArrowLeft: "ArrowLeft",
+    ArrowRight: "ArrowRight",
+    ArrowUp: "ArrowUp",
+    ArrowDown: "ArrowDown",
+    Control: ev.location === 2 ? "ControlRight" : "ControlLeft",
+    Shift: ev.location === 2 ? "ShiftRight" : "ShiftLeft",
+    Alt: ev.location === 2 ? "AltRight" : "AltLeft",
+    Meta: ev.location === 2 ? "MetaRight" : "MetaLeft",
+  };
+  if (fallbacks[key] && supportedIndexByName(fallbacks[key]) != null) return fallbacks[key];
+  if (/^[a-z]$/i.test(key)) {
+    const name = `Key${key.toUpperCase()}`;
+    if (supportedIndexByName(name) != null) return name;
+  }
+  if (/^[0-9]$/.test(key)) {
+    const name = `Digit${key}`;
+    if (supportedIndexByName(name) != null) return name;
+  }
+  return code || key;
+}
+
+function onCaptureKey(ev) {
+  if (!capturing.value || capturingActionCode.value == null) return;
+  // While capturing, prevent keys from triggering menu/game actions.
+  ev.preventDefault();
+  ev.stopPropagation();
+  if (typeof ev.stopImmediatePropagation === "function") ev.stopImmediatePropagation();
+
+  if (ev.key === "Escape" || ev.code === "Escape") {
+    stopCapture();
+    return;
+  }
+  const name = normalizeCaptureCode(ev);
+  const idx = supportedIndexByName(name);
+  if (idx == null) return; // unsupported key: keep capturing
+  uiAction(UiAction.ControlsSetKey, capturingActionCode.value, Number(idx), 0);
+  stopCapture();
+}
+
+window.addEventListener("keydown", onCaptureKey, true);
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onCaptureKey, true);
+});
+
+watch(show, (v) => { if (!v) { showHelp.value = false; stopCapture(); } });
+watch(() => menu.value?.screen, (s) => { showHelp.value = false; if (s !== "controls") stopCapture(); });
 
 function act(code, a = 0, b = 0, c = 0) {
   uiAction(code, a, b, c);
@@ -75,7 +154,7 @@ function isSelectedColor(fieldKey, value) {
         @click.prevent.stop="showHelp = true"
       >?</button>
       <div class="dom-panel">
-        <template v-if="menu.screen === 'main' || !['saves', 'options', 'customize'].includes(menu.screen)">
+        <template v-if="menu.screen === 'main' || !['saves', 'options', 'customize', 'controls'].includes(menu.screen)">
           <button v-if="menu.has_background_game" type="button" class="dom-btn primary" @click.prevent.stop="act(UiAction.MenuResume)">
             {{ labels.resume }}
           </button>
@@ -150,6 +229,15 @@ function isSelectedColor(fieldKey, value) {
             </div>
           </div>
 
+          <div class="dom-option-row">
+            <div class="dom-option-label">{{ isEnglish ? 'Controls' : 'Controles' }}</div>
+            <div class="dom-option-buttons">
+              <button type="button" class="dom-btn small" @click.prevent.stop="act(UiAction.MenuOpenControls)">
+                {{ isEnglish ? 'Configure controls' : 'Configurar controles' }}
+              </button>
+            </div>
+          </div>
+
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
             {{ labels.back }}
           </button>
@@ -211,6 +299,50 @@ function isSelectedColor(fieldKey, value) {
           <p v-else class="dom-subtitle">{{ labels.customize_no_player || 'Character editor unavailable.' }}</p>
 
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
+            {{ labels.back }}
+          </button>
+        </template>
+
+        <template v-else-if="menu.screen === 'controls'">
+          <h2 class="dom-title">{{ isEnglish ? 'Controls' : 'Controles' }}</h2>
+          <p class="dom-subtitle" style="margin-bottom:10px">
+            {{ isEnglish ? 'Press a key to add it to an action. A key can only be used for one action, but an action can have multiple keys. Changes are saved automatically.' : 'Pressione uma tecla para adicioná-la a uma ação. Uma tecla não pode ter mais de uma ação, mas uma ação pode ter mais de uma tecla. As alterações são salvas automaticamente.' }}
+          </p>
+
+          <div class="dom-controls-config-actions">
+            <button type="button" class="dom-btn small secondary" @click.prevent.stop="act(UiAction.ControlsResetDefaults)">
+              {{ isEnglish ? 'Reset defaults' : 'Restaurar padrão' }}
+            </button>
+          </div>
+
+          <div class="dom-controls-config-list">
+            <div v-for="c in controls" :key="c.action" class="dom-control-config-row">
+              <div class="dom-control-config-main">
+                <div class="dom-control-label">{{ c.label }}</div>
+                <div class="dom-control-keys">
+                  <template v-if="c.keys && c.keys.length">
+                    <span v-for="(k, i) in c.keys" :key="c.action + '-' + i" class="dom-keycap">{{ k }}</span>
+                  </template>
+                  <span v-else class="dom-keycap muted">—</span>
+                </div>
+              </div>
+              <div class="dom-control-config-edit">
+                <button
+                  type="button"
+                  class="dom-btn small"
+                  :class="{ selected: capturing && capturingActionCode === c.action_code }"
+                  @click.prevent.stop="startCapture(c.action_code)"
+                >
+                  {{ capturing && capturingActionCode === c.action_code ? (isEnglish ? 'Press a key… (Esc to cancel)' : 'Pressione uma tecla… (Esc cancela)') : (isEnglish ? 'Press key to set' : 'Pressionar tecla') }}
+                </button>
+                <button type="button" class="dom-btn small secondary" @click.prevent.stop="act(UiAction.ControlsClearAction, c.action_code, 0, 0)">
+                  {{ isEnglish ? 'Clear' : 'Limpar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="dom-btn secondary" @click.prevent.stop="stopCapture(); act(UiAction.MenuBack)" style="margin-top:12px">
             {{ labels.back }}
           </button>
         </template>

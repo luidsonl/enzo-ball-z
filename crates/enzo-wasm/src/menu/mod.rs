@@ -25,6 +25,7 @@ pub enum MenuScreen {
     Saves,
     Options,
     Customize,
+    Controls,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -58,6 +59,8 @@ pub struct Menu {
     /// Persisted separately so the character editor works from the main menu.
     pub draft_character: enzo_core::entities::PlayableCharacter,
     pub draft_visual_profile: enzo_core::entities::VisualProfile,
+    /// Active key bindings (configurable in Options > Controls).
+    pub bindings: crate::input::KeyBindings,
 }
 
 impl Menu {
@@ -74,6 +77,7 @@ impl Menu {
                 let c = save::load_draft_character();
                 save::load_draft_visual_profile(c)
             },
+            bindings: save::load_keybindings(),
         }
     }
 
@@ -131,6 +135,13 @@ impl Menu {
                 self.push(MenuScreen::Customize);
                 None
             }
+            UiAction::MenuOpenControls => {
+                self.push(MenuScreen::Controls);
+                None
+            }
+            UiAction::ControlsResetDefaults
+            | UiAction::ControlsSetKey { .. }
+            | UiAction::ControlsClearAction { .. } => None,
             UiAction::MenuStart { slot, new_game } => {
                 let slot = slot as usize;
                 if slot >= save::SLOT_COUNT {
@@ -401,6 +412,7 @@ mod tests {
             time: 0.0,
             draft_character: Default::default(),
             draft_visual_profile: Default::default(),
+            bindings: crate::input::KeyBindings::default(),
         }
     }
 
