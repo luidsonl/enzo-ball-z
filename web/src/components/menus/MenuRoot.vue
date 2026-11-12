@@ -8,6 +8,7 @@ const props = defineProps({
 
 import { onBeforeUnmount } from "vue";
 const showHelp = ref(false);
+const showResetConfirm = ref(false);
 
 const menu = computed(() => props.state?.menu ?? null);
 const labels = computed(() => props.state?.labels ?? {});
@@ -38,6 +39,26 @@ function stopCapture() {
 function startCapture(actionCode) {
   capturing.value = true;
   capturingActionCode.value = actionCode;
+}
+
+function openResetConfirm() {
+  showHelp.value = false;
+  showResetConfirm.value = true;
+}
+
+function confirmResetAllData() {
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage?.clear?.();
+      window.sessionStorage?.clear?.();
+    }
+  } catch (_) {
+    // ignore and still reload
+  }
+  showResetConfirm.value = false;
+  if (typeof window !== "undefined") {
+    window.location.reload();
+  }
 }
 
 function onSelectKey(actionCode, ev) {
@@ -99,8 +120,18 @@ onBeforeUnmount(() => {
   window.removeEventListener("keydown", onCaptureKey, true);
 });
 
-watch(show, (v) => { if (!v) { showHelp.value = false; stopCapture(); } });
-watch(() => menu.value?.screen, (s) => { showHelp.value = false; if (s !== "controls") stopCapture(); });
+watch(show, (v) => {
+  if (!v) {
+    showHelp.value = false;
+    showResetConfirm.value = false;
+    stopCapture();
+  }
+});
+watch(() => menu.value?.screen, (screen) => {
+  showHelp.value = false;
+  showResetConfirm.value = false;
+  if (screen !== "controls") stopCapture();
+});
 
 function act(code, a = 0, b = 0, c = 0) {
   uiAction(code, a, b, c);
@@ -238,6 +269,15 @@ function isSelectedColor(fieldKey, value) {
             </div>
           </div>
 
+          <div class="dom-option-row dom-option-row-danger">
+            <div class="dom-option-label">{{ isEnglish ? 'Reset all data' : 'Resetar todos os dados' }}</div>
+            <div class="dom-option-buttons">
+              <button type="button" class="dom-btn small danger" @click.prevent.stop="openResetConfirm">
+                {{ isEnglish ? 'Reset all data' : 'Resetar todos os dados' }}
+              </button>
+            </div>
+          </div>
+
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
             {{ labels.back }}
           </button>
@@ -356,6 +396,21 @@ function isSelectedColor(fieldKey, value) {
         <div class="dom-modal-actions">
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuCancelDelete)">{{ labels.cancel }}</button>
           <button type="button" class="dom-btn danger" @click.prevent.stop="act(UiAction.MenuConfirmDelete)">{{ labels.confirm }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="show && showResetConfirm" class="dom-modal-overlay" @click.self="showResetConfirm = false">
+      <div class="dom-modal dom-reset-modal">
+        <h3 class="dom-title">{{ isEnglish ? 'Reset all data?' : 'Resetar todos os dados?' }}</h3>
+        <p class="dom-subtitle" style="margin: 8px 0 14px;">
+          {{ isEnglish
+            ? 'This will delete all save slots and all site data stored in this browser (settings, language, controls, and customization). This action cannot be undone.'
+            : 'Isso vai apagar todos os slots de save e todos os dados do site armazenados neste navegador (configurações, idioma, controles e personalização). Essa ação não pode ser desfeita.' }}
+        </p>
+        <div class="dom-modal-actions">
+          <button type="button" class="dom-btn secondary" @click.prevent.stop="showResetConfirm = false">{{ labels.cancel || (isEnglish ? 'Cancel' : 'Cancelar') }}</button>
+          <button type="button" class="dom-btn danger" @click.prevent.stop="confirmResetAllData">{{ isEnglish ? 'Reset everything' : 'Resetar tudo' }}</button>
         </div>
       </div>
     </div>
