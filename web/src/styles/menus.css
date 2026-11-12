@@ -54,3 +54,94 @@
 }
 .dom-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .dom-menu-root > * { pointer-events: auto; }
+
+/* Help / controls modal */
+.dom-help-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(94, 242, 255, 0.28);
+  background: rgba(20, 22, 42, 0.55);
+  color: rgba(232, 236, 255, 0.75);
+  font: 600 14px/1 system-ui, sans-serif;
+  cursor: pointer;
+  z-index: 2;
+  padding: 0;
+}
+.dom-help-btn:hover {
+  background: rgba(40, 46, 80, 0.85);
+  color: #e8ecff;
+  border-color: rgba(94, 242, 255, 0.55);
+}
+.dom-help-overlay {
+  z-index: 30;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.dom-help-modal {
+  width: min(94vw, 720px);
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  border-color: rgba(94, 242, 255, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+.dom-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.dom-help-header .dom-title { margin: 0; }
+.dom-help-body {
+  overflow: auto;
+  padding-right: 4px;
+}
+.dom-help-section { margin: 10px 0 14px; }
+.dom-help-section h4 {
+  margin: 0 0 6px;
+  color: #5ef2ff;
+  font-size: 14px;
+}
+.dom-help-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #dfe6ff;
+  font-size: 13px;
+}
+.dom-help-list li { margin: 4px 0; }
+.dom-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.dom-control-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid rgba(94, 242, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(20, 22, 42, 0.55);
+}
+.dom-control-label { font-size: 13px; color: #e8ecff; }
+.dom-control-keys { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.dom-keycap {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(232, 236, 255, 0.22);
+  background: rgba(12, 14, 32, 0.9);
+  color: #f6c445;
+  font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-align: center;
+}
+.dom-keycap.muted { color: rgba(232, 236, 255, 0.45); }

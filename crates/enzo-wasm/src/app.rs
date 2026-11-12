@@ -175,7 +175,7 @@ impl App {
                 self.ui_publish_accum = 0.0;
                 match &self.scene {
                     Scene::Menu(menu) => {
-                        ui_controller::publish("menu", None, Some(menu), self.i18n, None)
+                        ui_controller::publish("menu", None, Some(menu), self.i18n, None, None)
                     }
                     Scene::Game(session) => ui_controller::publish(
                         "game",
@@ -183,6 +183,7 @@ impl App {
                         None,
                         self.i18n,
                         session.game_toast_text(),
+                        Some(&session.input.bindings),
                     ),
                     Scene::MenuOverGame { menu, game } => ui_controller::publish(
                         "menu_over_game",
@@ -190,6 +191,7 @@ impl App {
                         Some(menu),
                         self.i18n,
                         game.game_toast_text(),
+                        Some(&game.input.bindings),
                     ),
                 }
             }

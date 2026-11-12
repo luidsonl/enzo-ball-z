@@ -1,16 +1,27 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { UiAction, uiAction, setPlayableCharacter, setVisualProfileField } from "../../bridge/bridge.js";
 
 const props = defineProps({
   state: { type: Object, default: null },
 });
 
+const showHelp = ref(false);
+
 const menu = computed(() => props.state?.menu ?? null);
 const labels = computed(() => props.state?.labels ?? {});
 const settings = computed(() => props.state?.settings ?? {});
 const player = computed(() => props.state?.player ?? null);
 const show = computed(() => !!(props.state && (props.state.scene === "menu" || props.state.scene === "menu_over_game") && menu.value));
+const controls = computed(() => props.state?.controls ?? []);
+const isEnglish = computed(() => (settings.value?.language || "pt-BR") === "en");
+const isMainScreen = computed(() => {
+  const s = menu.value?.screen || "main";
+  return s === "main" || !["saves", "options", "customize"].includes(s);
+});
+
+watch(show, (v) => { if (!v) showHelp.value = false; });
+watch(() => menu.value?.screen, () => { showHelp.value = false; });
 
 function act(code, a = 0, b = 0, c = 0) {
   uiAction(code, a, b, c);
@@ -54,7 +65,15 @@ function isSelectedColor(fieldKey, value) {
     :class="{ active: show }"
     :style="{ pointerEvents: show ? 'auto' : 'none' }"
   >
-    <div v-if="show" class="dom-menu-wrap">
+    <div v-if="show" class="dom-menu-wrap" style="position: relative;">
+      <button
+        v-if="isMainScreen"
+        type="button"
+        class="dom-help-btn"
+        :title="isEnglish ? 'Controls and instructions' : 'Comandos e instruções'"
+        :aria-label="isEnglish ? 'Controls and instructions' : 'Comandos e instruções'"
+        @click.prevent.stop="showHelp = true"
+      >?</button>
       <div class="dom-panel">
         <template v-if="menu.screen === 'main' || !['saves', 'options', 'customize'].includes(menu.screen)">
           <button v-if="menu.has_background_game" type="button" class="dom-btn primary" @click.prevent.stop="act(UiAction.MenuResume)">
@@ -205,6 +224,50 @@ function isSelectedColor(fieldKey, value) {
         <div class="dom-modal-actions">
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuCancelDelete)">{{ labels.cancel }}</button>
           <button type="button" class="dom-btn danger" @click.prevent.stop="act(UiAction.MenuConfirmDelete)">{{ labels.confirm }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="show && showHelp" class="dom-modal-overlay dom-help-overlay" @click.self="showHelp = false">
+      <div class="dom-modal dom-help-modal">
+        <div class="dom-help-header">
+          <h3 class="dom-title">{{ isEnglish ? 'Controls & Instructions' : 'Comandos e Instruções' }}</h3>
+          <button type="button" class="dom-btn small secondary" @click.prevent.stop="showHelp = false">{{ labels.close || (isEnglish ? 'Close' : 'Fechar') }}</button>
+        </div>
+
+        <div class="dom-help-body">
+          <section class="dom-help-section">
+            <h4>{{ isEnglish ? 'How to play' : 'Como jogar' }}</h4>
+            <ul class="dom-help-list">
+              <template v-if="isEnglish">
+                <li>Move, jump, and fight to reach the flag at the end of the stage.</li>
+                <li>Farm aura by alternating the <strong>6</strong> and <strong>7</strong> keys (SixSeven).</li>
+                <li>Action slots trigger equipped skills/abilities (jump, attacks, specials, etc.).</li>
+                <li>Defeat enemies to gain XP and level up, then allocate attribute points via the in-game interface.</li>
+              </template>
+              <template v-else>
+                <li>Mova-se, pule e lute para alcançar a bandeira no fim da fase.</li>
+                <li>Farme aura alternando as teclas <strong>6</strong> e <strong>7</strong> (SixSeven).</li>
+                <li>Os slots de ação ativam habilidades equipadas (pulo, ataques, especiais etc.).</li>
+                <li>Derrote inimigos para ganhar XP e subir de nível, depois distribua pontos de atributo pela interface do jogo.</li>
+              </template>
+            </ul>
+          </section>
+
+          <section class="dom-help-section">
+            <h4>{{ isEnglish ? 'Configured controls' : 'Controles configurados' }}</h4>
+            <div class="dom-controls-grid">
+              <div v-for="c in controls" :key="c.action" class="dom-control-row">
+                <div class="dom-control-label">{{ c.label }}</div>
+                <div class="dom-control-keys">
+                  <template v-if="c.keys && c.keys.length">
+                    <span v-for="(k, i) in c.keys" :key="c.action + '-' + i" class="dom-keycap">{{ k }}</span>
+                  </template>
+                  <span v-else class="dom-keycap muted">—</span>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>

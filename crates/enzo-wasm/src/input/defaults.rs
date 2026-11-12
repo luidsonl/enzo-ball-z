@@ -60,26 +60,12 @@ pub fn default_bindings() -> KeyBindings {
         &[KeyCode::Key7, KeyCode::Kp7],
     );
 
-    bind(
-        &mut bindings,
-        InputAction::AllocateSpeed,
-        &[KeyCode::Key1, KeyCode::Kp1],
-    );
-    bind(
-        &mut bindings,
-        InputAction::AllocateStrength,
-        &[KeyCode::Key2, KeyCode::Kp2],
-    );
-    bind(
-        &mut bindings,
-        InputAction::AllocateHealth,
-        &[KeyCode::Key3, KeyCode::Kp3],
-    );
-    bind(
-        &mut bindings,
-        InputAction::AllocateAura,
-        &[KeyCode::Key4, KeyCode::Kp4],
-    );
+    // Attribute allocation is done via the game UI (not keyboard shortcuts).
+    bind(&mut bindings, InputAction::AllocateSpeed, &[]);
+    bind(&mut bindings, InputAction::AllocateStrength, &[]);
+    bind(&mut bindings, InputAction::AllocateHealth, &[]);
+    bind(&mut bindings, InputAction::AllocateAura, &[]);
+    bind(&mut bindings, InputAction::AllocateEgo, &[]);
 
     bind(
         &mut bindings,

@@ -5,13 +5,15 @@
 //! state changes, and publishes serializable [`UiState`] for rendering.
 
 use enzo_core::entities::EquipSlot;
-use enzo_core::input::Attribute;
+use enzo_core::input::{Attribute, InputAction};
 use enzo_core::progression::{xp_to_next, SaveData};
 use enzo_core::skills::SkillCategory;
 use enzo_core::snapshot::{EntitySnapshot, WorldSnapshot};
+use macroquad::prelude::KeyCode;
 use serde::Serialize;
 
 use crate::i18n::{I18n, Text};
+use crate::input::KeyBindings;
 use crate::menu::{Menu, MenuScreen};
 use crate::save::{self, SLOT_COUNT};
 use crate::ui_bridge::UiAction;
@@ -331,6 +333,13 @@ pub struct UiPlayerState {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct UiControlBinding {
+    pub action: String,
+    pub label: String,
+    pub keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct UiState {
     pub scene: String,
     pub phase: Option<String>,
@@ -339,6 +348,7 @@ pub struct UiState {
     pub game_toast: Option<String>,
     pub settings: UiSettings,
     pub labels: UiLabels,
+    pub controls: Vec<UiControlBinding>,
 }
 
 // --- State building ---
@@ -538,6 +548,7 @@ pub fn build_state(
     menu: Option<&Menu>,
     i18n: I18n,
     game_toast: Option<&str>,
+    bindings: Option<&KeyBindings>,
 ) -> UiState {
     let (phase, mut player) = if let Some(snapshot) = snapshot {
         (
@@ -555,6 +566,14 @@ pub fn build_state(
             ));
         }
     }
+    let default_bindings;
+    let bindings = match bindings {
+        Some(b) => b,
+        None => {
+            default_bindings = crate::input::defaults::default_bindings();
+            &default_bindings
+        }
+    };
     UiState {
         scene: scene.to_owned(),
         phase,
@@ -563,6 +582,7 @@ pub fn build_state(
         game_toast: game_toast.map(|s| s.to_owned()),
         settings: UiSettings::current(),
         labels: UiLabels::from_i18n(i18n),
+        controls: control_bindings(bindings, i18n),
     }
 }
 
@@ -572,10 +592,128 @@ pub fn publish(
     menu: Option<&Menu>,
     i18n: I18n,
     game_toast: Option<&str>,
+    bindings: Option<&KeyBindings>,
 ) {
-    let state = build_state(scene, snapshot, menu, i18n, game_toast);
+    let state = build_state(scene, snapshot, menu, i18n, game_toast, bindings);
     if let Ok(json) = serde_json::to_string(&state) {
         crate::ui_bridge::set_ui_state_json(json);
+    }
+}
+
+fn control_bindings(bindings: &KeyBindings, i18n: I18n) -> Vec<UiControlBinding> {
+    let is_en = i18n.language().code() == "en";
+    let mut out = Vec::new();
+    for action in InputAction::ALL {
+        // Attribute allocation is performed via the in-game UI, not keyboard buttons.
+        if action.attribute().is_some() {
+            continue;
+        }
+        let keys: Vec<String> = bindings
+            .keys(action)
+            .iter()
+            .map(|k| key_label(*k))
+            .collect();
+        out.push(UiControlBinding {
+            action: format!("{:?}", action),
+            label: action_label(action, is_en).to_owned(),
+            keys,
+        });
+    }
+    out
+}
+
+fn action_label(action: InputAction, is_en: bool) -> &'static str {
+    match (action, is_en) {
+        (InputAction::MoveLeft, true) => "Move left",
+        (InputAction::MoveLeft, false) => "Mover para esquerda",
+        (InputAction::MoveRight, true) => "Move right",
+        (InputAction::MoveRight, false) => "Mover para direita",
+        (InputAction::MoveUp, true) => "Move up / climb / fly up",
+        (InputAction::MoveUp, false) => "Mover para cima / escalar / voar",
+        (InputAction::MoveDown, true) => "Move down / crouch",
+        (InputAction::MoveDown, false) => "Mover para baixo / agachar",
+        (InputAction::Slot1, true) => "Action slot 1 (Jump by default)",
+        (InputAction::Slot1, false) => "Slot de ação 1 (Pulo por padrão)",
+        (InputAction::Slot2, true) => "Action slot 2",
+        (InputAction::Slot2, false) => "Slot de ação 2",
+        (InputAction::Slot3, true) => "Action slot 3",
+        (InputAction::Slot3, false) => "Slot de ação 3",
+        (InputAction::Slot4, true) => "Action slot 4",
+        (InputAction::Slot4, false) => "Slot de ação 4",
+        (InputAction::Six, true) => "Aura farming: 6 (alternate with 7)",
+        (InputAction::Six, false) => "Farmar aura: 6 (alterne com 7)",
+        (InputAction::Seven, true) => "Aura farming: 7 (alternate with 6)",
+        (InputAction::Seven, false) => "Farmar aura: 7 (alterne com 6)",
+        (InputAction::AllocateSpeed, true) => "Allocate: Speed",
+        (InputAction::AllocateSpeed, false) => "Distribuir: Velocidade",
+        (InputAction::AllocateStrength, true) => "Allocate: Strength",
+        (InputAction::AllocateStrength, false) => "Distribuir: Força",
+        (InputAction::AllocateHealth, true) => "Allocate: Health",
+        (InputAction::AllocateHealth, false) => "Distribuir: Vida",
+        (InputAction::AllocateAura, true) => "Allocate: Aura",
+        (InputAction::AllocateAura, false) => "Distribuir: Aura",
+        (InputAction::AllocateEgo, true) => "Allocate: Ego",
+        (InputAction::AllocateEgo, false) => "Distribuir: Ego",
+        (InputAction::Confirm, true) => "Confirm",
+        (InputAction::Confirm, false) => "Confirmar",
+        (InputAction::Restart, true) => "Restart",
+        (InputAction::Restart, false) => "Reiniciar",
+        (InputAction::OpenMenu, true) => "Open menu / pause",
+        (InputAction::OpenMenu, false) => "Abrir menu / pausar",
+        (InputAction::OpenSkills, true) => "Open skills",
+        (InputAction::OpenSkills, false) => "Abrir habilidades",
+    }
+}
+
+fn key_label(key: KeyCode) -> String {
+    match key {
+        KeyCode::Space => "Space".to_owned(),
+        KeyCode::Escape => "Esc".to_owned(),
+        KeyCode::Enter | KeyCode::KpEnter => "Enter".to_owned(),
+        KeyCode::Left => "←".to_owned(),
+        KeyCode::Right => "→".to_owned(),
+        KeyCode::Up => "↑".to_owned(),
+        KeyCode::Down => "↓".to_owned(),
+        KeyCode::LeftShift | KeyCode::RightShift => "Shift".to_owned(),
+        KeyCode::LeftControl | KeyCode::RightControl => "Ctrl".to_owned(),
+        KeyCode::LeftAlt | KeyCode::RightAlt => "Alt".to_owned(),
+        KeyCode::Key0 | KeyCode::Kp0 => "0".to_owned(),
+        KeyCode::Key1 | KeyCode::Kp1 => "1".to_owned(),
+        KeyCode::Key2 | KeyCode::Kp2 => "2".to_owned(),
+        KeyCode::Key3 | KeyCode::Kp3 => "3".to_owned(),
+        KeyCode::Key4 | KeyCode::Kp4 => "4".to_owned(),
+        KeyCode::Key5 | KeyCode::Kp5 => "5".to_owned(),
+        KeyCode::Key6 | KeyCode::Kp6 => "6".to_owned(),
+        KeyCode::Key7 | KeyCode::Kp7 => "7".to_owned(),
+        KeyCode::Key8 | KeyCode::Kp8 => "8".to_owned(),
+        KeyCode::Key9 | KeyCode::Kp9 => "9".to_owned(),
+        KeyCode::A => "A".to_owned(),
+        KeyCode::B => "B".to_owned(),
+        KeyCode::C => "C".to_owned(),
+        KeyCode::D => "D".to_owned(),
+        KeyCode::E => "E".to_owned(),
+        KeyCode::F => "F".to_owned(),
+        KeyCode::G => "G".to_owned(),
+        KeyCode::H => "H".to_owned(),
+        KeyCode::I => "I".to_owned(),
+        KeyCode::J => "J".to_owned(),
+        KeyCode::K => "K".to_owned(),
+        KeyCode::L => "L".to_owned(),
+        KeyCode::M => "M".to_owned(),
+        KeyCode::N => "N".to_owned(),
+        KeyCode::O => "O".to_owned(),
+        KeyCode::P => "P".to_owned(),
+        KeyCode::Q => "Q".to_owned(),
+        KeyCode::R => "R".to_owned(),
+        KeyCode::S => "S".to_owned(),
+        KeyCode::T => "T".to_owned(),
+        KeyCode::U => "U".to_owned(),
+        KeyCode::V => "V".to_owned(),
+        KeyCode::W => "W".to_owned(),
+        KeyCode::X => "X".to_owned(),
+        KeyCode::Y => "Y".to_owned(),
+        KeyCode::Z => "Z".to_owned(),
+        other => format!("{other:?}"),
     }
 }
 
