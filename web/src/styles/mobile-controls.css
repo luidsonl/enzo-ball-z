@@ -76,7 +76,7 @@
 }
 
 .ui-label__slot-num {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 800;
   color: #f6c445;
   line-height: 1;
@@ -94,7 +94,7 @@
 }
 
 .ui-btn--slot.has-skill .ui-label__slot-num {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .ui-btn--slot.slot-active {
@@ -116,4 +116,19 @@
 
 @media (pointer: fine) and (min-width: 1100px) {
   .dom-controls-root { opacity: 0.9; }
+}
+
+.ui-label__skill-icon {
+  width: calc(var(--control-size, 56px) * 0.58);
+  height: calc(var(--control-size, 56px) * 0.58);
+  max-width: 38px;
+  max-height: 38px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  object-fit: contain;
+  pointer-events: none;
+}
+.ui-btn--slot.has-skill .ui-label__skill-icon {
+  width: calc(var(--control-size, 56px) * 0.58);
+  height: calc(var(--control-size, 56px) * 0.58);
 }

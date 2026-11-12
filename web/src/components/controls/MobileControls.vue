@@ -163,7 +163,14 @@ onBeforeUnmount(() => {});
     >
       <span v-if="control.kind === 'slot'" class="ui-label">
         <span class="ui-label__slot-num">{{ control.slot }}</span>
-        <span v-if="slotSkillName(slotInfo(control))" class="ui-label__skill-name">{{ slotSkillName(slotInfo(control)) }}</span>
+        <img
+          v-if="slotInfo(control)?.skill_icon"
+          class="ui-label__skill-icon"
+          :src="slotInfo(control).skill_icon"
+          :alt="slotInfo(control)?.skill_name || ''"
+          :title="slotInfo(control)?.skill_name || ''"
+        />
+        <span v-else-if="slotSkillName(slotInfo(control))" class="ui-label__skill-name">{{ slotSkillName(slotInfo(control)) }}</span>
       </span>
       <span v-else class="ui-label">{{ control.label }}</span>
 
