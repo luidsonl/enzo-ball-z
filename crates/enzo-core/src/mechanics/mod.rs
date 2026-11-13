@@ -22,6 +22,9 @@ use crate::input::{PlayerCommand, SixSevenKey};
 pub struct Locomotion {
     pub walk: Walk,
     pub sixseven: SixSeven,
+    /// Crouch intent/state (posture). Collision height is managed by the world.
+    pub crouching: bool,
+    pub crouch_intent: bool,
     pub walk_enabled: bool,
     pub sixseven_enabled: bool,
 }
@@ -37,6 +40,8 @@ impl Locomotion {
         Self {
             walk: Walk::new(),
             sixseven: SixSeven::new(),
+            crouching: false,
+            crouch_intent: false,
             walk_enabled: false,
             sixseven_enabled: false,
         }
@@ -46,6 +51,8 @@ impl Locomotion {
         Self {
             walk: Walk::new(),
             sixseven: SixSeven::new(),
+            crouching: false,
+            crouch_intent: false,
             walk_enabled: true,
             sixseven_enabled: true,
         }
@@ -56,6 +63,8 @@ impl Locomotion {
         Self {
             walk: Walk::new(),
             sixseven: SixSeven::new(),
+            crouching: false,
+            crouch_intent: false,
             walk_enabled: true,
             sixseven_enabled: false,
         }
@@ -71,6 +80,7 @@ impl Locomotion {
 
     /// Registra a intenção contínua e edges das mecânicas fora dos slots.
     pub fn apply_command(&mut self, command: PlayerCommand) {
+        self.crouch_intent = command.move_y > 0;
         if self.walk_enabled {
             self.walk.apply(command.move_x);
         }

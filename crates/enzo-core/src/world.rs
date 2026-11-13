@@ -3,6 +3,8 @@
 use crate::ai;
 use crate::aura;
 use crate::entities::{
+    actors::enzo::ENZO_CROUCH_SIZE,
+    actors::valentina::{VALENTINA_CROUCH_SIZE, VALENTINA_SIZE},
     EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind,
     PlayableCharacter, PlayerId, VisualProfile, ENZO_SIZE, SLIME_SIZE,
 };
@@ -378,6 +380,10 @@ impl World {
                     ..PlayerCommand::none()
                 })
                 .unwrap_or_else(PlayerCommand::none);
+            let crouch_sizes = crouch_sizes_for(entity);
+            if let Some((stand, crouch)) = crouch_sizes {
+                apply_crouch_posture(entity, level, stand, crouch);
+            }
             entity.skills.apply_intent(command, &entity.body);
             let speed_factor = entity.locomotion.speed_factor();
             let mut locomotion = entity.locomotion;
@@ -721,6 +727,57 @@ fn spawn_enemy(store: &mut EntityStore, kind: &str, pos: Vec2) {
             store.spawn(EntitySpec::slime(pos));
         }
     }
+}
+
+fn crouch_sizes_for(entity: &crate::entities::Entity) -> Option<(Vec2, Vec2)> {
+    if !entity.is_player() {
+        return None;
+    }
+    match entity.visual_character.unwrap_or(PlayableCharacter::Enzo) {
+        PlayableCharacter::Enzo => Some((ENZO_SIZE, ENZO_CROUCH_SIZE)),
+        PlayableCharacter::Valentina => Some((VALENTINA_SIZE, VALENTINA_CROUCH_SIZE)),
+    }
+}
+
+fn apply_crouch_posture(
+    entity: &mut crate::entities::Entity,
+    level: &Level,
+    stand: Vec2,
+    crouch: Vec2,
+) {
+    let wants_crouch = entity.locomotion.crouch_intent && entity.body.on_ground;
+    if wants_crouch {
+        set_body_height_keep_feet(&mut entity.body, crouch);
+        entity.locomotion.crouching = true;
+        return;
+    }
+
+    if entity.locomotion.crouching || (entity.body.size.y - crouch.y).abs() < 0.01 {
+        if can_stand_up(&entity.body, stand, level) {
+            set_body_height_keep_feet(&mut entity.body, stand);
+            entity.locomotion.crouching = false;
+        } else {
+            set_body_height_keep_feet(&mut entity.body, crouch);
+            entity.locomotion.crouching = true;
+        }
+    } else if (entity.body.size.y - stand.y).abs() > 0.01
+        && can_stand_up(&entity.body, stand, level)
+    {
+        set_body_height_keep_feet(&mut entity.body, stand);
+    }
+}
+
+fn set_body_height_keep_feet(body: &mut crate::entities::Body, target: Vec2) {
+    let bottom = body.bottom();
+    body.size = target;
+    body.pos.y = bottom - target.y;
+}
+
+fn can_stand_up(body: &crate::entities::Body, stand: Vec2, level: &Level) -> bool {
+    let bottom = body.bottom();
+    let top = bottom - stand.y;
+    let rect = crate::math::Rect::new(body.pos.x, top, stand.x, stand.y);
+    !level.rect_overlaps_solid(rect)
 }
 
 #[cfg(test)]

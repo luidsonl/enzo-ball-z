@@ -190,8 +190,12 @@ impl EntitySnapshot {
         let melee_step = entity.skills.melee.step;
         let flying = entity.skills.is_active(SkillId::Fly);
         let dashing = entity.skills.is_active(SkillId::Dash);
+        let shout_active = entity.skills.is_active(SkillId::Shout);
+        // `cast_active` is reserved for future cast skills/poses; no cast skill currently.
+        let cast_active = false;
+        let crouching = entity.locomotion.crouching;
         let anim_time = tick as f32 / 60.0;
-        let animation = AnimationState::resolve(
+        let animation = AnimationState::resolve_with_pose(
             alive,
             entity.body.facing,
             entity.body.on_ground,
@@ -201,11 +205,14 @@ impl EntitySnapshot {
             dashing,
             flying,
             false,
+            false,
+            crouching,
             entity.health.iframes > 0.0 && alive,
             melee_step,
             melee_active,
             false,
-            false,
+            cast_active,
+            shout_active,
             farming,
             sixseven_last,
             anim_time,

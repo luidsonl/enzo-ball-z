@@ -6,8 +6,10 @@ use super::humanoid::PlayableHumanoidConfig;
 use super::player::{PlayableCharacter, PlayerId};
 use crate::entities::spec::EntitySpec;
 
-/// Enzo body size.
-pub const ENZO_SIZE: Vec2 = Vec2::new(24.0, 30.0);
+/// Enzo standing body size (2 tiles high).
+pub const ENZO_SIZE: Vec2 = Vec2::new(28.0, 64.0);
+/// Enzo crouching body size (1 tile high; collision halved).
+pub const ENZO_CROUCH_SIZE: Vec2 = Vec2::new(28.0, 32.0);
 
 /// Visual/animation contract (pure data). Rendering resolves frames from this.
 pub mod visual {
