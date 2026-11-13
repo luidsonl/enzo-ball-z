@@ -94,7 +94,8 @@ impl InputState {
         self.seven |= self.action_active(InputAction::Seven).0;
         self.confirm |= self.action_active(InputAction::Confirm).0;
         self.restart |= self.action_active(InputAction::Restart).0;
-        self.menu |= self.action_active(InputAction::OpenMenu).0;
+        // Esc must always be able to open the menu as a fallback.
+        self.menu |= self.action_active(InputAction::OpenMenu).0 || is_key_pressed(KeyCode::Escape);
         self.open_skills |= self.action_active(InputAction::OpenSkills).0;
 
         if self.allocate.is_none() {
