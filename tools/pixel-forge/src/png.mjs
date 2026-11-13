@@ -83,4 +83,18 @@ export class Canvas {
       this.set(dx + x, dy + y, [src.data[i], src.data[i+1], src.data[i+2], src.data[i+3]]);
     }
   }
+  scale2x() {
+    const out = new Canvas(this.w * 2, this.h * 2);
+    for (let y = 0; y < this.h; y += 1) {
+      for (let x = 0; x < this.w; x += 1) {
+        const i = (y * this.w + x) * 4;
+        const c = [this.data[i], this.data[i + 1], this.data[i + 2], this.data[i + 3]];
+        out.set(x * 2, y * 2, c);
+        out.set(x * 2 + 1, y * 2, c);
+        out.set(x * 2, y * 2 + 1, c);
+        out.set(x * 2 + 1, y * 2 + 1, c);
+      }
+    }
+    return out;
+  }
 }

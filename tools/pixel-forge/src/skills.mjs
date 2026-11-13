@@ -15,6 +15,7 @@ const VISUAL_HINTS = {
   Mogging: { icon: ['#2f3f8f', '#5ef2ff'], entity: '#8aefff', particles: 'impact' },
   NutellaShot: { icon: [P.crateDark, P.woodLight], entity: P.crate, particles: 'splash' },
   Shout: { icon: ['#5b3a8a', P.white], particles: 'wave' },
+  Kick: { icon: ['#6b4a2a', P.gold], particles: 'impact' },
 };
 
 function loadContract() {
@@ -182,11 +183,103 @@ function iconMoggingMoai() {
   return c;
 }
 
+function iconShoutScreamProfile() {
+  // Profile screaming face with open mouth (facing right)
+  const c = new Canvas(32, 32);
+  c.rect(0, 0, 32, 32, P.outline);
+  c.rect(1, 1, 30, 30, '#5b3a8a');
+  c.rect(2, 2, 28, 3, '#ffffff33');
+
+  const skin = '#f2c9a0';
+  const shadow = '#d8aa7c';
+  const hair = '#4a2f1a';
+  // head (profile)
+  c.rect(9, 8, 12, 14, P.outline);
+  c.rect(10, 9, 10, 12, skin);
+  c.rect(10, 9, 7, 12, '#f7d6b2');
+  // hair/back of head
+  c.rect(8, 8, 4, 13, hair);
+  c.rect(9, 7, 8, 3, hair);
+  c.rect(17, 8, 2, 3, hair);
+  // brow
+  c.rect(16, 11, 4, 1, '#6b4a32');
+  // eye (wide/screaming)
+  c.rect(16, 12, 3, 3, '#ffffff');
+  c.rect(17, 13, 1, 1, '#1a1a1a');
+  c.rect(16, 12, 3, 3, P.outline);
+  // nose bridge/profile
+  c.rect(19, 12, 2, 4, shadow);
+  c.rect(20, 15, 2, 1, shadow);
+  // open mouth (screaming)
+  c.rect(18, 17, 6, 5, P.outline);
+  c.rect(19, 18, 4, 3, '#3a1020');
+  c.rect(19, 20, 4, 1, '#d94a5a'); // tongue
+  c.rect(19, 18, 4, 1, '#ffffffaa'); // teeth highlight
+  // chin/jaw
+  c.rect(14, 20, 4, 2, skin);
+  c.rect(12, 19, 2, 2, skin);
+  // neck
+  c.rect(11, 22, 5, 4, skin);
+  c.rect(11, 22, 5, 4, P.outline);
+  c.rect(11, 23, 3, 2, shadow);
+
+  // shout waves
+  c.rect(24, 12, 2, 2, '#ffffffcc');
+  c.rect(27, 11, 2, 3, '#ffffff99');
+  c.rect(24, 16, 3, 2, '#ffffffaa');
+  c.rect(28, 16, 2, 2, '#ffffff77');
+  c.rect(25, 20, 2, 2, '#ffffff88');
+  c.rect(28, 21, 2, 2, '#ffffff66');
+  return c;
+}
+
+function iconKickBoot() {
+  // Foot wearing a boot (kicking to the right)
+  const c = new Canvas(32, 32);
+  c.rect(0, 0, 32, 32, P.outline);
+  c.rect(1, 1, 30, 30, '#6b4a2a');
+  c.rect(2, 2, 28, 3, '#ffffff33');
+
+  const boot = '#3b2a1a';
+  const bootHi = '#5a4030';
+  const sole = '#1f1712';
+  const pants = '#2f3a66';
+  // motion lines
+  c.rect(3, 10, 5, 2, '#ffffff66'); c.rect(2, 14, 4, 2, '#ffffff55'); c.rect(4, 18, 3, 2, '#ffffff44');
+
+  // leg/pants (angled kick)
+  c.rect(6, 11, 8, 4, P.outline);
+  c.rect(7, 12, 6, 2, pants);
+  c.rect(12, 13, 6, 4, P.outline);
+  c.rect(13, 14, 4, 2, pants);
+
+  // boot
+  c.rect(14, 14, 11, 7, P.outline);
+  c.rect(15, 15, 9, 5, boot);
+  c.rect(15, 15, 7, 2, bootHi);
+  // toe/front of boot
+  c.rect(22, 16, 5, 5, P.outline);
+  c.rect(23, 17, 3, 3, boot);
+  c.rect(23, 17, 2, 1, bootHi);
+  // sole
+  c.rect(15, 20, 12, 2, sole);
+  c.rect(24, 20, 3, 1, sole);
+  // laces/detail
+  c.rect(17, 16, 1, 1, '#d8c8a8'); c.rect(19, 16, 1, 1, '#d8c8a8'); c.rect(18, 17, 1, 1, '#d8c8a8');
+  c.rect(20, 17, 1, 1, '#d8c8a8');
+
+  // impact spark
+  c.rect(27, 14, 2, 2, '#ffe066'); c.rect(29, 16, 1, 2, '#ffd54d'); c.rect(28, 19, 2, 1, '#fff59d');
+  return c;
+}
+
 function skillIcon(skillId, hint) {
   if (skillId === 'Jump') return iconJump();
   if (skillId === 'Dash') return iconDash();
   if (skillId === 'Melee') return iconMeleePunch();
   if (skillId === 'Mogging') return iconMoggingMoai();
+  if (skillId === 'Shout') return iconShoutScreamProfile();
+  if (skillId === 'Kick') return iconKickBoot();
   return icon(...(hint.icon || [P.stoneDark, P.stoneLight]));
 }
 

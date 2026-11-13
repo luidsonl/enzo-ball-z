@@ -1,0 +1,12 @@
+{
+  "framework": "pixel-forge",
+  "id": "kick",
+  "coreId": "Kick",
+  "assets": {
+    "icon": "icon.png"
+  },
+  "declaredPaths": {
+    "icon": "assets/skills/kick/icon.png"
+  },
+  "note": "Kick animation/icon assets (kick skill not yet registered in core contract)."
+}

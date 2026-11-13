@@ -319,7 +319,7 @@ function drawSlime(c, ox, frame) {
   c.rect(x + w * 0.35, y + h * 0.65, w * 0.3, 2, '#ffffff66');
 }
 
-function makeRig(characterId, cell = 32) {
+function makeRig(characterId, cell = 64) {
   const frames = Object.fromEntries(HUMANOID_FRAMES.map((name, i) => [name, { x: i * cell, y: 0, w: cell, h: cell }]));
   return {
     framework: 'pixel-forge',
@@ -342,21 +342,21 @@ function makeRig(characterId, cell = 32) {
   };
 }
 
-function buildLayerStrip(id, layer, variant = 0, cell = 32) {
-  const c = new Canvas(cell * HUMANOID_FRAMES.length, cell);
-  HUMANOID_FRAMES.forEach((frame, i) => drawHumanoidLayer(c, i * cell, frame, id, layer, variant));
-  return c;
+function buildLayerStrip(id, layer, variant = 0, cell = 64) {
+  // Draw in legacy 32x32 space and upscale 2x for doubled humanoid sprites.
+  const srcCell = 32;
+  const src = new Canvas(srcCell * HUMANOID_FRAMES.length, srcCell);
+  HUMANOID_FRAMES.forEach((frame, i) => drawHumanoidLayer(src, i * srcCell, frame, id, layer, variant));
+  if (cell === srcCell) return src;
+  return src.scale2x();
 }
 
-function buildHumanoid(id, cell = 32) {
+function buildHumanoid(id, cell = 64) {
   const dir = join(ROOT, 'assets/entities', id);
   mkdirSync(join(dir, 'layers'), { recursive: true });
   // Gender-exclusive defaults: Enzo base is short hair (not bald), Valentina keeps feminine default.
   const defaultHair = id === 'valentina' ? 0 : 1;
   const defaultFace = 0;
-  const sheet = buildLayerStrip(id, 'full', 0, cell); // full fallback; runtime uses rig layers/variants
-  // For the base sheet fallback, render with defaults by drawing full then overriding is complex;
-  // keep deterministic full(0) and rely on rig layer composition/variants in runtime.
   writePng(join(dir, 'sheet.png'), buildLayerStrip(id, 'full', 0, cell));
 
   for (const layer of ['base', 'outfit_top', 'outfit_bottom', 'shoes']) {
