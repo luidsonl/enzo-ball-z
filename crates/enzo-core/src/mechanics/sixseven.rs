@@ -110,7 +110,7 @@ impl SixSeven {
 
     pub fn speed_factor(&self) -> f32 {
         if self.is_active() {
-            SLOW_FACTOR
+            0.0
         } else {
             1.0
         }
@@ -190,11 +190,13 @@ mod tests {
     }
 
     #[test]
-    fn active_combo_slows_movement() {
+    fn active_combo_prevents_movement() {
         let mut sixseven = SixSeven::default();
         assert_eq!(sixseven.speed_factor(), 1.0);
         sixseven.press(SixSevenKey::Six);
-        assert_eq!(sixseven.speed_factor(), SLOW_FACTOR);
+        assert_eq!(sixseven.speed_factor(), 0.0);
+        sixseven.tick(COMBO_WINDOW);
+        assert_eq!(sixseven.speed_factor(), 1.0);
     }
 
     #[test]

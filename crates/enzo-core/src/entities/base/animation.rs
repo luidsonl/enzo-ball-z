@@ -15,6 +15,7 @@ pub enum LocomotionPose {
     Walk,
     Run,
     Crouch,
+    Crawl,
     JumpRise,
     JumpFall,
     Dash,
@@ -30,6 +31,7 @@ impl LocomotionPose {
             Self::Walk => "walk",
             Self::Run => "run",
             Self::Crouch => "crouch",
+            Self::Crawl => "crawl",
             Self::JumpRise => "jump_rise",
             Self::JumpFall => "jump_fall",
             Self::Dash => "dash",
@@ -190,7 +192,11 @@ impl AnimationState {
                 LocomotionPose::JumpFall
             }
         } else if crouching {
-            LocomotionPose::Crouch
+            if vel_x.abs() > 8.0 {
+                LocomotionPose::Crawl
+            } else {
+                LocomotionPose::Crouch
+            }
         } else if vel_x.abs() > 20.0 {
             if running {
                 LocomotionPose::Run

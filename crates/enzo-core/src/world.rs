@@ -385,7 +385,10 @@ impl World {
                 apply_crouch_posture(entity, level, stand, crouch);
             }
             entity.skills.apply_intent(command, &entity.body);
-            let speed_factor = entity.locomotion.speed_factor();
+            let mut speed_factor = entity.locomotion.speed_factor();
+            if entity.locomotion.crouching && entity.body.on_ground {
+                speed_factor *= 0.5;
+            }
             let mut locomotion = entity.locomotion;
             entity.skills.step_physics(
                 &mut entity.body,
