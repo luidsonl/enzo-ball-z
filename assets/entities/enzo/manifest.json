@@ -10,6 +10,7 @@
     "walk",
     "run",
     "crouch",
+    "crawl",
     "jump",
     "jump_rise",
     "jump_fall",

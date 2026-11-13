@@ -13,6 +13,7 @@ export const HUMANOID_FRAMES = [
   'walk_0', 'walk_1', 'walk_2', 'walk_3',
   'run_0', 'run_1', 'run_2', 'run_3',
   'crouch_0',
+  'crawl_0', 'crawl_1', 'crawl_2', 'crawl_3',
   'jump_rise_0',
   'jump_fall_0',
   'fly_0', 'fly_1',
@@ -37,6 +38,7 @@ export const HUMANOID_CLIPS = {
   walk: { frames: ['walk_0', 'walk_1', 'walk_2', 'walk_3'], fps: 8, loop: true },
   run: { frames: ['run_0', 'run_1', 'run_2', 'run_3'], fps: 10, loop: true },
   crouch: { frames: ['crouch_0'], fps: 1, loop: true },
+  crawl: { frames: ['crawl_0', 'crawl_1', 'crawl_2', 'crawl_3'], fps: 7, loop: true },
   jump: { frames: ['jump_rise_0'], fps: 1, loop: true },
   jump_rise: { frames: ['jump_rise_0'], fps: 1, loop: true },
   jump_fall: { frames: ['jump_fall_0'], fps: 1, loop: true },
@@ -60,6 +62,7 @@ export const HUMANOID_CLIPS = {
 export const HUMANOID_FALLBACKS = {
   run: ['walk', 'idle'],
   crouch: ['idle'],
+  crawl: ['crouch', 'walk', 'idle'],
   fly: ['jump_rise', 'jump_fall', 'jump', 'idle'],
   swim: ['fly', 'walk', 'idle'],
   climb: ['jump_rise', 'idle'],
@@ -89,9 +92,9 @@ function hexToRgba(hex, a = 255) {
 
 function poseFromFrame(frame) {
   const f = frame;
-  // Rich pose data for expressive 32x32 humanoid animation (keeps 31-frame rig).
+  // Rich pose data for expressive 32x32 humanoid animation.
   const base = {
-    step: 0, air: 0, crouch: false, run: false, swim: false, fly: false, climb: false, dead: false,
+    step: 0, air: 0, crouch: false, crawl: false, run: false, swim: false, fly: false, climb: false, dead: false,
     bob: 0, lean: 0, armL: 0, armR: 0, legL: 0, legR: 0, armUpL: false, armUpR: false, armOutL: false, armOutR: false,
   };
   if (f.startsWith('idle_')) return { ...base, bob: f === 'idle_1' ? -1 : 0, armL: 1, armR: 1 };
@@ -103,7 +106,12 @@ function poseFromFrame(frame) {
   if (f === 'run_1') return { ...base, run: true, step: 2, bob: 0, lean: 1, legL: 2, legR: -2, armL: -2, armR: 3 };
   if (f === 'run_2') return { ...base, run: true, step: -2, bob: -1, lean: 1, legL: -2, legR: 2, armL: 3, armR: -2 };
   if (f === 'run_3') return { ...base, run: true, step: 2, bob: 0, lean: 1, legL: 2, legR: -2, armL: -2, armR: 3 };
-  if (f === 'crouch_0') return { ...base, crouch: true, bob: 2, armL: 2, armR: 2, legL: 0, legR: 0 };
+  // Half-height crouch/crawl (visual silhouette fits lower half of 64px sprite).
+  if (f === 'crouch_0') return { ...base, crouch: true, bob: 0, lean: 0, armL: 1, armR: 1 };
+  if (f === 'crawl_0') return { ...base, crawl: true, crouch: true, lean: 1, armL: -1, armR: 2, legL: 1, legR: -1 };
+  if (f === 'crawl_1') return { ...base, crawl: true, crouch: true, lean: 1, bob: 1, armL: 2, armR: -1, legL: -1, legR: 1 };
+  if (f === 'crawl_2') return { ...base, crawl: true, crouch: true, lean: 1, armL: -1, armR: 2, legL: 1, legR: -1 };
+  if (f === 'crawl_3') return { ...base, crawl: true, crouch: true, lean: 1, bob: 1, armL: 2, armR: -1, legL: -1, legR: 1 };
   if (f === 'jump_rise_0') return { ...base, air: -3, bob: -1, armUpL: true, armUpR: true, legL: -1, legR: 1 };
   if (f === 'jump_fall_0') return { ...base, air: -1, step: 1, bob: 1, armOutL: true, armOutR: true, legL: 1, legR: -1 };
   if (f === 'fly_0') return { ...base, fly: true, air: -2, bob: -1, armOutL: true, armOutR: true, legL: -1, legR: 1 };
@@ -132,6 +140,8 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, profile = {
   const hurt = frame === 'hurt_0';
   const dead = frame === 'dying_0' || frame === 'dead_0';
   const isVal = charId === 'valentina';
+  const low = !!(pose.crouch || pose.crawl);
+  const crawl = !!pose.crawl;
   const skinBase = '#f2c9a0';
   const skin = dead ? '#d8d0e8' : hurt ? '#ffd0d0' : skinBase;
   const shirtBase = isVal ? '#ff6fae' : '#4f7cff';
@@ -143,39 +153,51 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, profile = {
   const shoe = '#3a2a1a';
   const hairStyle = layer === 'hair' ? variant : (profile.hair_style ?? 0);
   const faceStyle = layer === 'face' ? variant : (profile.face ?? 0);
-  const y = pose.air + (pose.crouch ? 2 : 0) + (pose.bob || 0);
-  const lean = pose.lean || 0;
-  const headY = 6 + y;
-  const bodyY = 14 + y;
-  const legH = pose.crouch ? 4 : (dead ? 3 : 6);
+  // Crouch/crawl must visually occupy ~half height (lower half of sprite).
+  const lowOffset = low ? 10 : 0;
+  const y = pose.air + lowOffset + (pose.bob || 0);
+  const lean = (pose.lean || 0) + (crawl ? 1 : 0);
+  const headY = (low ? 15 : 6) + y + (crawl ? 1 : 0);
+  const bodyY = (low ? 21 : 14) + y + (crawl ? 1 : 0);
+  const legH = low ? 3 : (dead ? 3 : 6);
   const draw = (cond, fn) => { if (cond) fn(); };
 
   const armRect = (x, y0, up, out, dy) => {
-    // expressive arm pose: up = raised overhead, out = extended to the side/forward, else down/side
     if (up) c.rect(ox + x, bodyY - 3 + dy, 2, 8, skin);
     else if (out) {
-      if (x > 16) c.rect(ox + x, bodyY + 2 + dy, 7, 3, skin); // right arm extends right
-      else c.rect(ox + x - 5, bodyY + 2 + dy, 7, 3, skin); // left arm extends left
-    } else c.rect(ox + x, bodyY + 1 + dy, 2, pose.crouch ? 4 : 7, skin);
+      if (x > 16) c.rect(ox + x, bodyY + 2 + dy, 7, 3, skin);
+      else c.rect(ox + x - 5, bodyY + 2 + dy, 7, 3, skin);
+    } else c.rect(ox + x, bodyY + 1 + dy, 2, low ? 3 : 7, skin);
   };
 
   draw(layer === 'full' || layer === 'base' || layer === 'skin', () => {
-    c.rect(ox + 11 + lean, headY, 10, 8, skin); // head
-    c.rect(ox + 13 + lean, headY + 8, 6, 2, skin); // neck
+    c.rect(ox + 11 + lean, headY, 10, 7, skin); // head (lower when crouched/crawling)
+    c.rect(ox + 13 + lean, headY + 7, 6, 1, skin); // neck
     const ldy = pose.armL || 0;
     const rdy = pose.armR || 0;
-    armRect(8 + lean, bodyY, !!pose.armUpL, !!pose.armOutL, ldy);
-    armRect(22 + lean, bodyY, !!pose.armUpR, !!pose.armOutR, rdy);
-    // legs (skin/base)
-    const ly = 24 + (pose.crouch ? 2 : 0);
-    const ll = Math.max(1, legH - 2 + (pose.legL || 0));
-    const rl = Math.max(1, legH - 2 + (pose.legR || 0));
-    if (pose.climb) {
-      c.rect(ox + 11, 25, 4, pose.legL > 0 ? 3 : 2, skin);
-      c.rect(ox + 17, 25, 4, pose.legR > 0 ? 3 : 2, skin);
+    if (crawl) {
+      // Low crawl: one arm forward/supporting, other back; legs tucked behind.
+      c.rect(ox + 18 + lean, bodyY + 1 + rdy, 6, 2, skin);
+      c.rect(ox + 6 + lean, bodyY + 2 + ldy, 5, 2, skin);
+      c.rect(ox + 8 + lean, 27, 5, 2, skin);
+      c.rect(ox + 14 + lean, 28, 5, 2, skin);
     } else {
-      c.rect(ox + 11, ly - (pose.legL < 0 ? 1 : 0), 4, ll, skin);
-      c.rect(ox + 17, ly - (pose.legR < 0 ? 1 : 0), 4, rl, skin);
+      armRect(8 + lean, bodyY, !!pose.armUpL, !!pose.armOutL, ldy);
+      armRect(22 + lean, bodyY, !!pose.armUpR, !!pose.armOutR, rdy);
+      // legs (skin/base)
+      const ly = (low ? 26 : 24) + (pose.legL || pose.legR ? 0 : 0);
+      const ll = Math.max(1, legH - 1 + (pose.legL || 0));
+      const rl = Math.max(1, legH - 1 + (pose.legR || 0));
+      if (pose.climb) {
+        c.rect(ox + 11, 25, 4, pose.legL > 0 ? 3 : 2, skin);
+        c.rect(ox + 17, 25, 4, pose.legR > 0 ? 3 : 2, skin);
+      } else if (low) {
+        c.rect(ox + 11, 27, 4, 2, skin);
+        c.rect(ox + 17, 27, 4, 2, skin);
+      } else {
+        c.rect(ox + 11, ly - (pose.legL < 0 ? 1 : 0), 4, ll, skin);
+        c.rect(ox + 17, ly - (pose.legR < 0 ? 1 : 0), 4, rl, skin);
+      }
     }
   });
   draw(layer === 'full' || layer === 'face', () => {
@@ -221,16 +243,17 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, profile = {
   draw(layer === 'full' || layer === 'hair', () => {
     const hx = ox + lean;
     const hs = Math.max(0, Math.min(7, hairStyle|0));
+    const longBack = low ? 3 : 10; // keep low-profile crouch/crawl readable (half height)
     if (isVal) {
       // Feminine hair variants (Valentina exclusive)
-      if (hs === 0) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, 10, hair); c.rect(hx + 21, headY + 2, 2, 10, hair); } // long straight
-      else if (hs === 1) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 21, headY + 2, 2, 8, hair); c.rect(hx + 22, headY + 8, 1, 2, hair); } // ponytail
-      else if (hs === 2) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, 8, hair); c.rect(hx + 21, headY + 2, 2, 8, hair); } // long sides
-      else if (hs === 3) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 3, 6, hair); c.rect(hx + 20, headY + 1, 3, 6, hair); c.rect(hx + 10, headY + 6, 2, 2, hair); c.rect(hx + 20, headY + 6, 2, 2, hair); } // wavy
-      else if (hs === 4) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, 5, hair); c.rect(hx + 21, headY + 2, 2, 5, hair); } // bob
-      else if (hs === 5) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 9, headY + 2, 2, 7, hair); c.rect(hx + 21, headY + 2, 2, 7, hair); c.rect(hx + 9, headY + 8, 1, 2, hair); c.rect(hx + 22, headY + 8, 1, 2, hair); } // braided/pigtails hint
+      if (hs === 0) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(10, longBack + 3), hair); c.rect(hx + 21, headY + 2, 2, Math.min(10, longBack + 3), hair); } // long straight
+      else if (hs === 1) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 21, headY + 2, 2, Math.min(8, longBack + 2), hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); } // ponytail
+      else if (hs === 2) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(8, longBack + 2), hair); c.rect(hx + 21, headY + 2, 2, Math.min(8, longBack + 2), hair); } // long sides
+      else if (hs === 3) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 3, Math.min(6, longBack + 1), hair); c.rect(hx + 20, headY + 1, 3, Math.min(6, longBack + 1), hair); c.rect(hx + 10, headY + 6, 2, low ? 0 : 2, hair); c.rect(hx + 20, headY + 6, 2, low ? 0 : 2, hair); } // wavy
+      else if (hs === 4) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(5, longBack), hair); c.rect(hx + 21, headY + 2, 2, Math.min(5, longBack), hair); } // bob
+      else if (hs === 5) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 9, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 21, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 9, headY + 8, 1, low ? 0 : 2, hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); } // braided/pigtails hint
       else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 14, headY - 3, 4, 2, hair); c.rect(hx + 9, headY + 2, 2, 4, hair); c.rect(hx + 21, headY + 2, 2, 4, hair); } // bun/updo
-      else { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 3, 9, hair); c.rect(hx + 20, headY + 2, 3, 9, hair); c.rect(hx + 12, headY + 10, 8, 1, hair); } // long back
+      else { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 20, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 12, headY + 10, 8, low ? 0 : 1, hair); } // long back
     } else {
       // Masculine hair variants (Enzo exclusive). 0 = bald.
       if (hs === 0) { /* bald */ }
@@ -245,36 +268,58 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, profile = {
   });
   draw(layer === 'full' || layer === 'outfit_top' || layer === 'shirt', () => {
     const tx = ox + lean;
-    c.rect(tx + 10, bodyY, 12, pose.crouch ? 7 : 10, shirt);
-    c.rect(tx + 10, bodyY, 12, 1, hurt ? '#ffaaaa' : (isVal ? '#ff9fc8' : '#7fa0ff'));
-    // sleeves hint (follow arm direction lightly)
-    if (pose.armUpL) c.rect(tx + 8, bodyY - 1, 3, 3, shirt);
-    else c.rect(tx + 8, bodyY + 1, 3, 2, shirt);
-    if (pose.armUpR) c.rect(tx + 21, bodyY - 1, 3, 3, shirt);
-    else if (pose.armOutR) c.rect(tx + 21, bodyY + 2, 3, 2, shirt);
-    else c.rect(tx + 21, bodyY + 1, 3, 2, shirt);
+    if (crawl) {
+      c.rect(tx + 9, bodyY, 14, 5, shirt);
+      c.rect(tx + 9, bodyY, 14, 1, hurt ? '#ffaaaa' : (isVal ? '#ff9fc8' : '#7fa0ff'));
+      c.rect(tx + 7, bodyY + 2, 3, 2, shirt);
+      c.rect(tx + 22, bodyY + 1, 4, 2, shirt);
+    } else {
+      c.rect(tx + 10, bodyY, 12, low ? 5 : 10, shirt);
+      c.rect(tx + 10, bodyY, 12, 1, hurt ? '#ffaaaa' : (isVal ? '#ff9fc8' : '#7fa0ff'));
+      if (pose.armUpL) c.rect(tx + 8, bodyY - 1, 3, 3, shirt);
+      else c.rect(tx + 8, bodyY + 1, 3, 2, shirt);
+      if (pose.armUpR) c.rect(tx + 21, bodyY - 1, 3, 3, shirt);
+      else if (pose.armOutR) c.rect(tx + 21, bodyY + 2, 3, 2, shirt);
+      else c.rect(tx + 21, bodyY + 1, 3, 2, shirt);
+    }
   });
   draw(layer === 'full' || layer === 'outfit_bottom' || layer === 'pants', () => {
-    const ly = 23 + (pose.crouch ? 2 : 0);
-    if (pose.climb) {
+    if (crawl) {
+      c.rect(ox + 8 + lean, 26, 7, 3, pants);
+      c.rect(ox + 14 + lean, 27, 7, 3, pants);
+    } else if (pose.climb) {
       c.rect(ox + 11, 24, 4, frame === 'climb_1' ? 5 : 4, pants);
       c.rect(ox + 17, 24, 4, frame === 'climb_1' ? 4 : 5, pants);
+    } else if (low) {
+      c.rect(ox + 11, 26, 4, 3, pants);
+      c.rect(ox + 17, 26, 4, 3, pants);
     } else {
+      const ly = 23;
       c.rect(ox + 11, ly - (pose.legL < 0 ? 1 : 0), 4, legH + Math.max(0, pose.legL || 0), pants);
       c.rect(ox + 17, ly - (pose.legR < 0 ? 1 : 0), 4, legH + Math.max(0, pose.legR || 0), pants);
     }
   });
   draw(layer === 'full' || layer === 'shoes', () => {
     const fy = 29;
-    if (!dead) {
-      const ls = pose.legL < 0 ? -1 : 0;
-      const rs = pose.legR < 0 ? -1 : 0;
-      c.rect(ox + 10 + (frame === 'kick_0' ? 0 : 0), fy + ls, 5, 2, shoe);
-      c.rect(ox + 17 + (frame === 'kick_0' ? 3 : 0), fy + rs + (frame === 'kick_0' ? -3 : 0), 6, 2, shoe);
-      if (frame === 'kick_0') c.rect(ox + 22, fy - 4, 2, 3, pants); // extended kicking leg hint
-    } else {
+    if (dead) {
       c.rect(ox + 8, fy - 1, 8, 2, shoe); c.rect(ox + 16, fy - 1, 8, 2, shoe);
+      return;
     }
+    if (crawl) {
+      c.rect(ox + 6 + lean, 28, 5, 2, shoe);
+      c.rect(ox + 18 + lean, 29, 5, 2, shoe);
+      return;
+    }
+    if (low) {
+      c.rect(ox + 10, 28, 5, 2, shoe);
+      c.rect(ox + 17, 28, 5, 2, shoe);
+      return;
+    }
+    const ls = pose.legL < 0 ? -1 : 0;
+    const rs = pose.legR < 0 ? -1 : 0;
+    c.rect(ox + 10, fy + ls, 5, 2, shoe);
+    c.rect(ox + 17 + (frame === 'kick_0' ? 3 : 0), fy + rs + (frame === 'kick_0' ? -3 : 0), 6, 2, shoe);
+    if (frame === 'kick_0') c.rect(ox + 22, fy - 4, 2, 3, pants);
   });
 
   if (layer === 'full' || layer === 'action_overlay') {
