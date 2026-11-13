@@ -632,7 +632,13 @@ fn control_bindings(bindings: &KeyBindings, i18n: I18n) -> Vec<UiControlBinding>
     for action in InputAction::ALL {
         // Attribute allocation is performed via the in-game UI, not keyboard buttons.
         // Aura farming (Six/Seven alternation) is a fixed mechanic and must not be rebound.
-        if action.attribute().is_some() || matches!(action, InputAction::Six | InputAction::Seven) {
+        // Restart is not configurable in the controls UI.
+        if action.attribute().is_some()
+            || matches!(
+                action,
+                InputAction::Six | InputAction::Seven | InputAction::Restart
+            )
+        {
             continue;
         }
         let keys: Vec<String> = bindings
