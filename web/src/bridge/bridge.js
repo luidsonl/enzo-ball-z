@@ -77,6 +77,13 @@ export function flushPending() {
   }
 }
 
+export function focusGameCanvas() {
+  try {
+    const canvas = typeof document !== "undefined" ? document.querySelector("#glcanvas") : null;
+    if (canvas && typeof canvas.focus === "function") canvas.focus({ preventScroll: true });
+  } catch (_) {}
+}
+
 export function actionDown(code) {
   if (exportsReady()) globalThis.wasm_exports.enzo_action_down(code);
 }
@@ -86,6 +93,7 @@ export function actionUp(code) {
 }
 
 export function uiAction(code, a = 0, b = 0, c = 0) {
+  if (code === UiAction.MenuResume) focusGameCanvas();
   if (exportsReady() && typeof globalThis.wasm_exports.enzo_ui_action === "function") {
     globalThis.wasm_exports.enzo_ui_action(code, a, b, c);
     return;

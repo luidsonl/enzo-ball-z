@@ -1,8 +1,9 @@
 import { shallowRef } from "vue";
-import { flushPending, readUiStateJson } from "../bridge/bridge.js";
+import { flushPending, focusGameCanvas, readUiStateJson } from "../bridge/bridge.js";
 
 export const uiState = shallowRef(null);
 let lastJson = null;
+let lastScene = null;
 let timer = null;
 
 export function getState() {
@@ -14,8 +15,14 @@ export function pollState() {
   const json = readUiStateJson();
   if (!json || json === lastJson) return;
   try {
-    uiState.value = JSON.parse(json);
+    const next = JSON.parse(json);
+    const nextScene = next?.scene ?? null;
+    if (nextScene === "game" && lastScene !== "game") {
+      focusGameCanvas();
+    }
+    uiState.value = next;
     lastJson = json;
+    lastScene = nextScene;
   } catch {}
 }
 
