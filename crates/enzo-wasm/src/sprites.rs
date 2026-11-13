@@ -18,6 +18,7 @@ use crate::assets::{draw_lazy, pump_assets, AssetStore};
 use crate::rig::HumanoidRig;
 
 pub const TILE_CELL: f32 = 16.0;
+pub const HUMANOID_ACTOR_CELL: f32 = 64.0;
 pub const ACTOR_CELL: f32 = 32.0;
 pub const ITEM_WORLD_SIZE: f32 = 16.0;
 
@@ -318,7 +319,7 @@ impl Default for Sprites {
 }
 
 fn embedded_frame_rect(clip_name: &str, time: f32) -> Option<Rect> {
-    // Minimal fallback frame source (31-frame humanoid strip, 32x32).
+    // Minimal fallback frame source (31-frame humanoid strip, 64x64).
     let frames: &[&str] = match clip_name {
         "idle" => &["idle_0", "idle_1"],
         "walk" => &["walk_0", "walk_1", "walk_2", "walk_3"],
@@ -399,5 +400,10 @@ fn embedded_frame_rect(clip_name: &str, time: f32) -> Option<Rect> {
         "dead_0",
     ];
     let i = order.iter().position(|f| *f == name)?;
-    Some(Rect::new(i as f32 * 32.0, 0.0, 32.0, 32.0))
+    Some(Rect::new(
+        i as f32 * HUMANOID_ACTOR_CELL,
+        0.0,
+        HUMANOID_ACTOR_CELL,
+        HUMANOID_ACTOR_CELL,
+    ))
 }

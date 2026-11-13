@@ -38,7 +38,7 @@ pub fn draw(
         WHITE
     };
 
-    let dest = Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0);
+    let dest = Rect::new(center.x - 32.0, pos.y + size.y - 64.0, 64.0, 64.0);
     let flip = entity.facing < 0;
     let clip = anim.clip_name();
     let source = sprites.rig_frame_source("valentina", clip, time);

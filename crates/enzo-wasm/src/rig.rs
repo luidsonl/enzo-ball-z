@@ -351,7 +351,7 @@ impl HumanoidRig {
 }
 
 fn embedded_manifest(entity_id: &str) -> RigManifest {
-    let cell = 32.0;
+    let cell = 64.0;
     let mut frames = HashMap::new();
     for (i, name) in HUMANOID_CANONICAL_FRAMES.iter().enumerate() {
         frames.insert(
@@ -406,12 +406,14 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
         ("crouch", vec!["idle"]),
         ("fly", vec!["jump_rise", "jump_fall", "jump", "idle"]),
         ("swim", vec!["fly", "walk", "idle"]),
+        ("climb", vec!["jump_rise", "idle"]),
         ("dash", vec!["run", "walk", "idle"]),
         ("jump", vec!["jump_rise", "jump_fall", "idle"]),
         ("attack_2", vec!["attack_1"]),
         ("attack_3", vec!["attack_2", "attack_1"]),
         ("kick", vec!["attack_1"]),
         ("cast", vec!["attack_1", "idle"]),
+        ("shout", vec!["cast", "attack_1", "idle"]),
         ("dying", vec!["dead", "hurt"]),
         ("sixseven_a", vec!["idle"]),
         ("sixseven_b", vec!["idle"]),
@@ -423,11 +425,18 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
         id: entity_id.to_owned(),
         image: "sheet.png".to_owned(),
         cell: RigCell { w: cell, h: cell },
-        anchor: Some(RigAnchor { x: 16.0, y: 30.0 }),
+        anchor: Some(RigAnchor { x: 32.0, y: 62.0 }),
         frames,
         clips,
         fallbacks,
-        layers: vec![],
+        layers: vec![
+            "base".into(),
+            "face".into(),
+            "hair".into(),
+            "outfit_bottom".into(),
+            "shoes".into(),
+            "outfit_top".into(),
+        ],
     }
 }
 

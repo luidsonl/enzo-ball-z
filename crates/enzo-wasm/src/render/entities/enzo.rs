@@ -39,7 +39,14 @@ pub fn draw(
         WHITE
     };
 
-    let dest = Rect::new(center.x - 16.0, pos.y + size.y - 32.0, 32.0, 32.0);
+    let sprite_h = 64.0;
+    let sprite_w = 64.0;
+    let dest = Rect::new(
+        center.x - sprite_w * 0.5,
+        pos.y + size.y - sprite_h,
+        sprite_w,
+        sprite_h,
+    );
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
     let source = sprites.rig_frame_source("enzo", clip, time);

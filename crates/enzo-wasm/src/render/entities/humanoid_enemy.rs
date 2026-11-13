@@ -26,10 +26,10 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
     };
 
     let dest = Rect::new(
-        pos.x + size.x * 0.5 - 16.0,
-        pos.y + size.y - 32.0,
-        32.0,
-        32.0,
+        pos.x + size.x * 0.5 - 32.0,
+        pos.y + size.y - 64.0,
+        64.0,
+        64.0,
     );
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
