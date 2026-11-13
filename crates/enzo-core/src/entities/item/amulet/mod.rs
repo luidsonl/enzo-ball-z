@@ -12,6 +12,7 @@ impl ItemData {
         equipment: Equipment {
             tags: EquipmentTags::NONE,
             modifiers: AttributeSet::ZERO.with(AttributeId::AURA, 1),
+            skill_levels: crate::skills::NO_SKILL_LEVELS,
         },
         requirements: ItemRequirements::new(
             &[EntityType::Playable],

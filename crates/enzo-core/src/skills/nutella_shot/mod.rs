@@ -16,12 +16,13 @@ pub const SPEED: f32 = 420.0;
 pub const LIFETIME: f32 = 1.2;
 pub const DAMAGE: f32 = 14.0;
 
-pub const REQUIREMENTS: Requirements = Requirements::new(
-    &[EntityType::Playable],
-    1,
-    AttributeSet::ZERO,
-    EquipmentTags::NUTELLA_GUN,
-);
+pub const REQUIREMENTS: Requirements = Requirements {
+    entity_types: &[EntityType::Playable],
+    min_level: 1,
+    min_skill_level: 1,
+    min_attributes: AttributeSet::ZERO,
+    required_equipment: EquipmentTags::NUTELLA_GUN,
+};
 
 pub static DEF: SkillDef = SkillDef {
     id: SkillId::NutellaShot,
@@ -29,6 +30,9 @@ pub static DEF: SkillDef = SkillDef {
     source: SkillSource::Equipment,
     activation: Activation::Press,
     requirements: REQUIREMENTS,
+    base_skill_level: 0,
+    min_skill_level: 1,
+    progression: &[1, 2, 3],
     aura_cost: COST,
     cooldown: COOLDOWN,
     timing: SkillTiming::PostPhysics,
@@ -62,6 +66,23 @@ pub fn activate(
     if !act.input.pressed {
         return SkillResult::Idle;
     }
+    let (steps, ego) = store
+        .get(act.entity_id)
+        .map(|entity| {
+            let ctx = entity.skill_context();
+            (
+                SkillId::NutellaShot.tier_steps(ctx).max(0) as f32,
+                entity.attributes.ego as f32,
+            )
+        })
+        .unwrap_or((0.0, 0.0));
+    let scale = 1.0 + 0.10 * steps;
+    let damage = (DAMAGE * scale + ego * 0.5 * (1.0 + 0.25 * steps))
+        .round()
+        .max(1.0);
+    let speed = SPEED * scale;
+    let lifetime = LIFETIME * scale;
+
     let facing = if act.facing >= 0 { 1 } else { -1 };
     let pos = Vec2::new(
         if facing > 0 {
@@ -76,11 +97,11 @@ pub fn activate(
         act.entity_id,
         pos,
         facing,
-        DAMAGE,
+        damage,
         act.team,
         SIZE,
-        SPEED,
-        LIFETIME,
+        speed,
+        lifetime,
     ));
     events.push(GameEvent::SkillProjectileSpawned {
         owner: act.entity_id,

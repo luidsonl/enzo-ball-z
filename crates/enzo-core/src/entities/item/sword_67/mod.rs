@@ -14,6 +14,7 @@ impl ItemData {
             modifiers: AttributeSet::ZERO
                 .with(AttributeId::MELEE, 1)
                 .with(AttributeId::EGO, 1),
+            skill_levels: [0, 0, 0, 0, 1, 0, 0],
         },
         requirements: ItemRequirements::new(
             &[EntityType::Playable],

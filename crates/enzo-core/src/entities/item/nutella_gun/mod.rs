@@ -12,6 +12,7 @@ impl ItemData {
         equipment: Equipment {
             tags: EquipmentTags::NUTELLA_GUN,
             modifiers: AttributeSet::ZERO,
+            skill_levels: crate::skills::NO_SKILL_LEVELS,
         },
         requirements: ItemRequirements::new(&[EntityType::Playable], AttributeSet::ZERO),
         heal: 0.0,

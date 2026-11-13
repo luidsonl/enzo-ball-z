@@ -29,6 +29,9 @@ pub static DEF: SkillDef = SkillDef {
     source: SkillSource::Innate,
     activation: Activation::Press,
     requirements: REQUIREMENTS,
+    base_skill_level: 1,
+    min_skill_level: 1,
+    progression: &[1, 2, 3, 4, 5],
     aura_cost: 0.0,
     cooldown: 0.0,
     timing: SkillTiming::PostPhysics,
@@ -74,6 +77,19 @@ pub fn activate(
         return SkillResult::Idle;
     }
 
+    let (steps, ego) = store
+        .get(act.entity_id)
+        .map(|entity| {
+            let ctx = entity.skill_context();
+            (
+                SkillId::Melee.tier_steps(ctx).max(0) as f32,
+                entity.attributes.ego as f32,
+            )
+        })
+        .unwrap_or((0.0, 0.0));
+    let scale = 1.0 + 0.10 * steps;
+    let ego_damage_bonus = ego * 0.5 * (1.0 + 0.25 * steps);
+
     let step = if state.window > 0.0 {
         (state.step % 3) + 1
     } else {
@@ -85,23 +101,25 @@ pub fn activate(
     state.anim_timer = MELEE_ANIM_TIME;
 
     let facing = if act.facing >= 0 { 1.0 } else { -1.0 };
+    let range = MELEE_RANGE * scale;
+    let height = MELEE_HEIGHT * scale;
     let hitbox = if facing > 0.0 {
         Rect::new(
             act.rect.right(),
-            act.rect.y + (act.rect.h - MELEE_HEIGHT) * 0.5,
-            MELEE_RANGE,
-            MELEE_HEIGHT,
+            act.rect.y + (act.rect.h - height) * 0.5,
+            range,
+            height,
         )
     } else {
         Rect::new(
-            act.rect.x - MELEE_RANGE,
-            act.rect.y + (act.rect.h - MELEE_HEIGHT) * 0.5,
-            MELEE_RANGE,
-            MELEE_HEIGHT,
+            act.rect.x - range,
+            act.rect.y + (act.rect.h - height) * 0.5,
+            range,
+            height,
         )
     };
 
-    let damage = act.stats.melee_damage((step - 1) as usize);
+    let damage = (act.stats.melee_damage((step - 1) as usize) * scale + ego_damage_bonus).round();
     let targets: Vec<EntityId> = store
         .hostiles_in_rect(hitbox, act.team)
         .into_iter()
@@ -113,7 +131,7 @@ pub fn activate(
         let Some(target) = store.get_mut(target_id) else {
             continue;
         };
-        let applied = target.health.damage(damage);
+        let applied = target.health.damage(damage.max(1.0));
         if applied <= 0.0 {
             continue;
         }

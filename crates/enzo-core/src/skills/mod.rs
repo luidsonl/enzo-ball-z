@@ -38,6 +38,97 @@ pub enum SkillId {
     Shout,
 }
 
+/// Bônus/níveis de skill indexados por [`SkillId::index`].
+pub type SkillLevels = [u8; 7];
+pub const NO_SKILL_LEVELS: SkillLevels = [0; 7];
+
+pub const fn skill_level(levels: &SkillLevels, skill: SkillId) -> u8 {
+    levels[skill.index()]
+}
+
+pub fn set_skill_level(levels: &mut SkillLevels, skill: SkillId, value: u8) {
+    levels[skill.index()] = value;
+}
+
+pub fn add_skill_levels(a: SkillLevels, b: SkillLevels) -> SkillLevels {
+    let mut out = [0u8; 7];
+    let mut i = 0;
+    while i < 7 {
+        out[i] = a[i].saturating_add(b[i]);
+        i += 1;
+    }
+    out
+}
+
+pub fn active_skill_tier(def: &SkillDef, effective_level: u8) -> Option<u8> {
+    let mut active = None;
+    let mut i = 0;
+    while i < def.progression.len() {
+        let tier = def.progression[i];
+        if tier <= effective_level {
+            active = Some(tier);
+        }
+        i += 1;
+    }
+    active
+}
+
+impl SkillId {
+    pub fn effective_level(self, context: SkillContext) -> u8 {
+        let def = self.def();
+        context.effective_skill_level(self, def.base_skill_level)
+    }
+
+    pub fn active_tier(self, context: SkillContext) -> Option<u8> {
+        active_skill_tier(self.def(), self.effective_level(context))
+    }
+
+    pub fn tier_steps(self, context: SkillContext) -> i32 {
+        let def = self.def();
+        let Some(active) = self.active_tier(context) else {
+            return 0;
+        };
+        let mut min_index = 0usize;
+        while min_index < def.progression.len() && def.progression[min_index] < def.min_skill_level
+        {
+            min_index += 1;
+        }
+        let mut active_index = min_index;
+        let mut i = min_index;
+        while i < def.progression.len() {
+            if def.progression[i] <= active {
+                active_index = i;
+            }
+            i += 1;
+        }
+        active_index.saturating_sub(min_index) as i32
+    }
+
+    pub fn availability(self, context: SkillContext) -> Result<(), SkillLock> {
+        let def = self.def();
+        def.requirements
+            .check(context, self.effective_level(context))
+    }
+
+    pub fn effective_cooldown(self, context: SkillContext) -> f32 {
+        if self == SkillId::Mogging {
+            let tier = self.active_tier(context).unwrap_or(1);
+            return mogging::tier_params(tier).cooldown;
+        }
+        let def = self.def();
+        let steps = self.tier_steps(context).max(0) as f32;
+        (def.cooldown * 0.95f32.powf(steps)).max(0.0)
+    }
+
+    pub fn effective_aura_cost(self, context: SkillContext) -> f32 {
+        if self == SkillId::Mogging {
+            let tier = self.active_tier(context).unwrap_or(1);
+            return mogging::tier_params(tier).aura_cost;
+        }
+        self.def().aura_cost
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SkillCategory {
@@ -83,6 +174,12 @@ pub struct SkillDef {
     pub source: SkillSource,
     pub activation: Activation,
     pub requirements: Requirements,
+    /// Innate/base skill level (without equipment bonuses).
+    pub base_skill_level: u8,
+    /// Minimum effective skill level required to unlock/use the skill.
+    pub min_skill_level: u8,
+    /// Progression tiers for this skill (ascending). Active tier is the highest <= effective level.
+    pub progression: &'static [u8],
     pub aura_cost: f32,
     pub cooldown: f32,
     pub timing: SkillTiming,
@@ -124,6 +221,7 @@ pub struct Skills {
     pub mogging: mogging::State,
     pub nutella_shot: nutella_shot::State,
     pub shout: shout::State,
+    up_jump_prev: bool,
 }
 
 impl Skills {
@@ -175,7 +273,7 @@ impl Skills {
             let input = command.slots[slot.index()];
             match skill {
                 SkillId::Jump => {
-                    self.jump.held = input.held;
+                    self.jump.held |= input.held;
                     if input.pressed {
                         self.jump.buffer = jump::JUMP_BUFFER_TIME;
                     }
@@ -193,6 +291,14 @@ impl Skills {
                 _ => {}
             }
         }
+
+        // Move up must always trigger jump, even if Jump is not equipped in any slot.
+        let up_now = command.move_y < 0;
+        self.jump.held |= up_now;
+        if up_now && !self.up_jump_prev {
+            self.jump.buffer = jump::JUMP_BUFFER_TIME;
+        }
+        self.up_jump_prev = up_now;
     }
 
     /// Avança mecânicas pré-física e integra o corpo.
@@ -214,15 +320,14 @@ impl Skills {
         if self.has(SkillId::Dash) {
             self.dash.try_start(body, locomotion.walk.intent_x);
         }
-        if self.has(SkillId::Jump) {
-            self.jump.update(body, stats);
-        }
+        // Jump is always available via MoveUp intent.
+        self.jump.update(body, stats);
 
         self.update_horizontal(body, stats, locomotion_speed_factor, dt, locomotion);
         self.update_vertical(body, dt);
         physics::integrate(body, level, dt);
 
-        if self.has(SkillId::Jump) && body.on_ground {
+        if body.on_ground {
             self.jump.coyote = jump::COYOTE_TIME;
         }
         self.fly.active = self.has(SkillId::Fly) && self.fly.vertical_intent != 0;
@@ -331,10 +436,7 @@ mod tests {
         assert_eq!(skills.loadout.get(ActionSlot::Slot1), Some(SkillId::Jump));
         assert_eq!(skills.loadout.get(ActionSlot::Slot2), Some(SkillId::Dash));
         assert_eq!(skills.loadout.get(ActionSlot::Slot3), Some(SkillId::Melee));
-        assert_eq!(
-            skills.loadout.get(ActionSlot::Slot4),
-            Some(SkillId::Mogging)
-        );
+        assert_eq!(skills.loadout.get(ActionSlot::Slot4), Some(SkillId::Shout));
     }
 
     #[test]

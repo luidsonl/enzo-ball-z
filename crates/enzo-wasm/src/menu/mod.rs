@@ -448,6 +448,6 @@ mod tests {
         let en = slot_summary(I18n::new(Language::English), &data);
         assert!(pt.contains("Nível"));
         assert!(en.contains("Level"));
-        assert!(pt.contains("300"));
+        assert!(pt.contains("750"));
     }
 }

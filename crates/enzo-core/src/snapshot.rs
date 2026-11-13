@@ -271,7 +271,7 @@ impl PlayerSnapshot {
             let (available, lock, cooldown_max, aura_cost, active, cooldown) =
                 if let Some(skill) = skill {
                     let def = skill.def();
-                    let lock = def.requirements.check(context).err();
+                    let lock = skill.availability(context).err();
                     (
                         lock.is_none(),
                         lock,
@@ -298,7 +298,7 @@ impl PlayerSnapshot {
             .copied()
             .map(|skill| {
                 let def = skill.def();
-                let lock = def.requirements.check(context).err();
+                let lock = skill.availability(context).err();
                 SkillCatalogEntry {
                     skill,
                     available: lock.is_none(),

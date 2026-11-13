@@ -12,6 +12,7 @@ impl ItemData {
         equipment: Equipment {
             tags: EquipmentTags::SIXSEVEN,
             modifiers: AttributeSet::ZERO.with(AttributeId::SPEED, 1),
+            skill_levels: [0, 0, 0, 0, 1, 0, 0],
         },
         requirements: ItemRequirements::new(&[EntityType::Playable], AttributeSet::ZERO),
         heal: 0.0,

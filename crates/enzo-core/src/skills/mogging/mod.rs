@@ -16,12 +16,53 @@ pub const MOGGING_SIZE: Vec2 = Vec2::new(24.0, 12.0);
 pub const MOGGING_SPEED: f32 = 620.0;
 pub const MOGGING_LIFETIME: f32 = 1.4;
 
-pub const REQUIREMENTS: Requirements = Requirements::new(
-    &[EntityType::Playable],
-    1,
-    AttributeSet::ZERO,
-    EquipmentTags::NONE,
-);
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TierParams {
+    pub projectiles: u8,
+    pub damage_bonus_ego: f32,
+    pub speed: f32,
+    pub lifetime: f32,
+    pub aura_cost: f32,
+    pub cooldown: f32,
+}
+
+pub fn tier_params(tier: u8) -> TierParams {
+    match tier {
+        0 | 1 => TierParams {
+            projectiles: 1,
+            damage_bonus_ego: 0.0,
+            speed: MOGGING_SPEED,
+            lifetime: MOGGING_LIFETIME,
+            aura_cost: 3.0,
+            cooldown: 0.35,
+        },
+        3 => TierParams {
+            projectiles: 1,
+            damage_bonus_ego: 1.0, // +ego extra (total 2+aura+2*ego)
+            speed: 680.0,
+            lifetime: 1.7,
+            aura_cost: 3.0,
+            cooldown: 0.30,
+        },
+        _ => TierParams {
+            // tier 5+
+            projectiles: 3,
+            damage_bonus_ego: 2.0, // +2*ego extra (total 2+aura+3*ego)
+            speed: 700.0,
+            lifetime: 1.8,
+            aura_cost: 4.0,
+            cooldown: 0.35,
+        },
+    }
+}
+
+pub const REQUIREMENTS: Requirements = Requirements {
+    entity_types: &[EntityType::Playable],
+    min_level: 1,
+    min_skill_level: 1,
+    min_attributes: AttributeSet::ZERO,
+    required_equipment: EquipmentTags::NONE,
+};
 
 pub static DEF: SkillDef = SkillDef {
     id: SkillId::Mogging,
@@ -29,6 +70,9 @@ pub static DEF: SkillDef = SkillDef {
     source: SkillSource::Innate,
     activation: Activation::Press,
     requirements: REQUIREMENTS,
+    base_skill_level: 0,
+    min_skill_level: 1,
+    progression: &[1, 3, 5],
     aura_cost: MOGGING_COST,
     cooldown: MOGGING_COOLDOWN,
     timing: SkillTiming::PostPhysics,
@@ -63,31 +107,51 @@ pub fn activate(
         return SkillResult::Idle;
     }
 
+    let (tier, ego, base_damage) = store
+        .get(act.entity_id)
+        .map(|entity| {
+            let ctx = entity.skill_context();
+            let tier = SkillId::Mogging.active_tier(ctx).unwrap_or(1);
+            let ego = entity.attributes.ego as f32;
+            (tier, ego, act.stats.mogging_damage)
+        })
+        .unwrap_or((1, 0.0, act.stats.mogging_damage));
+    let params = tier_params(tier);
+    let damage = base_damage + ego * params.damage_bonus_ego;
+
     let facing = if act.facing >= 0 { 1 } else { -1 };
-    let pos = Vec2::new(
-        if facing > 0 {
-            act.rect.right() + 4.0
-        } else {
-            act.rect.x - MOGGING_SIZE.x - 4.0
-        },
-        act.rect.y + (act.rect.h - MOGGING_SIZE.y) * 0.5,
-    );
-    let projectile = store.spawn(EntitySpec::projectile(
-        SkillId::Mogging,
-        act.entity_id,
-        pos,
-        facing,
-        act.stats.mogging_damage,
-        act.team,
-        MOGGING_SIZE,
-        MOGGING_SPEED,
-        MOGGING_LIFETIME,
-    ));
-    events.push(GameEvent::SkillProjectileSpawned {
-        owner: act.entity_id,
-        skill: SkillId::Mogging,
-        projectile,
-    });
+    let base_x = if facing > 0 {
+        act.rect.right() + 4.0
+    } else {
+        act.rect.x - MOGGING_SIZE.x - 4.0
+    };
+    let base_y = act.rect.y + (act.rect.h - MOGGING_SIZE.y) * 0.5;
+
+    let spreads: Vec<f32> = match params.projectiles {
+        3 => vec![-120.0, 0.0, 120.0],
+        _ => vec![0.0],
+    };
+    for vy in spreads {
+        let projectile = store.spawn(
+            EntitySpec::projectile(
+                SkillId::Mogging,
+                act.entity_id,
+                Vec2::new(base_x, base_y),
+                facing,
+                damage,
+                act.team,
+                MOGGING_SIZE,
+                params.speed,
+                params.lifetime,
+            )
+            .with_velocity(Vec2::new(facing as f32 * params.speed, vy)),
+        );
+        events.push(GameEvent::SkillProjectileSpawned {
+            owner: act.entity_id,
+            skill: SkillId::Mogging,
+            projectile,
+        });
+    }
     events.push(GameEvent::SkillActivated {
         player: act.entity_id,
         slot: act.slot,

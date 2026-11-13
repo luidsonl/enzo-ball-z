@@ -99,6 +99,7 @@ impl EntitySpec {
             self.kind.level(),
             self.attributes.to_set().merged(self.equipment.modifiers),
             self.equipment.tags,
+            self.equipment.skill_levels,
         )
     }
 }

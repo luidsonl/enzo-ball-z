@@ -20,13 +20,14 @@ impl Loadout {
         slots: [None; ActionSlot::COUNT],
     };
 
-    /// Loadout inicial do Enzo: Pulo, Dash, Soco e Mogging.
+    /// Loadout inicial: Pulo, Dash, Soco e Grito. Mogging fica bloqueada
+    /// por nível de skill até um item conceder o nível necessário.
     pub const fn player_default() -> Self {
         let mut slots = [None; ActionSlot::COUNT];
         slots[ActionSlot::Slot1.index()] = Some(SkillId::Jump);
         slots[ActionSlot::Slot2.index()] = Some(SkillId::Dash);
         slots[ActionSlot::Slot3.index()] = Some(SkillId::Melee);
-        slots[ActionSlot::Slot4.index()] = Some(SkillId::Mogging);
+        slots[ActionSlot::Slot4.index()] = Some(SkillId::Shout);
         Self { slots }
     }
 
@@ -165,9 +166,9 @@ mod tests {
         assert_eq!(loadout.get(ActionSlot::Slot1), Some(SkillId::Jump));
         assert_eq!(loadout.get(ActionSlot::Slot2), Some(SkillId::Dash));
         assert_eq!(loadout.get(ActionSlot::Slot3), Some(SkillId::Melee));
-        assert_eq!(loadout.get(ActionSlot::Slot4), Some(SkillId::Mogging));
-        assert!(loadout.contains(SkillId::Mogging));
-        assert_eq!(loadout.slot_of(SkillId::Mogging), Some(ActionSlot::Slot4));
+        assert_eq!(loadout.get(ActionSlot::Slot4), Some(SkillId::Shout));
+        assert!(loadout.contains(SkillId::Shout));
+        assert_eq!(loadout.slot_of(SkillId::Shout), Some(ActionSlot::Slot4));
         assert_eq!(loadout.iter().count(), 4);
         assert!(!loadout.is_empty());
     }
@@ -191,7 +192,7 @@ mod tests {
     #[test]
     fn assigning_equipped_skill_swaps_slots() {
         let mut loadout = Loadout::player_default();
-        let change = loadout.assign(ActionSlot::Slot1, SkillId::Mogging);
+        let change = loadout.assign(ActionSlot::Slot1, SkillId::Shout);
         assert_eq!(
             change,
             LoadoutChange::Swapped {
@@ -199,7 +200,7 @@ mod tests {
                 b: ActionSlot::Slot4,
             }
         );
-        assert_eq!(loadout.get(ActionSlot::Slot1), Some(SkillId::Mogging));
+        assert_eq!(loadout.get(ActionSlot::Slot1), Some(SkillId::Shout));
         assert_eq!(loadout.get(ActionSlot::Slot4), Some(SkillId::Jump));
         assert_eq!(loadout.iter().count(), 4);
     }

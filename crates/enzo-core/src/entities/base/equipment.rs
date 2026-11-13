@@ -8,6 +8,7 @@
 
 use super::attributes::{AttributeId, AttributeSet};
 use crate::entities::item::ItemKind;
+use crate::skills::{add_skill_levels, SkillLevels, NO_SKILL_LEVELS};
 
 /// Bitset determinístico de tags de equipamento. Novas tags entram como novas
 /// constantes; requisitos combinam tags com `contains`.
@@ -100,18 +101,22 @@ impl EquipSlot {
 pub struct Equipment {
     pub tags: EquipmentTags,
     pub modifiers: AttributeSet,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub skill_levels: SkillLevels,
 }
 
 impl Equipment {
     pub const NONE: Self = Self {
         tags: EquipmentTags::NONE,
         modifiers: AttributeSet::ZERO,
+        skill_levels: NO_SKILL_LEVELS,
     };
 
     pub fn sword() -> Self {
         Self {
             tags: EquipmentTags::SWORD,
             modifiers: AttributeSet::ZERO.with(AttributeId::MELEE, 1),
+            skill_levels: NO_SKILL_LEVELS,
         }
     }
 
@@ -119,6 +124,7 @@ impl Equipment {
         Self {
             tags: EquipmentTags::BOW,
             modifiers: AttributeSet::ZERO.with(AttributeId::RANGED, 1),
+            skill_levels: NO_SKILL_LEVELS,
         }
     }
 
@@ -131,11 +137,17 @@ impl Equipment {
     pub fn from_equipped(items: &[Option<EquippedItem>; EquipSlot::COUNT]) -> Self {
         let mut tags = EquipmentTags::NONE;
         let mut modifiers = AttributeSet::ZERO;
+        let mut skill_levels = NO_SKILL_LEVELS;
         for item in items.iter().flatten() {
             tags = tags.with(item.equipment.tags);
             modifiers = modifiers.merged(item.equipment.modifiers);
+            skill_levels = add_skill_levels(skill_levels, item.equipment.skill_levels);
         }
-        Self { tags, modifiers }
+        Self {
+            tags,
+            modifiers,
+            skill_levels,
+        }
     }
 }
 
@@ -185,6 +197,7 @@ mod tests {
             equipment: Equipment {
                 tags: EquipmentTags::NONE,
                 modifiers: AttributeSet::ZERO.with(AttributeId::HEALTH, 1),
+                skill_levels: crate::skills::NO_SKILL_LEVELS,
             },
         });
 

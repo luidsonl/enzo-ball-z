@@ -9,7 +9,7 @@ use super::{
     SkillId, SkillResult, SkillSource, SkillTiming,
 };
 
-pub const COST: f32 = 10.0;
+pub const COST: f32 = 4.0;
 pub const COOLDOWN: f32 = 2.0;
 pub const RANGE: f32 = 72.0;
 pub const DAMAGE: f32 = 4.0;
@@ -29,6 +29,9 @@ pub static DEF: SkillDef = SkillDef {
     source: SkillSource::Innate,
     activation: Activation::Press,
     requirements: REQUIREMENTS,
+    base_skill_level: 1,
+    min_skill_level: 1,
+    progression: &[1, 2, 3, 4, 5],
     aura_cost: COST,
     cooldown: COOLDOWN,
     timing: SkillTiming::PostPhysics,
@@ -66,12 +69,27 @@ pub fn activate(
     if !act.input.pressed {
         return SkillResult::Idle;
     }
+    let (steps, ego) = store
+        .get(act.entity_id)
+        .map(|entity| {
+            let ctx = entity.skill_context();
+            (
+                SkillId::Shout.tier_steps(ctx).max(0) as f32,
+                entity.attributes.ego as f32,
+            )
+        })
+        .unwrap_or((0.0, 0.0));
+    let scale = 1.0 + 0.10 * steps;
+    let range = RANGE * scale + ego * 2.0 * scale;
+    let damage = (DAMAGE * scale + ego * 0.5 * (1.0 + 0.25 * steps))
+        .round()
+        .max(1.0);
     state.anim_timer = ANIM_TIME;
     let hitbox = Rect::new(
-        act.rect.x - RANGE,
-        act.rect.y - 8.0,
-        act.rect.w + RANGE * 2.0,
-        act.rect.h + 16.0,
+        act.rect.x - range,
+        act.rect.y - 8.0 * scale,
+        act.rect.w + range * 2.0,
+        act.rect.h + 16.0 * scale,
     );
     let targets: Vec<EntityId> = store
         .hostiles_in_rect(hitbox, act.team)
@@ -88,9 +106,9 @@ pub fn activate(
         } else {
             -1.0
         };
-        let applied = target.health.damage(DAMAGE);
+        let applied = target.health.damage(damage);
         if applied > 0.0 {
-            target.body.vel.x = dir * KNOCKBACK;
+            target.body.vel.x = dir * KNOCKBACK * scale;
             target.body.vel.y = -120.0;
             events.push(GameEvent::SkillHit {
                 attacker: act.entity_id,

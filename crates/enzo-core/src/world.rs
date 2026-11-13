@@ -231,7 +231,7 @@ impl World {
         let context = entity.skill_context();
         let change = match request {
             LoadoutRequest::Assign { slot, skill } => {
-                if let Err(lock) = skill.def().requirements.check(context) {
+                if let Err(lock) = skill.availability(context) {
                     return Err(LoadoutError::Unavailable { skill, lock });
                 }
                 entity.skills.loadout.assign(slot, skill)
@@ -494,7 +494,7 @@ impl World {
             if !wants {
                 continue;
             }
-            if let Err(lock) = def.requirements.check(context) {
+            if let Err(lock) = skill.availability(context) {
                 events.push(GameEvent::SkillRejected {
                     player: entity_id,
                     slot,
@@ -503,6 +503,8 @@ impl World {
                 });
                 continue;
             }
+            let aura_cost = skill.effective_aura_cost(context);
+            let cooldown = skill.effective_cooldown(context);
             if cooldowns[skill.index()] > 0.0 {
                 events.push(GameEvent::SkillRejected {
                     player: entity_id,
@@ -512,7 +514,7 @@ impl World {
                 });
                 continue;
             }
-            if player_aura < def.aura_cost {
+            if player_aura < aura_cost {
                 events.push(GameEvent::SkillRejected {
                     player: entity_id,
                     slot,
@@ -586,12 +588,12 @@ impl World {
             if matches!(result, SkillResult::Started) {
                 if let Some(entity) = self.store.get_mut(entity_id) {
                     if let Some(player) = entity.player_mut() {
-                        if def.aura_cost > 0.0 {
-                            let _ = aura::spend(player, def.aura_cost);
+                        if aura_cost > 0.0 {
+                            let _ = aura::spend(player, aura_cost);
                         }
                     }
-                    if def.cooldown > 0.0 {
-                        entity.skills.cooldowns[skill.index()] = def.cooldown + DT;
+                    if cooldown > 0.0 {
+                        entity.skills.cooldowns[skill.index()] = cooldown + DT;
                     }
                 }
             }
@@ -732,6 +734,27 @@ mod tests {
     #[test]
     fn apply_loadout_swaps_skills() {
         let mut world = World::new(LEVEL_1).unwrap();
+        // Mogging requires skill level 1 (granted by 67 items).
+        assert!(world.add_inventory(0, ItemKind::Cap67));
+        world.equip_inventory_item(0, ItemKind::Cap67).unwrap();
+        let change = world
+            .apply_loadout(
+                0,
+                LoadoutRequest::Assign {
+                    slot: ActionSlot::Slot4,
+                    skill: SkillId::Mogging,
+                },
+            )
+            .unwrap();
+        assert!(matches!(change, LoadoutChange::Assigned { .. }));
+        let entity = world.store().player(0).unwrap();
+        assert_eq!(
+            entity.skills.loadout.slot_of(SkillId::Mogging),
+            Some(ActionSlot::Slot4)
+        );
+        assert!(!entity.skills.loadout.contains(SkillId::Shout));
+
+        // Swapping two equipped available skills still works.
         let change = world
             .apply_loadout(
                 0,
@@ -741,10 +764,7 @@ mod tests {
                 },
             )
             .unwrap();
-        assert!(matches!(
-            change,
-            LoadoutChange::Swapped { .. } | LoadoutChange::Assigned { .. }
-        ));
+        assert!(matches!(change, LoadoutChange::Swapped { .. }));
         let entity = world.store().player(0).unwrap();
         assert_eq!(
             entity.skills.loadout.slot_of(SkillId::Mogging),

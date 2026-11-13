@@ -256,6 +256,7 @@ impl Entity {
             self.kind.level(),
             self.attribute_set(),
             self.equipment.tags,
+            self.equipment.skill_levels,
         )
     }
 
