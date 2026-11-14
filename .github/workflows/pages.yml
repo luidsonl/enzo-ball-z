@@ -39,6 +39,13 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Generate sprites
+        run: |
+          node tools/pixel-forge/cli.mjs build blocks
+          node tools/pixel-forge/cli.mjs build skills --force
+          node tools/pixel-forge/cli.mjs build items --force
+          node tools/pixel-forge/cli.mjs build entities --force
+
       - name: Build static bundle
         run: bash scripts/build-wasm.sh
 
