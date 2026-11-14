@@ -1,9 +1,0 @@
-{
-  "id": "ground",
-  "sprites": [
-    "top.png",
-    "fill.png"
-  ],
-  "sheet": "assets/blocks/tiles.png",
-  "contract": "assets/definitions/generated/blocks.json"
-}

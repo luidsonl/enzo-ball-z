@@ -1,8 +1,0 @@
-{
-  "id": "flag_bottom",
-  "sprites": [
-    "default.png"
-  ],
-  "sheet": "assets/blocks/tiles.png",
-  "contract": "assets/definitions/generated/blocks.json"
-}

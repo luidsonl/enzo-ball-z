@@ -6,9 +6,9 @@
 *.log
 .DS_Store
 
-# Generated entity assets (pixel-forge)
-/assets/entities/*/sheet.png
-/assets/entities/*/atlas.json
-/assets/entities/*/rig.json
-/assets/entities/*/manifest.json
-/assets/entities/*/layers/
+# Generated assets (pixel-forge)
+/assets/entities/
+/assets/blocks/
+/assets/items/
+/assets/skills/
+/assets/definitions/generated/
