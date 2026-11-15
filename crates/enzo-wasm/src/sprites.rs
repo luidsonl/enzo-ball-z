@@ -187,10 +187,10 @@ impl Sprites {
                 "pain"
             };
         }
-        // Occasional blink.
+        // Occasional blink (short and infrequent).
         let t = time + seed as f32 * 0.37;
-        let cycle = (t * 0.9).fract();
-        if cycle > 0.94 {
+        let cycle = (t * 0.28).fract();
+        if cycle > 0.988 {
             "blink"
         } else {
             "normal"

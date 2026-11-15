@@ -610,6 +610,7 @@ impl GameSession {
 
         let alpha = (self.accumulator / DT).clamp(0.0, 1.0);
         self.effects.update(frame_dt);
+        self.emit_continuous_particles();
         self.camera
             .update(frame_dt, &self.previous, &self.current, alpha);
 
@@ -656,6 +657,22 @@ impl GameSession {
             self.persist(Text::SaveReasonProgress);
         }
         open_menu
+    }
+
+    fn emit_continuous_particles(&mut self) {
+        use enzo_core::entities::ActionPose;
+        use enzo_core::snapshot::SnapshotKind;
+
+        for entity in &self.current.entities {
+            if entity.kind != SnapshotKind::Player {
+                continue;
+            }
+            let center = to_vec2(entity.pos) + to_vec2(entity.size) * 0.5;
+            let anim = entity.animation;
+            if matches!(anim.action, ActionPose::Shout) {
+                self.effects.emit_shout(center, entity.facing);
+            }
+        }
     }
 
     /// Consome o tempo acumulado em ticks fixos. O primeiro tick do frame pode

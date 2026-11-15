@@ -23,11 +23,13 @@ pub fn draw(
 
     if anim.farming || anim.is_sixseven() {
         let pulse = 0.5 + 0.5 * (time * 8.0).sin();
-        draw_circle(
+        draw_ellipse(
             center.x,
-            center.y,
-            20.0 + pulse * 5.0,
-            Color::from_rgba(94, 242, 255, 22),
+            center.y + 4.0,
+            38.0 + pulse * 6.0,
+            30.0 + pulse * 5.0,
+            0.0,
+            Color::from_rgba(94, 242, 255, 28),
         );
     }
 

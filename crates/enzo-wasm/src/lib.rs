@@ -13,6 +13,7 @@ pub mod hud;
 pub mod i18n;
 pub mod input;
 pub mod menu;
+pub mod particles;
 pub mod pointer;
 pub mod render;
 pub mod rig;
