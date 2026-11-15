@@ -682,14 +682,14 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
     }
 
     if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
-      // Flat torso reaching up to half the head height, drawn behind the head.
-      c.rect(23, bodyY, 11, 1, shirt);
-      c.rect(22, bodyY + 1, 12, 1, shirt);
-      c.rect(22, bodyY + 2, 12, 1, shirt);
-      c.rect(22, bodyY + 3, 12, 1, shirt);
-      c.rect(21, bodyY + 4, 13, 1, shirt);
-      c.rect(31, bodyY, 3, 1, collar);
-      c.rect(21, bodyY + 4, 6, 1, shirtDark);
+      // Flat torso reaching up to half the head height, kept behind head/hands.
+      c.rect(23, bodyY, 8, 1, shirt);
+      c.rect(22, bodyY + 1, 9, 1, shirt);
+      c.rect(22, bodyY + 2, 9, 1, shirt);
+      c.rect(22, bodyY + 3, 9, 1, shirt);
+      c.rect(21, bodyY + 4, 10, 1, shirt);
+      c.rect(29, bodyY, 2, 1, collar);
+      c.rect(21, bodyY + 4, 5, 1, shirtDark);
       // Keep the head in front of the torso where they overlap.
       if (layer === 'full') {
         c.rect(headX, headY, 10, 7, skin);
@@ -701,10 +701,17 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
       // Punch the near knee through this layer so it reads as being over the
       // body when the runtime composites the layers.
       if (layer !== 'full') c.clear(...nearKnee);
-      // Near arm stays in front of the legs and body.
-      c.rect(33, 7, 2, 2, skin);
-      c.rect(34, 9, 3, 1, skin);
-      handShape(c, 37, 9, skin, skinFar);
+      // Near arm stays visible in front of the shirt: clear in the outfit layer
+      // (so base skin shows through) and redraw on top only in the full pass.
+      if (layer === 'full') {
+        c.rect(33, 7, 2, 2, skin);
+        c.rect(34, 9, 3, 1, skin);
+        handShape(c, 37, 9, skin, skinFar);
+      } else {
+        c.clear(33, 7, 2, 2);
+        c.clear(34, 9, 3, 1);
+        c.clear(36, 8, 6, 4);
+      }
     }
 
     if (layer === 'full') drawNearKnee();
@@ -772,16 +779,15 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
   }
 
   if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
-    // Compact square torso, half the head's height, aligned with the pants line
-    // at the back. The chest row runs forward under the jaw.
+    // Compact torso, kept behind the head/hands (no forward projection).
     c.rect(20, 4, 8, 1, shirt);
     c.rect(20, 5, 8, 1, shirt);
     c.rect(20, 6, 8, 1, shirt);
-    c.rect(20, 7, 8, 1, shirt);
-    c.rect(20, 8, 17, 1, shirt);
-    // Collar at the shoulders and a shaded underside at the waist.
+    c.rect(20, 7, 10, 1, shirt);
+    c.rect(20, 8, 11, 1, shirt);
+    // Collar and subtle underside shading.
     c.rect(26, 4, 2, 1, collar);
-    c.rect(20, 7, 8, 1, shirtDark);
+    c.rect(20, 8, 4, 1, shirtDark);
   }
 
   if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, true);
