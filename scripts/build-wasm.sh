@@ -7,12 +7,6 @@ cd "$ROOT"
 TARGET="wasm32-unknown-unknown"
 WASM="target/$TARGET/release/enzo-wasm.wasm"
 
-# Generate sprite/module assets (entities are not versioned).
-node tools/pixel-forge/cli.mjs build blocks
-node tools/pixel-forge/cli.mjs build skills --force
-node tools/pixel-forge/cli.mjs build items --force
-node tools/pixel-forge/cli.mjs build entities --force
-
 cargo build -p enzo-wasm --release --target "$TARGET"
 
 if [[ ! -f "$WASM" ]]; then
@@ -35,4 +29,4 @@ cp "$WASM" dist/enzo-wasm.wasm
 mkdir -p dist/assets
 cp -r assets/. dist/assets/
 
-echo "build ok: dist/"
+echo "wasm build ok: dist/"
