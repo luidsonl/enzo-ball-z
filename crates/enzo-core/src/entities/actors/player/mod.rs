@@ -55,8 +55,13 @@ impl PlayableCharacter {
 
 /// Stable visual customization IDs (no image paths in core).
 /// Values are interpreted by the client/asset manifest.
-/// Layers: skin/body, face, hair (style+color), outfit top/shirt (+ body details),
-/// outfit bottom/pants, shoes. Equipment items may override or add layers at render time.
+/// Layers: skin/body, face, hair (style+color), outfit top/shirt, outfit bottom/pants, shoes.
+/// Clothing colors follow a 3-color logic:
+/// - `outfit_top`: predominant color for the top clothing.
+/// - `outfit_bottom`: predominant color for the pants.
+/// - `shoes`: detail/accent color (shoes and other details).
+/// Additional top-detail fields may exist for compatibility/future equipment overlays.
+/// Equipment items may override or add layers at render time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VisualProfile {
@@ -68,17 +73,19 @@ pub struct VisualProfile {
     pub hair_color: u8,
     #[cfg_attr(feature = "serde", serde(default))]
     pub face: u8,
-    /// Main/body clothing base color.
+    /// Predominant top clothing color (palette index).
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_top: u8,
-    /// Body clothing detail color 1 (e.g. stripes/trim/details; future equipment).
+    /// Body clothing detail color 1 (compatibility/future equipment overlays).
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_top_detail1: u8,
-    /// Body clothing detail color 2 (e.g. secondary details; future equipment).
+    /// Body clothing detail color 2 (compatibility/future equipment overlays).
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_top_detail2: u8,
+    /// Predominant pants color (palette index).
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_bottom: u8,
+    /// Detail/accent color (palette index), applied to shoes/details.
     #[cfg_attr(feature = "serde", serde(default))]
     pub shoes: u8,
 }
@@ -125,11 +132,12 @@ impl VisualProfile {
     }
 
     pub fn with_field(mut self, field: u8, value: u8) -> Self {
+        let value = value.min(7);
         match field {
             Self::FIELD_SKIN_TONE => self.skin_tone = value,
-            Self::FIELD_HAIR_STYLE => self.hair_style = value.min(7),
+            Self::FIELD_HAIR_STYLE => self.hair_style = value,
             Self::FIELD_HAIR_COLOR => self.hair_color = value,
-            Self::FIELD_FACE => self.face = value.min(7),
+            Self::FIELD_FACE => self.face = value,
             Self::FIELD_OUTFIT_TOP => self.outfit_top = value,
             Self::FIELD_OUTFIT_BOTTOM => self.outfit_bottom = value,
             Self::FIELD_SHOES => self.shoes = value,

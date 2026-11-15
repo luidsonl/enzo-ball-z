@@ -468,6 +468,7 @@ impl HumanoidRig {
         let outfit_detail1 = clothing_tint(profile.outfit_top_detail1, tint);
         let outfit_detail2 = clothing_tint(profile.outfit_top_detail2, tint);
         let outfit_bottom = clothing_tint(profile.outfit_bottom, tint);
+        let detail_color = clothing_tint(profile.shoes, tint);
         if let Some(tex) = &self.base {
             draw_sheet_tex(tex, source, draw_dest, flip_x, skin);
         } else {
@@ -482,7 +483,7 @@ impl HumanoidRig {
             draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_bottom);
         }
         if let Some(tex) = &self.shoes {
-            draw_sheet_tex(tex, source, draw_dest, flip_x, tint);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, detail_color);
         }
         if let Some(tex) = &self.outfit_top {
             draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_main);

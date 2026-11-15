@@ -158,11 +158,7 @@ function cycle(key, field, max, dir) {
   const next = (profileValue(key) + dir + count) % count;
   setVisualProfileField(field, next);
 }
-function setMainClothingColor(value) {
-  // "Main clothing color" applies to outfit top and bottom for a cohesive look.
-  setVisualProfileField(4, value);
-  setVisualProfileField(5, value);
-}
+// Clothing colors are independent: top (4), pants (5), and details (6/shoes).
 function isSelectedColor(fieldKey, value) {
   return profileValue(fieldKey) === value;
 }
@@ -285,8 +281,11 @@ function isSelectedColor(fieldKey, value) {
 
         <template v-else-if="menu.screen === 'customize'">
           <h2 class="dom-title">{{ labels.character_editor || labels.customize || 'Character Editor' }}</h2>
+          <p class="dom-subtitle" style="margin-bottom:6px">
+            {{ isEnglish ? 'Outfit uses 3 colors: top, pants, and details.' : 'A roupa usa 3 cores: parte de cima, calça e detalhes.' }}
+          </p>
           <p class="dom-subtitle" style="margin-bottom:10px">
-            {{ labels.customize_hint || 'Changes apply to all animation states (idle, walk, jump, attack, swim, etc.).' }}
+            {{ labels.customize_hint || (isEnglish ? 'Changes apply to all animation states (idle, walk, jump, attack, swim, etc.).' : 'As mudanças se aplicam a todos os estados de animação (parado, andar, pular, atacar, nadar etc.).') }}
           </p>
 
           <div v-if="player" class="dom-customize-editor">
@@ -299,21 +298,21 @@ function isSelectedColor(fieldKey, value) {
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.skin_tone || 'Skin tone' }}</div>
+              <div class="dom-option-label">{{ labels.skin_tone || (isEnglish ? 'Skin tone' : 'Tom de pele') }}</div>
               <div class="dom-option-buttons dom-swatch-row">
                 <button v-for="(c, i) in SKIN_COLORS" :key="'s'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('skin_tone', i) }" :style="{ background: c }" :aria-label="(labels.skin_tone||'Skin') + ' ' + (i+1)" @click.prevent.stop="setProfileField(0, i)" />
               </div>
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.hair_color || 'Hair color' }}</div>
+              <div class="dom-option-label">{{ labels.hair_color || (isEnglish ? 'Hair color' : 'Cor do cabelo') }}</div>
               <div class="dom-option-buttons dom-swatch-row">
                 <button v-for="(c, i) in HAIR_COLORS" :key="'h'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('hair_color', i) }" :style="{ background: c }" :aria-label="(labels.hair_color||'Hair color') + ' ' + (i+1)" @click.prevent.stop="setProfileField(2, i)" />
               </div>
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.hair_style || 'Hair style' }}: {{ (profileValue('hair_style') ?? 0) + 1 }}</div>
+              <div class="dom-option-label">{{ labels.hair_style || (isEnglish ? 'Hair style' : 'Estilo de cabelo') }}: {{ (profileValue('hair_style') ?? 0) + 1 }}</div>
               <div class="dom-option-buttons">
                 <button type="button" class="dom-btn small" @click.prevent.stop="cycle('hair_style', 1, 7, -1)">−</button>
                 <button type="button" class="dom-btn small" @click.prevent.stop="cycle('hair_style', 1, 7, 1)">+</button>
@@ -321,28 +320,28 @@ function isSelectedColor(fieldKey, value) {
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.main_clothing_color || labels.outfit_top || 'Main clothing color' }}</div>
+              <div class="dom-option-label">{{ labels.outfit_top || (isEnglish ? 'Top color (predominant)' : 'Cor da parte de cima (predominante)') }}</div>
               <div class="dom-option-buttons dom-swatch-row">
-                <button v-for="(c, i) in CLOTH_COLORS" :key="'c'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top', i) }" :style="{ background: c }" :aria-label="(labels.main_clothing_color||'Clothing') + ' ' + (i+1)" @click.prevent.stop="setMainClothingColor(i)" />
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'ot'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top||'Top') + ' ' + (i+1)" @click.prevent.stop="setProfileField(4, i)" />
               </div>
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.outfit_top_detail1 || 'Outfit detail 1' }}</div>
+              <div class="dom-option-label">{{ labels.outfit_bottom || (isEnglish ? 'Pants color (predominant)' : 'Cor da calça (predominante)') }}</div>
               <div class="dom-option-buttons dom-swatch-row">
-                <button v-for="(c, i) in CLOTH_COLORS" :key="'cd1'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top_detail1', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top_detail1||'Detail 1') + ' ' + (i+1)" @click.prevent.stop="setProfileField(7, i)" />
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'ob'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_bottom', i) }" :style="{ background: c }" :aria-label="(labels.outfit_bottom||'Pants') + ' ' + (i+1)" @click.prevent.stop="setProfileField(5, i)" />
               </div>
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.outfit_top_detail2 || 'Outfit detail 2' }}</div>
+              <div class="dom-option-label">{{ labels.shoes || (isEnglish ? 'Details color' : 'Cor dos detalhes') }}</div>
               <div class="dom-option-buttons dom-swatch-row">
-                <button v-for="(c, i) in CLOTH_COLORS" :key="'cd2'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top_detail2', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top_detail2||'Detail 2') + ' ' + (i+1)" @click.prevent.stop="setProfileField(8, i)" />
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'od'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('shoes', i) }" :style="{ background: c }" :aria-label="(labels.shoes||'Details') + ' ' + (i+1)" @click.prevent.stop="setProfileField(6, i)" />
               </div>
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.face || 'Face' }}: {{ (profileValue('face') ?? 0) + 1 }}</div>
+              <div class="dom-option-label">{{ labels.face || (isEnglish ? 'Face' : 'Rosto') }}: {{ (profileValue('face') ?? 0) + 1 }}</div>
               <div class="dom-option-buttons">
                 <button type="button" class="dom-btn small" @click.prevent.stop="cycle('face', 3, 7, -1)">−</button>
                 <button type="button" class="dom-btn small" @click.prevent.stop="cycle('face', 3, 7, 1)">+</button>
@@ -350,7 +349,7 @@ function isSelectedColor(fieldKey, value) {
             </div>
           </div>
 
-          <p v-else class="dom-subtitle">{{ labels.customize_no_player || 'Character editor unavailable.' }}</p>
+          <p v-else class="dom-subtitle">{{ labels.customize_no_player || (isEnglish ? 'Character editor unavailable.' : 'Editor de personagem indisponível.') }}</p>
 
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuBack)">
             {{ labels.back }}

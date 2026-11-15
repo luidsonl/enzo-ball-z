@@ -87,13 +87,13 @@ const CUSTOM_SECTIONS = [
     { code: 2, key: "hair_color", labelKey: "hair_color", max: 7, kind: "color", palette: HAIR_COLORS },
   ]},
   { titleKey: "face", fields: [{ code: 3, key: "face", max: 7, kind: "style" }] },
-  { titleKey: "outfit", fields: [
+  { titleKey: "clothing_colors", fields: [
     { code: 4, key: "outfit_top", labelKey: "outfit_top", max: 7, kind: "color", palette: CLOTH_COLORS },
     { code: 7, key: "outfit_top_detail1", labelKey: "outfit_top_detail1", max: 7, kind: "color", palette: CLOTH_COLORS },
     { code: 8, key: "outfit_top_detail2", labelKey: "outfit_top_detail2", max: 7, kind: "color", palette: CLOTH_COLORS },
     { code: 5, key: "outfit_bottom", labelKey: "outfit_bottom", max: 7, kind: "color", palette: CLOTH_COLORS },
+    { code: 6, key: "shoes", labelKey: "shoes", max: 7, kind: "color", palette: CLOTH_COLORS },
   ]},
-  { titleKey: "shoes", fields: [{ code: 6, key: "shoes", max: 7, kind: "style" }] },
 ];
 
 function profileValue(key) {
@@ -107,10 +107,20 @@ function cycleProfile(field, dir) {
 }
 function fieldLabel(field, fallbackKey) {
   const k = field.labelKey || fallbackKey || field.key;
-  return labels.value[k] || k.replace(/_/g, " ");
+  const isEnglish = (state.value?.settings?.language || "pt-BR") === "en";
+  const fallbacks = {
+    outfit_top: isEnglish ? "Top color (predominant)" : "Cor da parte de cima (predominante)",
+    outfit_bottom: isEnglish ? "Pants color (predominant)" : "Cor da calça (predominante)",
+    shoes: isEnglish ? "Details color" : "Cor dos detalhes",
+  };
+  return labels.value[k] || fallbacks[k] || k.replace(/_/g, " ");
 }
 function sectionTitle(section) {
-  const map = { hair: (labels.value.hair_style || "Hair"), outfit: (labels.value.outfit_top ? "Outfit" : "Clothing") };
+  const isEnglish = (state.value?.settings?.language || "pt-BR") === "en";
+  const map = {
+    hair: labels.value.hair_style || (isEnglish ? "Hair" : "Cabelo"),
+    clothing_colors: isEnglish ? "Clothing colors (top, pants, details)" : "Cores das roupas (cima, calça, detalhes)",
+  };
   return labels.value[section.titleKey] || map[section.titleKey] || section.titleKey.replace(/_/g, " ");
 }
 function swatchColor(field) {
@@ -308,6 +318,11 @@ function slotSkillName(slotState) {
               <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
+              <p class="muted" style="margin:0 0 8px 0">
+                {{ (state.settings?.language || 'pt-BR') === 'en'
+                  ? 'Clothing uses 3 colors: top (predominant), pants (predominant), and details.'
+                  : 'As roupas usam 3 cores: parte de cima (predominante), calça (predominante) e detalhes.' }}
+              </p>
               <div class="dom-list">
                 <div class="dom-list-row" style="align-items:center; gap:10px; flex-wrap:wrap;">
                   <span class="dom-list-key">{{ labels.character || 'Character' }}</span>
