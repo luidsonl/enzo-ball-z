@@ -317,8 +317,11 @@ impl Skills {
 
         // SixSeven tick já acontece em Locomotion::tick.
 
-        if self.has(SkillId::Dash) {
-            self.dash.try_start(body, locomotion.walk.intent_x);
+        if self.has(SkillId::Dash)
+            && self.cooldown(SkillId::Dash) <= 0.0
+            && self.dash.try_start(body, locomotion.walk.intent_x)
+        {
+            self.set_cooldown(SkillId::Dash, dash::DASH_COOLDOWN);
         }
         // Jump is always available via MoveUp intent.
         self.jump.update(body, stats);

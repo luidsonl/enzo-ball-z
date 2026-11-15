@@ -169,7 +169,8 @@ impl Stats {
         Self {
             walk_speed: 220.0 + 10.0 * speed,
             run_speed: 340.0 + 6.0 * speed,
-            jump_speed: 560.0 + 2.0 * speed,
+            // Tuned for ~4-tile jump height at base gravity (1800).
+            jump_speed: 679.0 + 2.0 * speed,
             strength: attributes.strength as f32,
             max_health: 10.0 + attributes.health as f32,
             max_aura: 10.0 + attributes.aura as f32,
@@ -246,7 +247,7 @@ mod tests {
         let stats = Stats::player(attributes);
         assert_eq!(stats.walk_speed, 240.0);
         assert_eq!(stats.run_speed, 352.0);
-        assert_eq!(stats.jump_speed, 564.0);
+        assert_eq!(stats.jump_speed, 683.0);
         assert_eq!(stats.strength, 3.0);
         assert_eq!(stats.max_health, 11.0);
         assert_eq!(stats.max_aura, 14.0);
