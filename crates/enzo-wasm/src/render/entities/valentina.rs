@@ -17,6 +17,7 @@ pub fn draw(
 ) {
     let size = vec2(entity.size.x, entity.size.y);
     let center = pos + size * 0.5;
+    let foot = vec2(center.x, pos.y + size.y);
     let anim = entity.animation;
 
     if anim.farming || anim.is_sixseven() {
@@ -38,12 +39,13 @@ pub fn draw(
         WHITE
     };
 
-    let dest = Rect::new(center.x - 32.0, pos.y + size.y - 64.0, 64.0, 64.0);
     let flip = entity.facing < 0;
     let clip = anim.clip_name();
-    let source = sprites.rig_frame_source("valentina", clip, time);
-    sprites.draw_valentina_rig(clip, time, dest, flip, tint, player.visual_profile);
-    compositor::draw_equipped_layers_rig(sprites, player, source, dest, flip, tint);
+    let frame = sprites.draw_valentina_rig(clip, time, foot, flip, tint, player.visual_profile);
+    if let Some(frame) = frame {
+        let dest = frame.dest_for_foot(foot.x, foot.y);
+        compositor::draw_equipped_layers_rig(sprites, player, Some(frame.source), dest, flip, tint);
+    }
 
     skills::draw_player_overlays(sprites, entity, player, center);
 }

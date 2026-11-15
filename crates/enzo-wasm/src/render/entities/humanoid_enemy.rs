@@ -14,6 +14,7 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
         return;
     };
     let size = vec2(entity.size.x, entity.size.y);
+    let foot = vec2(pos.x + size.x * 0.5, pos.y + size.y);
     let anim = entity.animation;
 
     let blink = entity.iframes > 0.0 && (time * 24.0) as i32 % 2 == 0 && !anim.is_dead();
@@ -25,21 +26,15 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
         WHITE
     };
 
-    let dest = Rect::new(
-        pos.x + size.x * 0.5 - 32.0,
-        pos.y + size.y - 64.0,
-        64.0,
-        64.0,
-    );
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
     let profile = entity.visual_profile;
     match character {
         PlayableCharacter::Valentina => {
-            sprites.draw_valentina_rig(clip, time, dest, flip, tint, profile);
+            let _ = sprites.draw_valentina_rig(clip, time, foot, flip, tint, profile);
         }
         PlayableCharacter::Enzo => {
-            sprites.draw_enzo_rig(clip, time, dest, flip, tint, profile);
+            let _ = sprites.draw_enzo_rig(clip, time, foot, flip, tint, profile);
         }
     }
 

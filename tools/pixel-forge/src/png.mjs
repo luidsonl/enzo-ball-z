@@ -77,6 +77,19 @@ export class Canvas {
   rect(x, y, w, h, color) {
     for (let j = 0; j < h; j += 1) for (let i = 0; i < w; i += 1) this.set(x+i, y+j, color);
   }
+  // Erases a rectangle back to full transparency. Used to punch limb-shaped
+  // holes in upper layers so a lower layer (e.g. a leg over the torso) shows
+  // through the layered runtime composition.
+  clear(x, y, w, h) {
+    const x0 = Math.max(0, Math.round(x));
+    const y0 = Math.max(0, Math.round(y));
+    const x1 = Math.min(this.w, x0 + Math.round(w));
+    const y1 = Math.min(this.h, y0 + Math.round(h));
+    for (let j = y0; j < y1; j += 1) for (let i = x0; i < x1; i += 1) {
+      const k = (j * this.w + i) * 4;
+      this.data[k] = 0; this.data[k + 1] = 0; this.data[k + 2] = 0; this.data[k + 3] = 0;
+    }
+  }
   blit(src, dx = 0, dy = 0) {
     for (let y = 0; y < src.h; y += 1) for (let x = 0; x < src.w; x += 1) {
       const i = (y * src.w + x) * 4;

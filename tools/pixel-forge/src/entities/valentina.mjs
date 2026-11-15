@@ -9,9 +9,10 @@ export const STATE_FRAME_SPECS = {
   idle:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   walk:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   run:        { w: 64, h: 64, anchor: { x: 32, y: 62 } },
-  // Low states: wider than standing. Crouch/kneel is a bit taller than crawling.
+  // Low states: wider than standing and half the standing frame height
+  // (32px vs 64px). Two rows of headroom keep tall hair from clipping.
   // Anchored at the frame bottom so feet/knees contact the foot point.
-  crouch:     { w: 108, h: 40, anchor: { x: 54, y: 40 } },
+  crouch:     { w: 108, h: 32, anchor: { x: 54, y: 32 } },
   crawl:      { w: 108, h: 32, anchor: { x: 54, y: 32 } },
   jump:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   jump_rise:  { w: 64, h: 64, anchor: { x: 32, y: 62 } },

@@ -1,15 +1,38 @@
 //! Manifest-driven humanoid rig: per-state clip/frame resolution and layered composition.
 //!
+//! Supports:
+//! - Matrix spritesheets (`layout: "state_matrix"`): rows = states, cols = frames, per-state
+//!   frame dimensions/anchors and per-state frame duration.
+//! - Legacy strip manifests (flat frames + uniform cell).
+//!
 //! Rigs are loaded from `assets/entities/<id>/rig.json` (or `atlas.json` fallback)
 //! with aligned layer textures. Missing manifests/layers degrade gracefully.
-//! Embedded canonical humanoid frame/clip data ensures correct per-state frame
-//! selection even when runtime manifest loading fails (e.g. stale build output).
 
 use std::collections::HashMap;
 
 use enzo_core::entities::VisualProfile;
 use macroquad::prelude::*;
 use serde::Deserialize;
+
+#[derive(Clone, Copy, Debug)]
+pub struct ResolvedFrame {
+    pub source: Rect,
+    pub frame_w: f32,
+    pub frame_h: f32,
+    pub anchor_x: f32,
+    pub anchor_y: f32,
+}
+
+impl ResolvedFrame {
+    pub fn dest_for_foot(self, foot_x: f32, foot_y: f32) -> Rect {
+        Rect::new(
+            foot_x - self.anchor_x,
+            foot_y - self.anchor_y,
+            self.frame_w,
+            self.frame_h,
+        )
+    }
+}
 
 const HUMANOID_CANONICAL_FRAMES: &[&str] = &[
     "idle_0",
@@ -112,13 +135,38 @@ impl From<&RigRect> for Rect {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct RigAnchor {
+    #[serde(default)]
+    pub x: f32,
+    #[serde(default)]
+    pub y: f32,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct RigClip {
     pub frames: Vec<String>,
     #[serde(default = "default_fps")]
     pub fps: f32,
+    #[serde(default)]
+    pub frame_duration: Option<f32>,
     #[serde(default = "default_loop")]
     pub r#loop: bool,
+}
+
+impl RigClip {
+    fn fps_resolved(&self) -> f32 {
+        if let Some(d) = self.frame_duration {
+            if d > 0.0 {
+                return 1.0 / d;
+            }
+        }
+        if self.fps > 0.0 {
+            self.fps
+        } else {
+            1.0
+        }
+    }
 }
 
 fn default_fps() -> f32 {
@@ -128,16 +176,48 @@ fn default_loop() -> bool {
     true
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 pub struct RigCell {
+    #[serde(default = "default_cell")]
+    pub w: f32,
+    #[serde(default = "default_cell")]
+    pub h: f32,
+}
+fn default_cell() -> f32 {
+    64.0
+}
+
+// --- Matrix (state rows x frame columns) contract ---
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct MatrixFrame {
+    pub name: String,
+    pub x: f32,
+    pub y: f32,
     pub w: f32,
     pub h: f32,
+    #[serde(default)]
+    pub anchor: Option<RigAnchor>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct RigAnchor {
-    pub x: f32,
-    pub y: f32,
+pub struct StateRow {
+    #[serde(rename = "frameW", default)]
+    pub frame_w: f32,
+    #[serde(rename = "frameH", default)]
+    pub frame_h: f32,
+    #[serde(default)]
+    pub anchor: Option<RigAnchor>,
+    #[serde(default)]
+    pub frames: Vec<MatrixFrame>,
+}
+
+#[derive(Clone, Debug)]
+struct FrameEntry {
+    source: Rect,
+    frame_w: f32,
+    frame_h: f32,
+    anchor: RigAnchor,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -145,12 +225,19 @@ pub struct RigManifest {
     #[serde(default)]
     pub id: String,
     #[serde(default)]
+    pub layout: String,
+    #[serde(default)]
     pub image: String,
-    pub cell: RigCell,
+    #[serde(default)]
+    pub cell: Option<RigCell>,
     #[serde(default)]
     pub anchor: Option<RigAnchor>,
+    /// Legacy flat frame map.
     #[serde(default)]
     pub frames: HashMap<String, RigRect>,
+    /// Matrix layout: state rows with frame rects.
+    #[serde(default)]
+    pub states: HashMap<String, StateRow>,
     #[serde(default)]
     pub clips: HashMap<String, RigClip>,
     #[serde(default)]
@@ -159,8 +246,25 @@ pub struct RigManifest {
     pub layers: Vec<String>,
 }
 
+impl RigManifest {
+    fn default_anchor(&self) -> RigAnchor {
+        self.anchor
+            .clone()
+            .unwrap_or(RigAnchor { x: 32.0, y: 62.0 })
+    }
+    fn default_cell(&self) -> (f32, f32) {
+        if let Some(c) = &self.cell {
+            (c.w, c.h)
+        } else {
+            (64.0, 64.0)
+        }
+    }
+}
+
 pub struct HumanoidRig {
     pub manifest: RigManifest,
+    /// Flat frame lookup (covers matrix + legacy manifests).
+    frame_map: HashMap<String, FrameEntry>,
     pub sheet: Texture2D, // full fallback
     pub base: Option<Texture2D>,
     pub face: Option<Texture2D>,
@@ -185,11 +289,9 @@ impl HumanoidRig {
                 .await
                 .unwrap_or_else(|| embedded_manifest(entity_id)),
         };
-        if manifest.frames.is_empty() || manifest.clips.is_empty() {
+        if manifest.frames.is_empty() && manifest.states.is_empty() {
             let embedded = embedded_manifest(entity_id);
-            if manifest.frames.is_empty() {
-                manifest.frames = embedded.frames;
-            }
+            manifest.frames = embedded.frames;
             if manifest.clips.is_empty() {
                 manifest.clips = embedded.clips;
             }
@@ -197,7 +299,15 @@ impl HumanoidRig {
                 manifest.fallbacks = embedded.fallbacks;
             }
         }
+        if manifest.clips.is_empty() {
+            manifest.clips = embedded_manifest(entity_id).clips;
+        }
+        if manifest.fallbacks.is_empty() {
+            manifest.fallbacks = embedded_manifest(entity_id).fallbacks;
+        }
+        let frame_map = build_frame_map(&manifest);
         Self {
+            frame_map,
             manifest,
             sheet,
             base: opt_texture(&format!("assets/entities/{entity_id}/layers/base.png")).await,
@@ -239,15 +349,32 @@ impl HumanoidRig {
         self.base.is_some()
     }
 
-    pub fn frame_rect(&self, clip_name: &str, time: f32) -> Option<Rect> {
+    pub fn resolve_frame(&self, clip_name: &str, time: f32) -> Option<ResolvedFrame> {
         let frame_name = self.resolve_frame_name(clip_name, time)?;
-        self.manifest
-            .frames
-            .get(&frame_name)
-            .map(Rect::from)
-            .or_else(|| {
-                canonical_frame_rect(&frame_name, self.manifest.cell.w, self.manifest.cell.h)
-            })
+        if let Some(e) = self.frame_map.get(&frame_name) {
+            return Some(ResolvedFrame {
+                source: e.source,
+                frame_w: e.frame_w,
+                frame_h: e.frame_h,
+                anchor_x: e.anchor.x,
+                anchor_y: e.anchor.y,
+            });
+        }
+        // Legacy fallback by canonical strip index + manifest cell.
+        let (cw, ch) = self.manifest.default_cell();
+        let rect = canonical_frame_rect(&frame_name, cw, ch)?;
+        let a = self.manifest.default_anchor();
+        Some(ResolvedFrame {
+            source: rect,
+            frame_w: cw,
+            frame_h: ch,
+            anchor_x: a.x,
+            anchor_y: a.y,
+        })
+    }
+
+    pub fn frame_rect(&self, clip_name: &str, time: f32) -> Option<Rect> {
+        self.resolve_frame(clip_name, time).map(|f| f.source)
     }
 
     fn resolve_frame_name(&self, clip_name: &str, time: f32) -> Option<String> {
@@ -272,7 +399,7 @@ impl HumanoidRig {
                 return Some(name);
             }
         }
-        self.manifest.frames.keys().next().cloned()
+        self.frame_map.keys().next().cloned()
     }
 
     fn resolve_clip_frame(&self, clip_name: &str, time: f32) -> Option<String> {
@@ -280,7 +407,7 @@ impl HumanoidRig {
             if clip.frames.is_empty() {
                 return None;
             }
-            let fps = if clip.fps <= 0.0 { 1.0 } else { clip.fps };
+            let fps = clip.fps_resolved().max(0.001);
             let idx = (time * fps).floor() as usize;
             let idx = if clip.r#loop {
                 idx % clip.frames.len()
@@ -311,49 +438,89 @@ impl HumanoidRig {
         hair_override: Option<&Texture2D>,
         face_override: Option<&Texture2D>,
     ) {
-        let Some(source) = self.frame_rect(clip_name, time) else {
-            draw_sheet_tex(
-                &self.sheet,
-                Rect::new(0.0, 0.0, self.manifest.cell.w, self.manifest.cell.h),
-                dest,
-                flip_x,
-                tint,
-            );
-            return;
+        let (source, fallback_dest) = match self.resolve_frame(clip_name, time) {
+            Some(f) => (f.source, Rect::new(dest.x, dest.y, f.frame_w, f.frame_h)),
+            None => {
+                let (cw, ch) = self.manifest.default_cell();
+                (
+                    Rect::new(0.0, 0.0, cw, ch),
+                    Rect::new(dest.x, dest.y, cw, ch),
+                )
+            }
         };
+        // Caller supplies correctly positioned/sized dest (matrix-aware).
+        let draw_dest = dest;
         if !self.has_layers() {
-            draw_sheet_tex(&self.sheet, source, dest, flip_x, tint);
+            draw_sheet_tex(&self.sheet, source, draw_dest, flip_x, tint);
             return;
         }
         let skin = skin_tint(profile.skin_tone, tint);
         let hair = hair_tint(profile.hair_color, tint);
-        // "Main clothing color" (outfit_top) drives outfit palette; bottom gets a related tint.
         let outfit_main = clothing_tint(profile.outfit_top, tint);
         let outfit_bottom = clothing_tint(profile.outfit_bottom, tint);
         if let Some(tex) = &self.base {
-            draw_sheet_tex(tex, source, dest, flip_x, skin);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, skin);
         } else {
-            draw_sheet_tex(&self.sheet, source, dest, flip_x, tint);
+            draw_sheet_tex(&self.sheet, source, draw_dest, flip_x, tint);
             return;
         }
         let face_tex = face_override.or(self.face.as_ref());
         if let Some(tex) = face_tex {
-            draw_sheet_tex(tex, source, dest, flip_x, tint);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, tint);
         }
         if let Some(tex) = &self.outfit_bottom {
-            draw_sheet_tex(tex, source, dest, flip_x, outfit_bottom);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_bottom);
         }
         if let Some(tex) = &self.shoes {
-            draw_sheet_tex(tex, source, dest, flip_x, tint);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, tint);
         }
         if let Some(tex) = &self.outfit_top {
-            draw_sheet_tex(tex, source, dest, flip_x, outfit_main);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_main);
         }
         let hair_tex = hair_override.or(self.hair.as_ref());
         if let Some(tex) = hair_tex {
-            draw_sheet_tex(tex, source, dest, flip_x, hair);
+            draw_sheet_tex(tex, source, draw_dest, flip_x, hair);
+        }
+        let _ = fallback_dest;
+    }
+}
+
+fn build_frame_map(manifest: &RigManifest) -> HashMap<String, FrameEntry> {
+    let mut map = HashMap::new();
+    let default_anchor = manifest.default_anchor();
+    // Matrix states -> flat frame entries.
+    for row in manifest.states.values() {
+        let row_anchor = row.anchor.clone().unwrap_or_else(|| default_anchor.clone());
+        for f in &row.frames {
+            let a = f.anchor.clone().unwrap_or_else(|| row_anchor.clone());
+            map.insert(
+                f.name.clone(),
+                FrameEntry {
+                    source: Rect::new(f.x, f.y, f.w, f.h),
+                    frame_w: f.w,
+                    frame_h: f.h,
+                    anchor: a,
+                },
+            );
         }
     }
+    if !map.is_empty() {
+        return map;
+    }
+    // Legacy flat frames + uniform cell.
+    let (cw, ch) = manifest.default_cell();
+    for (name, r) in &manifest.frames {
+        map.insert(
+            name.clone(),
+            FrameEntry {
+                source: Rect::from(r),
+                frame_w: r.w.max(cw),
+                frame_h: r.h.max(ch),
+                anchor: default_anchor.clone(),
+            },
+        );
+    }
+    map
 }
 
 fn embedded_manifest(entity_id: &str) -> RigManifest {
@@ -403,6 +570,7 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
             RigClip {
                 frames: f.iter().map(|s| (*s).to_owned()).collect(),
                 fps,
+                frame_duration: None,
                 r#loop: looping,
             },
         ))
@@ -431,10 +599,12 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
     .collect();
     RigManifest {
         id: entity_id.to_owned(),
+        layout: "legacy_strip".to_owned(),
         image: "sheet.png".to_owned(),
-        cell: RigCell { w: cell, h: cell },
+        cell: Some(RigCell { w: cell, h: cell }),
         anchor: Some(RigAnchor { x: 32.0, y: 62.0 }),
         frames,
+        states: HashMap::new(),
         clips,
         fallbacks,
         layers: vec![
@@ -514,13 +684,13 @@ fn hair_tint(id: u8, base: Color) -> Color {
     let a = base.a;
     match id % 8 {
         0 => base,
-        1 => Color::new(0.12, 0.10, 0.10, a), // black
-        2 => Color::new(0.36, 0.24, 0.16, a), // brown
-        3 => Color::new(0.82, 0.68, 0.30, a), // blond
-        4 => Color::new(0.62, 0.22, 0.18, a), // red
-        5 => Color::new(0.78, 0.80, 0.86, a), // silver
-        6 => Color::new(0.30, 0.52, 0.88, a), // blue
-        _ => Color::new(0.72, 0.38, 0.82, a), // purple
+        1 => Color::new(0.12, 0.10, 0.10, a),
+        2 => Color::new(0.36, 0.24, 0.16, a),
+        3 => Color::new(0.82, 0.68, 0.30, a),
+        4 => Color::new(0.62, 0.22, 0.18, a),
+        5 => Color::new(0.78, 0.80, 0.86, a),
+        6 => Color::new(0.30, 0.52, 0.88, a),
+        _ => Color::new(0.72, 0.38, 0.82, a),
     }
 }
 
@@ -528,12 +698,12 @@ fn clothing_tint(id: u8, base: Color) -> Color {
     let a = base.a;
     match id % 8 {
         0 => base,
-        1 => Color::new(0.30, 0.52, 1.00, a), // blue
-        2 => Color::new(0.95, 0.45, 0.65, a), // pink
-        3 => Color::new(0.30, 0.78, 0.45, a), // green
-        4 => Color::new(0.95, 0.72, 0.28, a), // gold
-        5 => Color::new(0.90, 0.35, 0.30, a), // red
-        6 => Color::new(0.55, 0.45, 0.85, a), // purple
-        _ => Color::new(0.78, 0.80, 0.84, a), // silver
+        1 => Color::new(0.30, 0.52, 1.00, a),
+        2 => Color::new(0.95, 0.45, 0.65, a),
+        3 => Color::new(0.30, 0.78, 0.45, a),
+        4 => Color::new(0.95, 0.72, 0.28, a),
+        5 => Color::new(0.90, 0.35, 0.30, a),
+        6 => Color::new(0.55, 0.45, 0.85, a),
+        _ => Color::new(0.78, 0.80, 0.84, a),
     }
 }

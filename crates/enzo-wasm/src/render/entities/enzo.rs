@@ -18,6 +18,7 @@ pub fn draw(
 ) {
     let size = vec2(entity.size.x, entity.size.y);
     let center = pos + size * 0.5;
+    let foot = vec2(center.x, pos.y + size.y);
     let anim = entity.animation;
 
     if anim.farming || anim.is_sixseven() {
@@ -39,19 +40,13 @@ pub fn draw(
         WHITE
     };
 
-    let sprite_h = 64.0;
-    let sprite_w = 64.0;
-    let dest = Rect::new(
-        center.x - sprite_w * 0.5,
-        pos.y + size.y - sprite_h,
-        sprite_w,
-        sprite_h,
-    );
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
-    let source = sprites.rig_frame_source("enzo", clip, time);
-    sprites.draw_enzo_rig(clip, time, dest, flip, tint, player.visual_profile);
-    compositor::draw_equipped_layers_rig(sprites, player, source, dest, flip, tint);
+    let frame = sprites.draw_enzo_rig(clip, time, foot, flip, tint, player.visual_profile);
+    if let Some(frame) = frame {
+        let dest = frame.dest_for_foot(foot.x, foot.y);
+        compositor::draw_equipped_layers_rig(sprites, player, Some(frame.source), dest, flip, tint);
+    }
 
     // Attack/skill overlays.
     skills::draw_player_overlays(sprites, entity, player, center);
@@ -59,12 +54,5 @@ pub fn draw(
 
 fn clip_name(anim: AnimationState) -> &'static str {
     // Prefer core mapping; keep small renderer-side fallbacks for compatibility.
-    let clip = anim.clip_name();
-    if clip == "kick" || clip == "cast" {
-        // Enzo rig may use attack clips as fallback if character-specific clip missing.
-        if clip == "kick" {
-            return "attack_2";
-        }
-    }
-    clip
+    anim.clip_name()
 }

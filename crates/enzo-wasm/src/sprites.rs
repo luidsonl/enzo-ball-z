@@ -15,7 +15,7 @@ use enzo_core::entities::{ItemKind, VisualProfile};
 use macroquad::prelude::*;
 
 use crate::assets::{draw_lazy, pump_assets, AssetStore};
-use crate::rig::HumanoidRig;
+use crate::rig::{HumanoidRig, ResolvedFrame};
 
 pub const TILE_CELL: f32 = 16.0;
 pub const HUMANOID_ACTOR_CELL: f32 = 64.0;
@@ -162,21 +162,24 @@ impl Sprites {
         self.assets.get_or_request(&path)
     }
 
+    /// Resolves a humanoid frame and draws it anchored to entity feet (bottom-center).
+    /// Returns the resolved frame (for aligned overlays) if drawn from a ready rig.
     pub fn draw_enzo_rig(
         &self,
         clip: &str,
         time: f32,
-        dest: Rect,
+        foot: Vec2,
         flip_x: bool,
         tint: Color,
         profile: VisualProfile,
-    ) {
+    ) -> Option<ResolvedFrame> {
         self.ensure_rig(&self.enzo_rig);
         let hair = self.profile_hair_texture("enzo", profile);
         let face = self.profile_face_texture("enzo", profile);
-        let drawn = {
-            let r = self.enzo_rig.borrow();
-            if let RigState::Ready(rig) = &r.state {
+        let r = self.enzo_rig.borrow();
+        if let RigState::Ready(rig) = &r.state {
+            if let Some(frame) = rig.resolve_frame(clip, time) {
+                let dest = frame.dest_for_foot(foot.x, foot.y);
                 rig.draw_composed(
                     clip,
                     time,
@@ -187,31 +190,31 @@ impl Sprites {
                     hair.as_ref(),
                     face.as_ref(),
                 );
-                true
-            } else {
-                false
+                return Some(frame);
             }
-        };
-        if !drawn {
-            HumanoidRig::draw_placeholder(clip, time, dest, flip_x, tint);
         }
+        // Placeholder/fallback (legacy 64x64 anchored at feet).
+        let dest = Rect::new(foot.x - 32.0, foot.y - 62.0, 64.0, 64.0);
+        HumanoidRig::draw_placeholder(clip, time, dest, flip_x, tint);
+        None
     }
 
     pub fn draw_valentina_rig(
         &self,
         clip: &str,
         time: f32,
-        dest: Rect,
+        foot: Vec2,
         flip_x: bool,
         tint: Color,
         profile: VisualProfile,
-    ) {
+    ) -> Option<ResolvedFrame> {
         self.ensure_rig(&self.valentina_rig);
         let hair = self.profile_hair_texture("valentina", profile);
         let face = self.profile_face_texture("valentina", profile);
-        let drawn = {
-            let r = self.valentina_rig.borrow();
-            if let RigState::Ready(rig) = &r.state {
+        let r = self.valentina_rig.borrow();
+        if let RigState::Ready(rig) = &r.state {
+            if let Some(frame) = rig.resolve_frame(clip, time) {
+                let dest = frame.dest_for_foot(foot.x, foot.y);
                 rig.draw_composed(
                     clip,
                     time,
@@ -222,32 +225,32 @@ impl Sprites {
                     hair.as_ref(),
                     face.as_ref(),
                 );
-                true
-            } else {
-                false
+                return Some(frame);
             }
-        };
-        if !drawn {
-            HumanoidRig::draw_placeholder(clip, time, dest, flip_x, tint);
         }
+        let dest = Rect::new(foot.x - 32.0, foot.y - 62.0, 64.0, 64.0);
+        HumanoidRig::draw_placeholder(clip, time, dest, flip_x, tint);
+        None
     }
 
-    pub fn rig_frame_source(&self, character: &str, clip: &str, time: f32) -> Option<Rect> {
+    /// Resolves current humanoid frame (source/layout) without drawing.
+    pub fn rig_frame(&self, character: &str, clip: &str, time: f32) -> Option<ResolvedFrame> {
         let slot = if character == "valentina" {
             &self.valentina_rig
         } else {
             &self.enzo_rig
         };
         self.ensure_rig(slot);
-        {
-            let r = slot.borrow();
-            if let RigState::Ready(rig) = &r.state {
-                return rig
-                    .frame_rect(clip, time)
-                    .or_else(|| embedded_frame_rect(clip, time));
-            }
+        let r = slot.borrow();
+        if let RigState::Ready(rig) = &r.state {
+            return rig.resolve_frame(clip, time);
         }
-        embedded_frame_rect(clip, time)
+        None
+    }
+
+    /// Compatibility: source rect only.
+    pub fn rig_frame_source(&self, character: &str, clip: &str, time: f32) -> Option<Rect> {
+        self.rig_frame(character, clip, time).map(|f| f.source)
     }
 
     pub fn draw_slime(&self, frame: usize, dest: Rect, flip_x: bool, tint: Color) {
@@ -287,15 +290,22 @@ impl Sprites {
         flip_x: bool,
         tint: Color,
     ) {
-        // In-world equipped items must render as rig-aligned overlays (not UI icons).
-        // Icons are shown only in UI/buttons/menus.
+        let Some(src) = source else {
+            return;
+        };
+        // Legacy humanoid overlay sheets are strip-aligned (896x32, 32x32 cells) and not
+        // compatible with matrix rigs/state-specific frame layouts yet. Only the legacy
+        // 32x32 cell path could sample them safely; skip everything else to avoid
+        // stretching several strip frames across wide low-state frames (crouch/crawl).
+        if src.w != 32.0 || src.h != 32.0 {
+            return;
+        }
         let overlay = format!("assets/items/{}/layers/humanoid_overlay.png", kind.id());
-        if let (Some(src), Some(tex)) = (source, self.assets.get_optional(&overlay)) {
+        if let Some(tex) = self.assets.get_optional(&overlay) {
             crate::rig::draw_sheet_tex(&tex, src, dest, flip_x, tint);
             return;
         }
-        // Request overlay for future frames when a rig frame is available.
-        if source.is_some() && kind.data().slot().is_some() {
+        if kind.data().slot().is_some() {
             let _ = self.assets.get_or_request(&overlay);
         }
     }
@@ -318,98 +328,4 @@ impl Default for Sprites {
     }
 }
 
-fn embedded_frame_rect(clip_name: &str, time: f32) -> Option<Rect> {
-    // Minimal fallback frame source (31-frame humanoid strip, 64x64).
-    let frames: &[&str] = match clip_name {
-        "idle" => &["idle_0", "idle_1"],
-        "walk" => &["walk_0", "walk_1", "walk_2", "walk_3"],
-        "run" => &["run_0", "run_1", "run_2", "run_3"],
-        "crouch" => &["crouch_0"],
-        "crawl" => &["crawl_0", "crawl_1", "crawl_2", "crawl_3"],
-        "jump" | "jump_rise" => &["jump_rise_0"],
-        "jump_fall" => &["jump_fall_0"],
-        "fly" => &["fly_0", "fly_1"],
-        "swim" => &["swim_0", "swim_1"],
-        "climb" => &["climb_0", "climb_1"],
-        "dash" => &["dash_0"],
-        "sixseven_a" => &["sixseven_a_0"],
-        "sixseven_b" => &["sixseven_b_0"],
-        "attack_1" => &["attack_1_0"],
-        "attack_2" => &["attack_2_0"],
-        "attack_3" => &["attack_3_0"],
-        "kick" => &["kick_0"],
-        "cast" => &["cast_0"],
-        "shout" => &["shout_0"],
-        "hurt" => &["hurt_0"],
-        "dying" => &["dying_0"],
-        "dead" => &["dead_0"],
-        _ => &["idle_0"],
-    };
-    let fps = match clip_name {
-        "walk" => 8.0,
-        "run" => 10.0,
-        "idle" => 2.5,
-        "crawl" => 7.0,
-        "fly" => 6.0,
-        "swim" | "climb" => 5.0,
-        "attack_1" | "attack_2" | "attack_3" | "kick" => 10.0,
-        "cast" | "shout" => 8.0,
-        "dying" => 4.0,
-        _ => 1.0,
-    };
-    let looping = !matches!(
-        clip_name,
-        "attack_1" | "attack_2" | "attack_3" | "kick" | "cast" | "shout" | "dying"
-    );
-    let idx = (time * fps).floor() as usize;
-    let idx = if looping {
-        idx % frames.len()
-    } else {
-        idx.min(frames.len().saturating_sub(1))
-    };
-    let name = frames[idx];
-    let order = [
-        "idle_0",
-        "idle_1",
-        "walk_0",
-        "walk_1",
-        "walk_2",
-        "walk_3",
-        "run_0",
-        "run_1",
-        "run_2",
-        "run_3",
-        "crouch_0",
-        "crawl_0",
-        "crawl_1",
-        "crawl_2",
-        "crawl_3",
-        "jump_rise_0",
-        "jump_fall_0",
-        "fly_0",
-        "fly_1",
-        "swim_0",
-        "swim_1",
-        "climb_0",
-        "climb_1",
-        "dash_0",
-        "sixseven_a_0",
-        "sixseven_b_0",
-        "attack_1_0",
-        "attack_2_0",
-        "attack_3_0",
-        "kick_0",
-        "cast_0",
-        "shout_0",
-        "hurt_0",
-        "dying_0",
-        "dead_0",
-    ];
-    let i = order.iter().position(|f| *f == name)?;
-    Some(Rect::new(
-        i as f32 * HUMANOID_ACTOR_CELL,
-        0.0,
-        HUMANOID_ACTOR_CELL,
-        HUMANOID_ACTOR_CELL,
-    ))
-}
+// (embedded strip fallback removed: matrix rigs resolve from manifest; loading shows placeholder)

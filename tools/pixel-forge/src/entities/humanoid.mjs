@@ -172,18 +172,329 @@ function poseFromFrame(frame) {
 // to matrix frames, keeping pixel density consistent with 64x64 standing frames.
 // Crouch/kneel is a bit taller than crawling.
 const LOW_FRAME_W = 54;
-const CRAWL_FRAME_H = 16;  // -> 32px
-const CROUCH_FRAME_H = 20; // -> 40px
+// Content rows used by the low poses (feet on row 12, head top on row 0).
+const LOW_CONTENT_H = 14;
+// Low frames add two rows of headroom above the content so tall hair styles
+// (which draw up to two rows above the head) are never clipped flat at the top
+// edge of the frame. 16 canonical rows = 32px, exactly half a standing frame.
+const CRAWL_FRAME_H = 16;
+const CROUCH_FRAME_H = 16;
 
 function lowCanonicalHeight(frame) {
   if (typeof frame === 'string' && frame.startsWith('crouch')) return CROUCH_FRAME_H;
   return CRAWL_FRAME_H;
 }
 
-function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHeight(frame)) {
-  const pose = poseFromFrame(frame);
+// Draws into `canvas` shifted down by `dy` rows. Low poses are authored in a
+// compact content space and blitted into a taller frame so hair drawn above the
+// head still fits inside the exported cell.
+function offsetView(canvas, dy) {
+  if (!dy) return canvas;
+  return {
+    w: canvas.w,
+    h: canvas.h,
+    set: (x, y, color) => canvas.set(x, y + dy, color),
+    rect: (x, y, w, h, color) => canvas.rect(x, y + dy, w, h, color),
+    clear: (x, y, w, h) => canvas.clear(x, y + dy, w, h),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Shared pixel-art helpers
+// ---------------------------------------------------------------------------
+
+// Draws a thick pixel line. Limbs are intentionally blocky (1xN / Nx1 chunks)
+// so the 2x upscale keeps a crisp pixel-art silhouette.
+function limb(c, x0, y0, x1, y1, thickness, color) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const steps = Math.max(Math.abs(dx), Math.abs(dy));
+  const horizontalRun = Math.abs(dx) > Math.abs(dy);
+  const offset = Math.floor((thickness - 1) / 2);
+  for (let i = 0; i <= steps; i += 1) {
+    const t = steps === 0 ? 0 : i / steps;
+    const x = Math.round(x0 + dx * t);
+    const y = Math.round(y0 + dy * t);
+    if (horizontalRun) c.rect(x, y - offset, 1, thickness, color);
+    else c.rect(x - offset, y, thickness, 1, color);
+  }
+}
+
+// Small open hand with a wrist/finger shadow.
+function handShape(c, x, y, color, shade) {
+  c.rect(x, y, 3, 2, color);
+  c.set(x, y + 1, shade);
+  c.set(x + 2, y + 1, shade);
+}
+
+// Two-tone shoe: upper + dark sole. `toe` extends the toe cap forward.
+function shoeShape(c, x, y, w, color, sole, toe = 1) {
+  c.rect(x, y, w, 1, color);
+  c.rect(x, y + 1, w, 1, sole);
+  if (toe > 0) c.set(x + w, y, color);
+  if (toe > 0) c.set(x + w, y + 1, sole);
+}
+
+// Tapered torso/spine block (wider shoulders, narrower waist).
+function tapered(c, xTop, yTop, wTop, xBottom, yBottom, wBottom, color) {
+  const h = yBottom - yTop;
+  for (let i = 0; i < h; i += 1) {
+    const t = h <= 1 ? 0 : i / (h - 1);
+    const x = Math.round(xTop + (xBottom - xTop) * t);
+    const w = Math.max(1, Math.round(wTop + (wBottom - wTop) * t));
+    c.rect(x, yTop + i, w, 1, color);
+  }
+}
+
+// Blocky two-segment arm: upper arm, elbow bridge, forearm. Keeps pixel-art
+// steps crisp instead of producing one-pixel staircases.
+function blockArm(c, arm, thickness, color) {
+  const upperH = Math.max(1, arm.elbowY - arm.shoulderY + 1);
+  c.rect(arm.shoulderX - 1, arm.shoulderY, thickness, upperH, color);
+  const bridgeX = Math.min(arm.shoulderX, arm.handX) - 1;
+  const bridgeW = thickness + Math.abs(arm.handX - arm.shoulderX);
+  c.rect(bridgeX, arm.elbowY, bridgeW, 2, color);
+  c.rect(arm.handX - 1, arm.elbowY + 1, thickness, Math.max(1, arm.handY - arm.elbowY), color);
+}
+
+// Blocky two-segment leg. Expects kneeY >= hipY and ankleY >= kneeY.
+function blockLeg(c, leg, thickness, color) {
+  const thighH = Math.max(1, leg.kneeY - leg.hipY + 1);
+  c.rect(leg.hipX - 1, leg.hipY, thickness, thighH, color);
+  const bridgeX = Math.min(leg.hipX, leg.kneeX, leg.ankleX) - 1;
+  const spread = Math.max(Math.abs(leg.kneeX - leg.hipX), Math.abs(leg.ankleX - leg.kneeX));
+  c.rect(bridgeX, leg.kneeY, thickness + spread, 2, color);
+  c.rect(leg.ankleX - 1, leg.kneeY + 1, thickness, Math.max(1, leg.ankleY - leg.kneeY), color);
+}
+
+function drawFaceAt(c, hx, headY, frame, charId, variant = 0) {
+  const dead = frame === 'dying_0' || frame === 'dead_0';
+  const hurt = frame === 'hurt_0';
   const isVal = charId === 'valentina';
-  const crawl = !!pose.crawl;
+  const eye = dead ? '#7a6a8a' : P.outline;
+  const mouthY = headY + 6;
+  const eyeY = headY + 3;
+  const fs = Math.max(0, Math.min(7, variant | 0));
+  if (isVal) {
+    if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, '#3a2418'); c.rect(hx + 17, eyeY, 2, 2, '#3a2418'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); c.rect(hx + 12, eyeY + 2, 1, 1, '#e8a0b0'); c.rect(hx + 19, eyeY + 2, 1, 1, '#e8a0b0'); }
+    else if (fs === 1) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
+    else if (fs === 2) { c.rect(hx + 13, eyeY, 2, 2, '#ffffff'); c.rect(hx + 17, eyeY, 2, 2, '#ffffff'); c.set(hx + 14, eyeY + 1, '#5a3820'); c.set(hx + 18, eyeY + 1, '#5a3820'); c.rect(hx + 12, eyeY + 2, 2, 1, '#f0b8c0'); c.rect(hx + 18, eyeY + 2, 2, 1, '#f0b8c0'); }
+    else if (fs === 3) { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.set(hx + 13, eyeY + 1, eye); c.set(hx + 18, eyeY + 1, eye); }
+    else if (fs === 4) { c.rect(hx + 13, eyeY, 2, 2, '#6b4226'); c.rect(hx + 17, eyeY, 2, 2, '#6b4226'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); }
+    else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.set(hx + 19, eyeY + 2, '#f0b8c0'); }
+    else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, '#4a2818'); c.rect(hx + 17, eyeY, 3, 2, '#4a2818'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 19, eyeY, '#ffffff'); }
+    else { c.rect(hx + 13, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 17, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 12, eyeY - 1, 1, 1, '#3a2418'); c.rect(hx + 19, eyeY - 1, 1, 1, '#3a2418'); }
+    if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
+    if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
+    else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
+    else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
+    else if (fs === 0 || fs === 2 || fs === 4) { c.rect(hx + 14, mouthY, 4, 1, '#e07a8a'); c.set(hx + 14, mouthY - 1, '#e07a8a'); c.set(hx + 17, mouthY - 1, '#e07a8a'); }
+    else c.rect(hx + 15, mouthY - 1, 2, 1, '#d98b8b');
+  } else {
+    if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
+    else if (fs === 1) { c.rect(hx + 13, eyeY + 1, 2, 1, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY, 4, 1, '#4a3422'); c.rect(hx + 16, eyeY, 4, 1, '#4a3422'); }
+    else if (fs === 2) { c.rect(hx + 12, eyeY, 3, 1, eye); c.rect(hx + 17, eyeY, 3, 1, eye); c.set(hx + 14, eyeY + 1, eye); c.set(hx + 18, eyeY + 1, eye); }
+    else if (fs === 3) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); }
+    else if (fs === 4) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 14, mouthY + 1, 4, 1, '#8a6a4a'); }
+    else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 2, 1, '#3a2418'); }
+    else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, eye); c.rect(hx + 17, eyeY, 3, 2, eye); c.rect(hx + 13, mouthY + 1, 6, 1, '#6a4a32'); }
+    else { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 8, 1, '#3a2418'); }
+    if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
+    if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
+    else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
+    else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
+    else if (fs === 2) c.rect(hx + 14, mouthY, 4, 1, P.outline);
+    else c.rect(hx + 15, mouthY - 1, 2, 1, '#b07060');
+  }
+}
+
+function drawHairAt(c, hx, headY, frame, charId, variant = 0, low = false) {
+  const isVal = charId === 'valentina';
+  const hair = isVal ? '#5a3218' : '#5a3a22';
+  const hs = Math.max(0, Math.min(7, variant | 0));
+  const longBack = low ? 3 : 10;
+  if (isVal) {
+    if (hs === 0) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(10, longBack + 3), hair); c.rect(hx + 21, headY + 2, 2, Math.min(10, longBack + 3), hair); }
+    else if (hs === 1) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 21, headY + 2, 2, Math.min(8, longBack + 2), hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); }
+    else if (hs === 2) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(8, longBack + 2), hair); c.rect(hx + 21, headY + 2, 2, Math.min(8, longBack + 2), hair); }
+    else if (hs === 3) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 3, Math.min(6, longBack + 1), hair); c.rect(hx + 20, headY + 1, 3, Math.min(6, longBack + 1), hair); c.rect(hx + 10, headY + 6, 2, low ? 0 : 2, hair); c.rect(hx + 20, headY + 6, 2, low ? 0 : 2, hair); }
+    else if (hs === 4) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(5, longBack), hair); c.rect(hx + 21, headY + 2, 2, Math.min(5, longBack), hair); }
+    else if (hs === 5) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 9, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 21, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 9, headY + 8, 1, low ? 0 : 2, hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); }
+    else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 14, headY - 3, 4, 2, hair); c.rect(hx + 9, headY + 2, 2, 4, hair); c.rect(hx + 21, headY + 2, 2, 4, hair); }
+    else { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 20, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 12, headY + 10, 8, low ? 0 : 1, hair); }
+  } else {
+    if (hs === 0) { /* bald */ }
+    else if (hs === 1) { c.rect(hx + 11, headY + 1, 10, 2, hair); c.rect(hx + 10, headY + 2, 1, 1, hair); c.rect(hx + 21, headY + 2, 1, 1, hair); }
+    else if (hs === 2) { c.rect(hx + 11, headY + 1, 10, 1, hair); }
+    else if (hs === 3) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 12, headY - 1, 2, 1, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 18, headY - 1, 2, 1, hair); }
+    else if (hs === 4) { c.rect(hx + 10, headY, 11, 3, hair); c.rect(hx + 9, headY + 1, 2, 2, hair); c.rect(hx + 20, headY, 2, 1, hair); }
+    else if (hs === 5) { c.rect(hx + 11, headY, 10, 2, hair); c.rect(hx + 10, headY + 1, 1, 2, hair); c.rect(hx + 21, headY + 1, 1, 2, hair); c.rect(hx + 14, headY - 1, 4, 1, hair); }
+    else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 2, 3, hair); c.rect(hx + 21, headY + 1, 2, 3, hair); }
+    else { c.rect(hx + 10, headY, 12, 3, hair); c.rect(hx + 9, headY + 2, 2, 3, hair); c.rect(hx + 21, headY + 2, 2, 2, hair); }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Walking / running gaits
+// ---------------------------------------------------------------------------
+// Four-frame cycle per clip: contact, passing, opposite contact, opposite
+// passing. Values are in canonical pixels (2x at export time).
+// Contact frames carry the full stride; passing frames bring the feet under
+// the body and put the arms at the neutral midpoint. `step` is the foot offset
+// from the hip (3/4 stride), `lift` raises the foot, and arms swing opposite
+// the same-side leg (`down` when that leg is forward, `up` when it is back).
+// Front-facing gait: feet stay under the torso and alternate lifting instead
+// of splaying sideways. `step` is only a small weight shift; `lift` carries
+// the visible motion.
+const WALK_GAIT = {
+  walk_0: { bob: 0,  lean: 0, near: { step: 1,  lift: 0 }, far: { step: -1, lift: 2 }, nearArm: 'down', farArm: 'up' },
+  walk_1: { bob: -1, lean: 0, near: { step: 0,  lift: 0 }, far: { step: 0,  lift: 3 }, nearArm: 'mid',  farArm: 'mid' },
+  walk_2: { bob: 0,  lean: 0, near: { step: -1, lift: 2 }, far: { step: 1,  lift: 0 }, nearArm: 'up',   farArm: 'down' },
+  walk_3: { bob: -1, lean: 0, near: { step: 0,  lift: 3 }, far: { step: 0,  lift: 0 }, nearArm: 'mid',  farArm: 'mid' },
+};
+
+const RUN_GAIT = {
+  run_0: { bob: -1, lean: 1, near: { step: 2,  lift: 0 }, far: { step: -2, lift: 2 }, nearArm: 'down', farArm: 'up' },
+  run_1: { bob: -2, lean: 2, near: { step: 0,  lift: 2 }, far: { step: 0,  lift: 4 }, nearArm: 'mid',  farArm: 'mid' },
+  run_2: { bob: -1, lean: 1, near: { step: -2, lift: 2 }, far: { step: 2,  lift: 0 }, nearArm: 'up',   farArm: 'down' },
+  run_3: { bob: -2, lean: 2, near: { step: 0,  lift: 4 }, far: { step: 0,  lift: 2 }, nearArm: 'mid',  farArm: 'mid' },
+};
+
+// Computes the shoe contact box for a stepping leg. Feet stay on the ground
+// line (y=29); `bob` only stretches the leg because the torso moves.
+function legContact(hipLeft, spec, bob) {
+  return {
+    footLeft: hipLeft + spec.step,
+    footTop: 29 - spec.lift,
+    thighY: 24 + bob,
+  };
+}
+
+// Thin, swinging arm. `mode` bends the forearm toward the torso so the swing
+// reads in a 3/4 view without the bulky horizontal slabs the old build had.
+function drawArmPose(c, shoulderX, shoulderY, side, mode, color, shade) {
+  // `side` is +1 for the near (right) arm and -1 for the far (left) arm, so the
+  // raised forearm bends outward and stays visible outside the torso.
+  let handY = shoulderY + 6;
+  let handX = shoulderX;
+  if (mode === 'up') { handY = shoulderY + 2; handX = shoulderX + side * 2; }
+  else if (mode === 'mid') { handY = shoulderY + 5; handX = shoulderX + side * 1; }
+  c.rect(shoulderX, shoulderY, 2, 4, color);
+  if (handY > shoulderY + 4) {
+    const lo = Math.min(shoulderX, handX);
+    const hi = Math.max(shoulderX + 2, handX + 2);
+    c.rect(lo, shoulderY + 3, hi - lo, 2, color);
+    c.rect(handX, shoulderY + 4, 2, handY - (shoulderY + 4), color);
+  } else {
+    const lo = Math.min(shoulderX, handX);
+    const hi = Math.max(shoulderX + 2, handX + 2);
+    c.rect(lo, handY, hi - lo, 2, color);
+  }
+  handShape(c, handX, handY - 1, color, shade);
+}
+
+// Blocky stepped leg: vertical thigh, one-row knee bridge, offset shin.
+function drawBlockLeg(c, hipLeft, spec, bob, pantsColor, kneeColor) {
+  const { footLeft, footTop, thighY } = legContact(hipLeft, spec, bob);
+  const shinY = thighY + 3;
+  c.rect(hipLeft, thighY, 4, 3, pantsColor);
+  const lo = Math.min(hipLeft, footLeft);
+  const hi = Math.max(hipLeft + 4, footLeft + 4);
+  c.rect(lo, shinY - 1, hi - lo, 1, pantsColor);
+  const shinH = Math.max(0, footTop - shinY);
+  if (shinH > 0) c.rect(footLeft, shinY, 4, shinH, pantsColor);
+  c.rect(footLeft - 1, shinY - 1, 2, 1, kneeColor);
+  return { footLeft, footTop };
+}
+
+function drawGaitLayer(c, frame, charId, layer, variant = 0) {
+  const gait = WALK_GAIT[frame] || RUN_GAIT[frame];
+  if (!gait) return;
+  const isVal = charId === 'valentina';
+  const skin = '#f2c9a0';
+  const skinFar = '#d8a878';
+  const handShade = '#b8895c';
+  const shirt = isVal ? '#ff6fae' : '#4f7cff';
+  const shirtDark = isVal ? '#e0578f' : '#3d63d6';
+  const shirtLight = isVal ? '#ff9fc8' : '#7fa0ff';
+  const pants = isVal ? '#5a3f8f' : '#2f3a66';
+  const pantsFar = isVal ? '#472f72' : '#232b4d';
+  const shoe = '#3a2a1a';
+  const shoeFar = '#2a1d12';
+  const sole = '#1d140d';
+  const knee = isVal ? '#4a2f6a' : '#263055';
+  const kneeFar = isVal ? '#3b2455' : '#1c2340';
+
+  const bob = gait.bob;
+  const lean = gait.lean;
+  const headX = 11 + lean;
+  const headY = 6 + bob;
+  const torsoX = 10 + lean;
+  const torsoY = 14 + bob;
+  const torsoW = 12;
+  const torsoH = 10;
+  const shoulderY = torsoY + 1;
+  const hipY = torsoY + torsoH;
+  const farShoulderX = torsoX - 2;
+  const nearShoulderX = torsoX + torsoW;
+  // Far leg is the left/back leg; near leg is the right/front leg. Shifting the
+  // hips with the lean keeps the legs underneath the torso in run frames.
+  const legFarHipX = 11 + lean;
+  const legNearHipX = 17 + lean;
+  const legFar = legContact(legFarHipX, gait.far, bob);
+  const legNear = legContact(legNearHipX, gait.near, bob);
+
+  if (layer === 'full' || layer === 'base' || layer === 'skin') {
+    // Far arm and leg sit behind the body.
+    drawArmPose(c, farShoulderX, shoulderY, -1, gait.farArm, skinFar, handShade);
+    drawBlockLeg(c, legFarHipX, gait.far, bob, skinFar, '#b8895c');
+    drawBlockLeg(c, legNearHipX, gait.near, bob, skin, skinFar);
+    // Head, neck, and a soft chin shadow.
+    c.rect(headX, headY, 10, 7, skin);
+    c.rect(headX + 2, headY + 7, 6, 1, skin);
+    c.rect(headX + 3, headY + 7, 4, 1, skinFar);
+    // Near arm in front of the torso.
+    drawArmPose(c, nearShoulderX, shoulderY, 1, gait.nearArm, skin, skinFar);
+  }
+
+  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+
+  if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
+    // Waistband bridging the torso and both legs.
+    c.rect(torsoX, hipY - 2, torsoW, 2, pants);
+    c.rect(torsoX, hipY - 2, torsoW, 1, pantsFar);
+    drawBlockLeg(c, legFarHipX, gait.far, bob, pantsFar, kneeFar);
+    drawBlockLeg(c, legNearHipX, gait.near, bob, pants, knee);
+  }
+
+  if (layer === 'full' || layer === 'shoes') {
+    shoeShape(c, legFar.footLeft - 1, legFar.footTop, 6, shoeFar, sole, 0);
+    shoeShape(c, legNear.footLeft - 1, legNear.footTop, 7, shoe, sole, 1);
+    const planted = gait.near.lift === 0 ? legNear : legFar;
+    c.rect(planted.footLeft - 2, 31, 8, 1, '#00000022');
+  }
+
+  if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
+    // Far sleeve behind the torso, near sleeve in front.
+    c.rect(farShoulderX, shoulderY, 2, 3, shirtDark);
+    c.rect(torsoX, torsoY, torsoW, torsoH, shirt);
+    c.rect(torsoX, torsoY, torsoW, 1, shirtLight);
+    c.rect(torsoX, torsoY + 1, 1, torsoH - 2, shirtDark);
+    c.rect(torsoX + torsoW - 1, torsoY + 1, 1, torsoH - 2, shirtLight);
+    c.rect(torsoX, torsoY + torsoH - 1, torsoW, 1, shirtDark);
+    c.rect(torsoX + 5, torsoY, 2, 1, shirtDark);
+    c.rect(nearShoulderX, shoulderY, 2, 3, shirt);
+    c.rect(nearShoulderX, shoulderY + 2, 2, 1, shirtDark);
+  }
+
+  if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, false);
+}
+
+// ---------------------------------------------------------------------------
+// Dash: a single explosive lunge pose (contract keeps one frame).
+// ---------------------------------------------------------------------------
+function drawDashLayer(c, frame, charId, layer, variant = 0) {
+  const isVal = charId === 'valentina';
   const skin = '#f2c9a0';
   const skinFar = '#d8a878';
   const shirt = isVal ? '#ff6fae' : '#4f7cff';
@@ -195,120 +506,222 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
   const shoeFar = '#2a1d12';
   const knee = isVal ? '#4a2f6a' : '#263055';
   const kneeFar = isVal ? '#3b2455' : '#1c2340';
-  const draw = (cond, fn) => { if (cond) fn(); };
-  const stride = (v) => Math.max(-2, Math.min(2, v | 0));
 
-  // Reuse the exact head/face/hair art from the standing poses: render the
-  // head-only layer in canonical 32x32 space and blit it at the low head
-  // position. Face and hair therefore only change position, never design.
-  const HEAD_TMP_X = 8;
-  const blitHead = (headLayer, headX, headY) => {
-    const tmp = new Canvas(32, 32);
-    drawHumanoidLayer(tmp, HEAD_TMP_X - 11, frame, charId, headLayer, variant);
-    c.blit(tmp, headX - HEAD_TMP_X, headY - 15);
-  };
+  const headX = 13;
+  const headY = 4;
+  const leadShoulder = { x: 21, y: 12, ex: 24, ey: 14, hx: 26, hy: 14 };
+  const trailShoulder = { x: 12, y: 12, ex: 9, ey: 15, hx: 7, hy: 17 };
+  const leadLeg = { hipX: 16, hipY: 20, kneeX: 21, kneeY: 19, ankleX: 23, ankleY: 26 };
+  const trailLeg = { hipX: 11, hipY: 20, kneeX: 7, kneeY: 22, ankleX: 4, ankleY: 26 };
 
-  const gy = ch - 2; // ground row (shoes/feet bottom)
+  if (layer === 'full' || layer === 'base' || layer === 'skin') {
+    limb(c, trailShoulder.x, trailShoulder.y, trailShoulder.ex, trailShoulder.ey, 3, skinFar);
+    limb(c, trailShoulder.ex, trailShoulder.ey, trailShoulder.hx, trailShoulder.hy, 3, skinFar);
+    handShape(c, trailShoulder.hx - 1, trailShoulder.hy, skinFar, '#b8895c');
+    limb(c, trailLeg.hipX, trailLeg.hipY, trailLeg.kneeX, trailLeg.kneeY, 4, skinFar);
+    limb(c, trailLeg.kneeX, trailLeg.kneeY, trailLeg.ankleX, trailLeg.ankleY, 3, skinFar);
+    limb(c, leadLeg.hipX, leadLeg.hipY, leadLeg.kneeX, leadLeg.kneeY, 4, skin);
+    limb(c, leadLeg.kneeX, leadLeg.kneeY, leadLeg.ankleX, leadLeg.ankleY, 3, skin);
+    c.rect(headX, headY, 10, 7, skin);
+    c.rect(headX + 2, headY + 7, 6, 1, skin);
+    c.rect(headX + 3, headY + 7, 4, 1, skinFar);
+    limb(c, leadShoulder.x, leadShoulder.y, leadShoulder.ex, leadShoulder.ey, 3, skin);
+    limb(c, leadShoulder.ex, leadShoulder.ey, leadShoulder.hx, leadShoulder.hy, 3, skin);
+    handShape(c, leadShoulder.hx - 1, leadShoulder.hy, skin, skinFar);
+  }
 
+  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+
+  if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
+    c.rect(9, 20, 9, 1, pantsFar);
+    limb(c, trailLeg.hipX, trailLeg.hipY, trailLeg.kneeX, trailLeg.kneeY, 5, pantsFar);
+    limb(c, trailLeg.kneeX, trailLeg.kneeY, trailLeg.ankleX, trailLeg.ankleY, 4, pantsFar);
+    c.rect(trailLeg.kneeX - 1, trailLeg.kneeY, 2, 1, kneeFar);
+    limb(c, leadLeg.hipX, leadLeg.hipY, leadLeg.kneeX, leadLeg.kneeY, 5, pants);
+    limb(c, leadLeg.kneeX, leadLeg.kneeY, leadLeg.ankleX, leadLeg.ankleY, 4, pants);
+    c.rect(leadLeg.kneeX - 1, leadLeg.kneeY, 3, 1, knee);
+  }
+
+  if (layer === 'full' || layer === 'shoes') {
+    shoeShape(c, trailLeg.ankleX - 2, trailLeg.ankleY, 5, shoeFar, '#1d140d', 0);
+    shoeShape(c, leadLeg.ankleX - 2, leadLeg.ankleY, 6, shoe, '#21160f', 1);
+  }
+
+  if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
+    limb(c, trailShoulder.x, trailShoulder.y, trailShoulder.ex, trailShoulder.ey, 4, shirtDark);
+    c.rect(trailShoulder.ex - 1, trailShoulder.ey, 3, 1, shirtDark);
+    tapered(c, 12, 11, 10, 9, 20, 9, shirt);
+    c.rect(12, 11, 10, 1, collar);
+    c.rect(12, 12, 1, 7, shirtDark);
+    c.rect(9, 19, 9, 1, shirtDark);
+    // Wind-blown hem behind the torso.
+    c.rect(7, 18, 3, 2, shirtDark);
+    c.rect(6, 20, 2, 1, shirtDark);
+    limb(c, leadShoulder.x, leadShoulder.y, leadShoulder.ex, leadShoulder.ey, 4, shirt);
+    c.rect(leadShoulder.ex - 1, leadShoulder.ey, 3, 1, shirtDark);
+  }
+
+  if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, false);
+}
+
+function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHeight(frame)) {
+  const isVal = charId === 'valentina';
+  const crawl = frame.startsWith('crawl');
+  const skin = '#f2c9a0';
+  const skinFar = '#d8a878';
+  const shirt = isVal ? '#ff6fae' : '#4f7cff';
+  const shirtDark = isVal ? '#e0578f' : '#3d63d6';
+  const collar = isVal ? '#ff9fc8' : '#7fa0ff';
+  const pants = isVal ? '#5a3f8f' : '#2f3a66';
+  const pantsFar = isVal ? '#472f72' : '#232b4d';
+  const shoe = '#3a2a1a';
+  const shoeFar = '#2a1d12';
+  const knee = isVal ? '#4a2f6a' : '#263055';
+  const kneeFar = isVal ? '#3b2455' : '#1c2340';
+  const gy = ch - 2; // top row of ground contact (shoes/hands rest on it)
+
+  // Crouch: low side-view kneel facing right — roughly half standing height.
+  // The body lies in a short horizontal wedge; the near leg folds in front
+  // with the knee raised over the torso (punched through the shirt layer), and
+  // the far leg kneels behind it. Both hands reach forward past the body.
   if (!crawl) {
-    // Crouch: one knee on the ground, the other raised above the hip line.
-    const headX = 22;
-    const headY = 2;
-    const bodyY = headY + 7;
-    const hipY = 12;
+    const headX = 27;
+    const headY = 0;
+    // The near knee crosses the bottom row of the shirt and is drawn above it.
+    const nearKnee = [30, 9, 3, 2];
+    const drawNearKnee = () => {
+      c.rect(...nearKnee, pants);
+      c.rect(nearKnee[0], nearKnee[1], nearKnee[2], 1, knee);
+    };
 
-    draw(layer === 'full' || layer === 'base' || layer === 'skin', () => {
+    if (layer === 'full' || layer === 'base' || layer === 'skin') {
+      // Near arm hangs forward with the hand ahead of the body.
+      c.rect(33, 7, 2, 2, skin);
+      c.rect(34, 9, 3, 1, skin);
+      handShape(c, 37, 9, skin, skinFar);
+      // Far arm, slightly higher and behind the near one.
+      c.rect(31, 7, 2, 1, skinFar);
+      c.rect(33, 8, 3, 1, skinFar);
+      handShape(c, 36, 8, skinFar, '#b8895c');
+      // Near leg skin (clothed below).
+      c.rect(26, 10, 4, 1, skin);
+      // Far kneeling leg skin.
+      c.rect(22, 10, 3, 1, skinFar);
+      // Head and chin shadow.
       c.rect(headX, headY, 10, 7, skin);
-      c.rect(headX + 2, headY + 7, 5, 1, skin); // neck
-      // Arms hanging naturally by the torso.
-      c.rect(20, bodyY, 2, 4, skinFar);
-      c.rect(19, bodyY + 3, 3, 2, skinFar);
-      c.rect(19, bodyY + 4, 2, 2, skinFar); // hand
-      c.rect(32, bodyY, 2, 4, skin);
-      c.rect(33, bodyY + 3, 3, 2, skin);
-      c.rect(34, bodyY + 4, 2, 2, skin); // hand
-    });
-    draw(layer === 'full' || layer === 'face', () => blitHead('face', headX, headY));
-    draw(layer === 'full' || layer === 'outfit_bottom' || layer === 'pants', () => {
-      // Hips/waist (hip line reference).
-      c.rect(21, hipY, 12, 2, pants);
-      // Grounded leg: thigh down to knee touching the ground.
-      c.rect(19, hipY + 1, 5, 3, pantsFar); // thigh
-      c.rect(18, gy - 3, 5, 3, kneeFar);    // knee on ground (prominent)
-      c.rect(14, gy - 1, 6, 1, pantsFar);   // shin/foot tucked back
-      c.rect(15, gy - 2, 5, 1, pantsFar);
-      // Raised leg: knee held high above the hip line, foot forward on ground.
-      c.rect(28, hipY, 5, 2, pants);        // thigh up/forward
-      c.rect(32, hipY - 3, 4, 3, knee);      // knee above hip line (prominent)
-      c.rect(33, hipY, 3, 5, pants);        // shin down vertically
-      c.rect(33, gy - 1, 3, 1, pants);
-    });
-    draw(layer === 'full' || layer === 'shoes', () => {
-      c.rect(12, gy, 6, 2, shoeFar);        // back foot tucked
-      c.rect(31, gy, 6, 2, shoe);           // front foot
-    });
-    draw(layer === 'full' || layer === 'outfit_top' || layer === 'shirt', () => {
-      c.rect(20, bodyY - 1, 14, 1, collar);
-      c.rect(20, bodyY, 14, 4, shirt);      // upright torso/body
-      c.rect(20, bodyY + 3, 14, 1, shirtDark);
-      c.rect(19, bodyY, 3, 4, shirt);       // far sleeve
-      c.rect(32, bodyY, 3, 4, shirt);       // near sleeve
-    });
-    draw(layer === 'full' || layer === 'hair', () => blitHead('hair', headX, headY));
+      c.rect(headX + 2, headY + 7, 4, 1, skin);
+      c.rect(headX + 5, headY + 7, 3, 1, skinFar);
+    }
+
+    if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+
+    if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
+      // Waistband under the torso.
+      c.rect(21, 10, 11, 1, pants);
+      // Far leg kneels: thigh back, knee and shin flat on the ground.
+      c.rect(22, 10, 4, 1, pantsFar);
+      c.rect(20, 11, 3, 1, pantsFar);
+      c.rect(18, 11, 3, 1, kneeFar);
+      // Near leg folds in front, knee raised.
+      c.rect(26, 10, 4, 1, pants);
+      drawNearKnee();
+      c.rect(31, 11, 2, 1, pants);
+    }
+
+    if (layer === 'full' || layer === 'shoes') {
+      shoeShape(c, 16, gy, 5, shoeFar, '#1d140d', 0);
+      shoeShape(c, 30, gy, 6, shoe, '#21160f', 1);
+    }
+
+    if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
+      // Short horizontal torso, head centered over it.
+      c.rect(23, 7, 10, 1, shirt);
+      c.rect(22, 8, 12, 1, shirt);
+      c.rect(21, 9, 12, 1, shirt);
+      c.rect(31, 7, 3, 1, collar);
+      c.rect(21, 9, 6, 1, shirtDark);
+      // Punch the near knee through this layer so it reads as being over the
+      // body when the runtime composites the layers.
+      if (layer !== 'full') c.clear(...nearKnee);
+    }
+
+    if (layer === 'full') drawNearKnee();
+    if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, true);
     return;
   }
 
-  // Crawl: on hands and knees, compact body. Height oscillates while moving.
-  const aN = stride(pose.armR);
-  const aF = stride(pose.armL);
-  const kN = stride(pose.legR);
-  const kF = stride(pose.legL);
-  // Bob: body lifts slightly on passing frames, settles on contact frames.
-  const bob = (frame === 'crawl_1' || frame === 'crawl_3') ? 0 : -1;
-  const headX = 30;
-  const headY = 1 + bob;
-  const bodyY = 8 + bob;
-  const hipY = 8 + bob;
-  const limbY = 11 + bob;
+  // Crawl: hands-and-knees, low and horizontal — roughly half standing height.
+  // The torso is a compact square block about half the head's height sitting
+  // behind the skull, never reaching back past the pants line. The chest runs
+  // under the jaw so the head is set into the body; pants stay below the torso.
+  // The diagonal gait pairs the forward hand with the opposite knee.
+  const crawlGait = {
+    crawl_0: { nearArm: 1, farArm: 0, nearKnee: -1, farKnee: 1 },
+    crawl_1: { nearArm: 0, farArm: 0, nearKnee: 0, farKnee: 0 },
+    crawl_2: { nearArm: -1, farArm: 1, nearKnee: 1, farKnee: -1 },
+    crawl_3: { nearArm: 0, farArm: 0, nearKnee: 0, farKnee: 0 },
+  }[frame] || { nearArm: 0, farArm: 0, nearKnee: 0, farKnee: 0 };
+  const headX = 28;
+  const headY = 0;
+  const handY = gy - 1;
+  const farHandX = 35 + crawlGait.farArm;
+  const nearHandX = 39 + crawlGait.nearArm;
+  const farKneeX = 22 + crawlGait.farKnee;
+  const nearKneeX = 27 + crawlGait.nearKnee;
 
-  draw(layer === 'full' || layer === 'base' || layer === 'skin', () => {
-    c.rect(headX, headY, 10, 7, skin);
-    c.rect(headX + 1, headY + 7, 4, 1, skin); // neck to shoulders
-    // Far arm: shoulder down to hand planted on ground.
-    c.rect(28, bodyY + 1, 2, 2 + (bob === 0 ? 1 : 0), skinFar);
-    c.rect(29 + aF, limbY, 2, 2, skinFar);
-    c.rect(30 + aF, gy - 1, 4, 2, skinFar);
-    // Near arm.
-    c.rect(32, bodyY + 1, 2, 2 + (bob === 0 ? 1 : 0), skin);
-    c.rect(33 + aN, limbY, 2, 2, skin);
-    c.rect(34 + aN, gy - 1, 4, 2, skin);
-  });
-  draw(layer === 'full' || layer === 'face', () => blitHead('face', headX, headY));
-  draw(layer === 'full' || layer === 'outfit_bottom' || layer === 'pants', () => {
-    // Hips/seat - compact body mass.
-    c.rect(14, hipY, 11, 4, pants);
-    c.rect(14, hipY, 11, 1, pantsFar);
-    // Far leg: thigh to a clearly bent, prominent knee on ground.
-    c.rect(14, limbY, 6, 2, pantsFar);
-    c.rect(14 + kF, limbY + 1, 4, 2, kneeFar);
-    c.rect(14 + kF, gy - 1, 3, 1, pantsFar);
+  if (layer === 'full' || layer === 'base' || layer === 'skin') {
+    // Far arm: shoulder under the chest, forearm planted behind the near hand.
+    limb(c, 30, 7, 33, 9, 3, skinFar);
+    limb(c, 33, 9, farHandX, handY - 1, 2, skinFar);
+    handShape(c, farHandX, handY, skinFar, '#b8895c');
+    // Far leg (behind, shadowed).
+    c.rect(farKneeX - 1, 10, 3, 2, skinFar);
     // Near leg.
-    c.rect(19, limbY, 6, 2, pants);
-    c.rect(19 + kN, limbY + 1, 4, 2, knee);
-    c.rect(19 + kN, gy - 1, 3, 1, pants);
-  });
-  draw(layer === 'full' || layer === 'shoes', () => {
-    c.rect(12 + kF, gy, 6, 2, shoeFar);
-    c.rect(17 + kN, gy, 6, 2, shoe);
-  });
-  draw(layer === 'full' || layer === 'outfit_top' || layer === 'shirt', () => {
-    c.rect(23, bodyY, 11, 1, collar);
-    c.rect(23, bodyY + 1, 11, 3, shirt);
-    c.rect(23, bodyY + 3, 11, 1, shirtDark);
-    c.rect(27, bodyY + 1, 3, 3, shirt); // far shoulder/sleeve
-    c.rect(31, bodyY + 1, 3, 3, shirt); // near shoulder/sleeve
-  });
-  draw(layer === 'full' || layer === 'hair', () => blitHead('hair', headX, headY));
+    c.rect(nearKneeX - 1, 10, 3, 2, skin);
+    // Head with a shaded jaw underneath.
+    c.rect(headX, headY, 10, 7, skin);
+    c.rect(headX, headY + 7, 10, 1, skinFar);
+    // Near arm in front of the chest, hand planted ahead of the head.
+    limb(c, 33, 7, 36, 9, 3, skin);
+    limb(c, 36, 9, nearHandX, handY - 1, 2, skin);
+    handShape(c, nearHandX, handY, skin, skinFar);
+  }
+
+  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+
+  if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
+    // Waist band directly under the torso; legs fold below it only.
+    c.rect(20, 9, 13, 1, pants);
+    c.rect(20, 9, 4, 1, pantsFar);
+    // Far leg: short thigh with the knee planted under the body.
+    c.rect(farKneeX - 1, 10, 4, 1, pantsFar);
+    c.rect(farKneeX - 2, 11, 4, 1, pantsFar);
+    c.rect(farKneeX - 2, 11, 3, 1, kneeFar);
+    // Near leg.
+    c.rect(nearKneeX - 1, 10, 4, 1, pants);
+    c.rect(nearKneeX - 2, 11, 4, 1, pants);
+    c.rect(nearKneeX - 2, 11, 3, 1, knee);
+  }
+
+  if (layer === 'full' || layer === 'shoes') {
+    shoeShape(c, farKneeX - 2, gy, 5, shoeFar, '#1d140d', 0);
+    shoeShape(c, nearKneeX - 2, gy, 5, shoe, '#21160f', 0);
+  }
+
+  if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
+    // Compact square torso, half the head's height, aligned with the pants line
+    // at the back. The chest row runs forward under the jaw.
+    c.rect(20, 4, 8, 1, shirt);
+    c.rect(20, 5, 8, 1, shirt);
+    c.rect(20, 6, 8, 1, shirt);
+    c.rect(20, 7, 8, 1, shirt);
+    c.rect(20, 8, 17, 1, shirt);
+    // Collar at the shoulders and a shaded underside at the waist.
+    c.rect(26, 4, 2, 1, collar);
+    c.rect(20, 7, 8, 1, shirtDark);
+  }
+
+  if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, true);
 }
 
 function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
@@ -317,18 +730,13 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
   const dead = frame === 'dying_0' || frame === 'dead_0';
   const isVal = charId === 'valentina';
   const low = !!(pose.crouch || pose.crawl);
-  const crawl = !!pose.crawl;
   const skinBase = '#f2c9a0';
   const skin = dead ? '#d8d0e8' : hurt ? '#ffd0d0' : skinBase;
   const shirtBase = isVal ? '#ff6fae' : '#4f7cff';
   const pantsBase = isVal ? '#5a3f8f' : '#2f3a66';
-  const hairBase = isVal ? '#5a3218' : '#5a3a22';
   const shirt = hurt ? '#ff8a8a' : shirtBase;
   const pants = pantsBase;
-  const hair = hairBase;
   const shoe = '#3a2a1a';
-  const hairStyle = layer === 'hair' ? variant : 0;
-  const faceStyle = layer === 'face' ? variant : 0;
   // Unified humanoid layout (coherent with idle/walk/run): head/face stay the same,
   // only position/height change in low states; limbs/body adapt most.
   // Low states are half-height and drawn in a wider frame; feet anchored near source bottom.
@@ -375,61 +783,10 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
     }
   });
   draw(layer === 'full' || layer === 'face', () => {
-    const hx = ox + lean; const eyeY = headY + 3; const eye = dead ? '#7a6a8a' : P.outline; const mouthY = headY + 6;
-    const fs = Math.max(0, Math.min(7, faceStyle | 0));
-    if (isVal) {
-      if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, '#3a2418'); c.rect(hx + 17, eyeY, 2, 2, '#3a2418'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); c.rect(hx + 12, eyeY + 2, 1, 1, '#e8a0b0'); c.rect(hx + 19, eyeY + 2, 1, 1, '#e8a0b0'); }
-      else if (fs === 1) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
-      else if (fs === 2) { c.rect(hx + 13, eyeY, 2, 2, '#ffffff'); c.rect(hx + 17, eyeY, 2, 2, '#ffffff'); c.set(hx + 14, eyeY + 1, '#5a3820'); c.set(hx + 18, eyeY + 1, '#5a3820'); c.rect(hx + 12, eyeY + 2, 2, 1, '#f0b8c0'); c.rect(hx + 18, eyeY + 2, 2, 1, '#f0b8c0'); }
-      else if (fs === 3) { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.set(hx + 13, eyeY + 1, eye); c.set(hx + 18, eyeY + 1, eye); }
-      else if (fs === 4) { c.rect(hx + 13, eyeY, 2, 2, '#6b4226'); c.rect(hx + 17, eyeY, 2, 2, '#6b4226'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); }
-      else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.set(hx + 19, eyeY + 2, '#f0b8c0'); }
-      else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, '#4a2818'); c.rect(hx + 17, eyeY, 3, 2, '#4a2818'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 19, eyeY, '#ffffff'); }
-      else { c.rect(hx + 13, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 17, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 12, eyeY - 1, 1, 1, '#3a2418'); c.rect(hx + 19, eyeY - 1, 1, 1, '#3a2418'); }
-      if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
-      if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
-      else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
-      else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
-      else if (fs === 0 || fs === 2 || fs === 4) { c.rect(hx + 14, mouthY, 4, 1, '#e07a8a'); c.set(hx + 14, mouthY - 1, '#e07a8a'); c.set(hx + 17, mouthY - 1, '#e07a8a'); }
-      else c.rect(hx + 15, mouthY - 1, 2, 1, '#d98b8b');
-    } else {
-      if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
-      else if (fs === 1) { c.rect(hx + 13, eyeY + 1, 2, 1, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY, 4, 1, '#4a3422'); c.rect(hx + 16, eyeY, 4, 1, '#4a3422'); }
-      else if (fs === 2) { c.rect(hx + 12, eyeY, 3, 1, eye); c.rect(hx + 17, eyeY, 3, 1, eye); c.set(hx + 14, eyeY + 1, eye); c.set(hx + 18, eyeY + 1, eye); }
-      else if (fs === 3) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); }
-      else if (fs === 4) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 14, mouthY + 1, 4, 1, '#8a6a4a'); }
-      else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 2, 1, '#3a2418'); }
-      else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, eye); c.rect(hx + 17, eyeY, 3, 2, eye); c.rect(hx + 13, mouthY + 1, 6, 1, '#6a4a32'); }
-      else { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 8, 1, '#3a2418'); }
-      if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
-      if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
-      else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
-      else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
-      else if (fs === 2) c.rect(hx + 14, mouthY, 4, 1, P.outline);
-      else c.rect(hx + 15, mouthY - 1, 2, 1, '#b07060');
-    }
+    drawFaceAt(c, ox + lean, headY, frame, charId, variant);
   });
   draw(layer === 'full' || layer === 'hair', () => {
-    const hx = ox + lean; const hs = Math.max(0, Math.min(7, hairStyle | 0)); const longBack = low ? 3 : 10;
-    if (isVal) {
-      if (hs === 0) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(10, longBack + 3), hair); c.rect(hx + 21, headY + 2, 2, Math.min(10, longBack + 3), hair); }
-      else if (hs === 1) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 21, headY + 2, 2, Math.min(8, longBack + 2), hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); }
-      else if (hs === 2) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(8, longBack + 2), hair); c.rect(hx + 21, headY + 2, 2, Math.min(8, longBack + 2), hair); }
-      else if (hs === 3) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 3, Math.min(6, longBack + 1), hair); c.rect(hx + 20, headY + 1, 3, Math.min(6, longBack + 1), hair); c.rect(hx + 10, headY + 6, 2, low ? 0 : 2, hair); c.rect(hx + 20, headY + 6, 2, low ? 0 : 2, hair); }
-      else if (hs === 4) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(5, longBack), hair); c.rect(hx + 21, headY + 2, 2, Math.min(5, longBack), hair); }
-      else if (hs === 5) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 9, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 21, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 9, headY + 8, 1, low ? 0 : 2, hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); }
-      else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 14, headY - 3, 4, 2, hair); c.rect(hx + 9, headY + 2, 2, 4, hair); c.rect(hx + 21, headY + 2, 2, 4, hair); }
-      else { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 20, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 12, headY + 10, 8, low ? 0 : 1, hair); }
-    } else {
-      if (hs === 0) { /* bald */ }
-      else if (hs === 1) { c.rect(hx + 11, headY + 1, 10, 2, hair); c.rect(hx + 10, headY + 2, 1, 1, hair); c.rect(hx + 21, headY + 2, 1, 1, hair); }
-      else if (hs === 2) { c.rect(hx + 11, headY + 1, 10, 1, hair); }
-      else if (hs === 3) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 12, headY - 1, 2, 1, hair); c.rect(hx + 15, headY - 2, 2, 2, hair); c.rect(hx + 18, headY - 1, 2, 1, hair); }
-      else if (hs === 4) { c.rect(hx + 10, headY, 11, 3, hair); c.rect(hx + 9, headY + 1, 2, 2, hair); c.rect(hx + 20, headY, 2, 1, hair); }
-      else if (hs === 5) { c.rect(hx + 11, headY, 10, 2, hair); c.rect(hx + 10, headY + 1, 1, 2, hair); c.rect(hx + 21, headY + 1, 1, 2, hair); c.rect(hx + 14, headY - 1, 4, 1, hair); }
-      else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 1, 2, 3, hair); c.rect(hx + 21, headY + 1, 2, 3, hair); }
-      else { c.rect(hx + 10, headY, 12, 3, hair); c.rect(hx + 9, headY + 2, 2, 3, hair); c.rect(hx + 21, headY + 2, 2, 2, hair); }
-    }
+    drawHairAt(c, ox + lean, headY, frame, charId, variant, low);
   });
   draw(layer === 'full' || layer === 'outfit_top' || layer === 'shirt', () => {
     const tx = ox + lean;
@@ -484,7 +841,6 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
     if (frame === 'fly_0' || frame === 'fly_1') c.rect(ox + 10, 28, 12, 2, frame === 'fly_1' ? '#5ef2ff77' : '#5ef2ff44');
     if (frame === 'swim_0' || frame === 'swim_1') c.rect(ox + 5, 27, 22, 2, '#4f7cff55');
     if (frame === 'hurt_0') c.rect(ox + 24, bodyY - 2, 4, 4, '#ff9aa844');
-    if (frame === 'dash_0') c.rect(ox + 2, bodyY + 3, 7, 10, '#ffffff22');
   }
 }
 
@@ -523,9 +879,25 @@ function buildFrameCanvas(entity, frame, layer, variant, fw, fh) {
   if (typeof frame === 'string' && (frame.startsWith('crouch') || frame.startsWith('crawl'))) {
     const ch = lowCanonicalHeight(frame);
     const low = new Canvas(LOW_FRAME_W, ch);
-    drawLowLayer(low, frame, id, layer, variant, ch);
+    const view = offsetView(low, ch - LOW_CONTENT_H);
+    drawLowLayer(view, frame, id, layer, variant, LOW_CONTENT_H);
     if (fw === LOW_FRAME_W * 2 && fh === ch * 2) return low.scale2x();
     return scaleCanvas(low, fw, fh);
+  }
+
+  // Walk/run cycles are authored natively in canonical 32x32 space with a
+  // four-frame contact/passing gait.
+  if (typeof frame === 'string' && (frame.startsWith('walk_') || frame.startsWith('run_'))) {
+    const gait = new Canvas(32, 32);
+    drawGaitLayer(gait, frame, id, layer, variant);
+    return fw === 64 && fh === 64 ? gait.scale2x() : scaleCanvas(gait, fw, fh);
+  }
+
+  // Dash is a single explosive lunge pose.
+  if (frame === 'dash_0') {
+    const dash = new Canvas(32, 32);
+    drawDashLayer(dash, frame, id, layer, variant);
+    return fw === 64 && fh === 64 ? dash.scale2x() : scaleCanvas(dash, fw, fh);
   }
 
   // Draw in canonical 32x32 humanoid space, then adapt to state-specific frame size.

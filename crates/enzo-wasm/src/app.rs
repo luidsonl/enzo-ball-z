@@ -950,20 +950,14 @@ fn draw_character_preview(
         2.0,
         Color::from_rgba(120, 170, 120, 140),
     );
-    let size = (panel.w.min(panel.h) * 0.55).clamp(64.0, 180.0);
-    let dest = Rect::new(
-        panel.x + (panel.w - size) * 0.5,
-        ground_y - size,
-        size,
-        size,
-    );
+    let foot = vec2(panel.x + panel.w * 0.5, ground_y);
     let tint = WHITE;
     match character {
         enzo_core::entities::PlayableCharacter::Valentina => {
-            sprites.draw_valentina_rig("idle", time, dest, false, tint, profile);
+            let _ = sprites.draw_valentina_rig("idle", time, foot, false, tint, profile);
         }
         _ => {
-            sprites.draw_enzo_rig("idle", time, dest, false, tint, profile);
+            let _ = sprites.draw_enzo_rig("idle", time, foot, false, tint, profile);
         }
     }
 }
