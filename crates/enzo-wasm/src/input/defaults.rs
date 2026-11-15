@@ -34,14 +34,9 @@ pub fn default_bindings() -> KeyBindings {
         &[KeyCode::S, KeyCode::Down],
     );
 
-    // Slot 1 is Jump by default. A key cannot perform more than one action,
-    // so jump uses Space by default (movement/climb/fly use W/Up).
-    bind(&mut bindings, InputAction::Slot1, &[KeyCode::Space]);
-    bind(
-        &mut bindings,
-        InputAction::Slot2,
-        &[KeyCode::LeftShift, KeyCode::RightShift],
-    );
+    // Slot defaults: U, I, J, K (replacing former Space/Shift bindings).
+    bind(&mut bindings, InputAction::Slot1, &[KeyCode::U]);
+    bind(&mut bindings, InputAction::Slot2, &[KeyCode::I]);
     bind(&mut bindings, InputAction::Slot3, &[KeyCode::J]);
     bind(&mut bindings, InputAction::Slot4, &[KeyCode::K]);
 
@@ -99,13 +94,14 @@ mod tests {
     }
 
     #[test]
-    fn defaults_keep_jump_and_move_keys_exclusive() {
+    fn defaults_use_uijk_for_slots_and_keep_exclusive() {
         let bindings = default_bindings();
+        assert_eq!(bindings.keys(InputAction::Slot1), &[KeyCode::U]);
+        assert_eq!(bindings.keys(InputAction::Slot2), &[KeyCode::I]);
+        assert_eq!(bindings.keys(InputAction::Slot3), &[KeyCode::J]);
+        assert_eq!(bindings.keys(InputAction::Slot4), &[KeyCode::K]);
         assert!(bindings.keys(InputAction::MoveUp).contains(&KeyCode::Up));
         assert!(bindings.keys(InputAction::MoveUp).contains(&KeyCode::W));
-        assert!(bindings.keys(InputAction::Slot1).contains(&KeyCode::Space));
-        assert!(!bindings.keys(InputAction::Slot1).contains(&KeyCode::Up));
-        assert!(!bindings.keys(InputAction::Slot1).contains(&KeyCode::W));
         assert!(bindings.conflicts().is_empty());
     }
 

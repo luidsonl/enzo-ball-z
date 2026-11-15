@@ -250,17 +250,13 @@ mod tests {
             .bindings
             .keys(InputAction::MoveLeft)
             .contains(&KeyCode::Left));
-        assert!(input
-            .bindings
-            .keys(InputAction::Slot1)
-            .contains(&KeyCode::Space));
+        assert_eq!(input.bindings.keys(InputAction::Slot1), &[KeyCode::U]);
+        assert_eq!(input.bindings.keys(InputAction::Slot2), &[KeyCode::I]);
+        assert_eq!(input.bindings.keys(InputAction::Slot3), &[KeyCode::J]);
+        assert_eq!(input.bindings.keys(InputAction::Slot4), &[KeyCode::K]);
         assert!(input
             .bindings
             .keys(InputAction::MoveUp)
-            .contains(&KeyCode::W));
-        assert!(!input
-            .bindings
-            .keys(InputAction::Slot1)
             .contains(&KeyCode::W));
     }
 
