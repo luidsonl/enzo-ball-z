@@ -321,7 +321,20 @@ function drawHairAt(c, hx, headY, frame, charId, variant = 0, low = false) {
     else if (hs === 4) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 2, Math.min(5, longBack), hair); c.rect(hx + 21, headY + 2, 2, Math.min(5, longBack), hair); }
     else if (hs === 5) { c.rect(hx + 11, headY, 10, 3, hair); c.rect(hx + 9, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 21, headY + 2, 2, Math.min(7, longBack + 1), hair); c.rect(hx + 9, headY + 8, 1, low ? 0 : 2, hair); c.rect(hx + 22, headY + 8, 1, low ? 0 : 2, hair); }
     else if (hs === 6) { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 14, headY - 3, 4, 2, hair); c.rect(hx + 9, headY + 2, 2, 4, hair); c.rect(hx + 21, headY + 2, 2, 4, hair); }
-    else { c.rect(hx + 10, headY - 1, 12, 4, hair); c.rect(hx + 9, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 20, headY + 2, 3, Math.min(9, longBack + 2), hair); c.rect(hx + 12, headY + 10, 8, low ? 0 : 1, hair); }
+    else {
+      // Long wavy hair with open lower ends (no bottom-connecting line).
+      c.rect(hx + 10, headY - 1, 12, 4, hair);
+      c.rect(hx + 9, headY + 2, 3, Math.min(8, longBack + 2), hair);
+      c.rect(hx + 20, headY + 2, 3, Math.min(8, longBack + 2), hair);
+      if (!low) {
+        c.rect(hx + 8, headY + 5, 1, 2, hair);
+        c.rect(hx + 23, headY + 5, 1, 2, hair);
+        c.rect(hx + 9, headY + 8, 2, 1, hair);
+        c.rect(hx + 21, headY + 8, 2, 1, hair);
+        c.rect(hx + 10, headY + 9, 1, 2, hair);
+        c.rect(hx + 21, headY + 9, 1, 2, hair);
+      }
+    }
   } else {
     if (hs === 0) { /* bald */ }
     else if (hs === 1) { c.rect(hx + 11, headY + 1, 10, 2, hair); c.rect(hx + 10, headY + 2, 1, 1, hair); c.rect(hx + 21, headY + 2, 1, 1, hair); }
@@ -587,14 +600,23 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
   if (!crawl) {
     const headX = 27;
     const headY = 0;
+    // Torso rises up to half the head's height (head is 7 rows: 0-6), so the
+    // tucked body covers the lower half of the head.
+    const bodyY = 4;
+    const bodyH = 5;
+    const waistY = bodyY + bodyH; // 9
     // The near knee crosses the bottom row of the shirt and is drawn above it.
-    const nearKnee = [30, 9, 3, 2];
+    const nearKnee = [30, waistY - 1, 3, 2];
     const drawNearKnee = () => {
       c.rect(...nearKnee, pants);
       c.rect(nearKnee[0], nearKnee[1], nearKnee[2], 1, knee);
     };
 
     if (layer === 'full' || layer === 'base' || layer === 'skin') {
+      // Head and chin shadow (drawn first; torso overlaps the lower half).
+      c.rect(headX, headY, 10, 7, skin);
+      c.rect(headX + 2, headY + 7, 4, 1, skin);
+      c.rect(headX + 5, headY + 7, 3, 1, skinFar);
       // Near arm hangs forward with the hand ahead of the body.
       c.rect(33, 7, 2, 2, skin);
       c.rect(34, 9, 3, 1, skin);
@@ -603,29 +625,25 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
       c.rect(31, 7, 2, 1, skinFar);
       c.rect(33, 8, 3, 1, skinFar);
       handShape(c, 36, 8, skinFar, '#b8895c');
-      // Near leg skin (clothed below).
-      c.rect(26, 10, 4, 1, skin);
-      // Far kneeling leg skin.
-      c.rect(22, 10, 3, 1, skinFar);
-      // Head and chin shadow.
-      c.rect(headX, headY, 10, 7, skin);
-      c.rect(headX + 2, headY + 7, 4, 1, skin);
-      c.rect(headX + 5, headY + 7, 3, 1, skinFar);
+      // Near leg skin (clothed below), extended down to the shoes.
+      c.rect(26, waistY, 4, gy - waistY, skin);
+      // Far kneeling leg skin, extended down to the shoes.
+      c.rect(22, waistY, 3, gy - waistY, skinFar);
     }
 
     if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
 
     if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
       // Waistband under the torso.
-      c.rect(21, 10, 11, 1, pants);
-      // Far leg kneels: thigh back, knee and shin flat on the ground.
-      c.rect(22, 10, 4, 1, pantsFar);
-      c.rect(20, 11, 3, 1, pantsFar);
-      c.rect(18, 11, 3, 1, kneeFar);
-      // Near leg folds in front, knee raised.
-      c.rect(26, 10, 4, 1, pants);
+      c.rect(21, waistY, 12, 1, pants);
+      // Far leg kneels: thigh, shin, and knee down to the shoes.
+      c.rect(22, waistY, 4, 1, pantsFar);
+      c.rect(20, waistY + 1, 5, gy - waistY - 1, pantsFar);
+      c.rect(18, waistY + 1, 3, Math.max(1, gy - waistY - 2), kneeFar);
+      // Near leg folds in front, knee raised, shin down to the shoes.
+      c.rect(26, waistY, 4, 1, pants);
       drawNearKnee();
-      c.rect(31, 11, 2, 1, pants);
+      c.rect(30, waistY + 1, 3, gy - waistY - 1, pants);
     }
 
     if (layer === 'full' || layer === 'shoes') {
@@ -634,18 +652,33 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
     }
 
     if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
-      // Short horizontal torso, head centered over it.
-      c.rect(23, 7, 10, 1, shirt);
-      c.rect(22, 8, 12, 1, shirt);
-      c.rect(21, 9, 12, 1, shirt);
-      c.rect(31, 7, 3, 1, collar);
-      c.rect(21, 9, 6, 1, shirtDark);
+      // Flat torso reaching up to half the head height, drawn behind the head.
+      c.rect(23, bodyY, 11, 1, shirt);
+      c.rect(22, bodyY + 1, 12, 1, shirt);
+      c.rect(22, bodyY + 2, 12, 1, shirt);
+      c.rect(22, bodyY + 3, 12, 1, shirt);
+      c.rect(21, bodyY + 4, 13, 1, shirt);
+      c.rect(31, bodyY, 3, 1, collar);
+      c.rect(21, bodyY + 4, 6, 1, shirtDark);
+      // Keep the head in front of the torso where they overlap.
+      if (layer === 'full') {
+        c.rect(headX, headY, 10, 7, skin);
+        c.rect(headX + 2, headY + 7, 4, 1, skin);
+        c.rect(headX + 5, headY + 7, 3, 1, skinFar);
+      } else {
+        c.clear(headX, headY, 10, 7);
+      }
       // Punch the near knee through this layer so it reads as being over the
       // body when the runtime composites the layers.
       if (layer !== 'full') c.clear(...nearKnee);
+      // Near arm stays in front of the legs and body.
+      c.rect(33, 7, 2, 2, skin);
+      c.rect(34, 9, 3, 1, skin);
+      handShape(c, 37, 9, skin, skinFar);
     }
 
     if (layer === 'full') drawNearKnee();
+    if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
     if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, true);
     return;
   }
