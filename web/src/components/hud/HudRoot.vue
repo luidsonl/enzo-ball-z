@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { UiAction, equipItem, loadoutAssign, loadoutClear, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
+import { UiAction, closeMenuAndFocusGame, equipItem, focusGameCanvas, loadoutAssign, loadoutClear, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
 import { mobileControlsVisible } from "../../lib/mobile.js";
 
 const props = defineProps({
@@ -44,14 +44,24 @@ function fullscreenLabel() {
   return active ? "Exit" : "Fullscreen";
 }
 
+function onHudKeyDown(e) {
+  if (e.key !== "Escape" || !openPanel.value) return;
+  // Close HUD panel and return focus to the game canvas.
+  e.preventDefault();
+  e.stopPropagation();
+  closePanel();
+}
+
 onMounted(() => {
   syncFullscreen();
   document.addEventListener("fullscreenchange", syncFullscreen);
   document.addEventListener("webkitfullscreenchange", syncFullscreen);
+  window.addEventListener("keydown", onHudKeyDown, true);
 });
 onBeforeUnmount(() => {
   document.removeEventListener("fullscreenchange", syncFullscreen);
   document.removeEventListener("webkitfullscreenchange", syncFullscreen);
+  window.removeEventListener("keydown", onHudKeyDown, true);
 });
 
 function pct(current, max) {
@@ -59,11 +69,20 @@ function pct(current, max) {
   return Math.max(0, Math.min(100, (current / max) * 100));
 }
 function act(code, a = 0, b = 0, c = 0) { uiAction(code, a, b, c); }
+function closePanel() {
+  closeMenuAndFocusGame(() => {
+    openPanel.value = null;
+  });
+}
 function togglePanel(panel) {
-  openPanel.value = openPanel.value === panel ? null : panel;
+  if (openPanel.value === panel) {
+    closePanel();
+  } else {
+    openPanel.value = panel;
+  }
 }
 function closePanelOnOverlay(e) {
-  if (e.target === e.currentTarget) openPanel.value = null;
+  if (e.target === e.currentTarget) closePanel();
 }
 
 const needsDistribution = computed(() => !!(player.value?.pending_level_up || (player.value?.points || 0) > 0));
@@ -234,7 +253,7 @@ function slotSkillName(slotState) {
           <template v-if="openPanel === 'status'">
             <div class="dom-game-panel-header">
               <h3 class="dom-title">{{ labels.status_title || labels.status || 'Status' }}</h3>
-              <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
               <div class="dom-status-grid">
@@ -270,7 +289,7 @@ function slotSkillName(slotState) {
           <template v-else-if="openPanel === 'equipment'">
             <div class="dom-game-panel-header">
               <h3 class="dom-title">{{ labels.equipment_title || labels.equipment || 'Equipment' }}</h3>
-              <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
               <p v-if="!(player.equipment_slots || []).length" class="muted">{{ labels.no_item || '' }}</p>
@@ -293,7 +312,7 @@ function slotSkillName(slotState) {
           <template v-else-if="openPanel === 'items'">
             <div class="dom-game-panel-header">
               <h3 class="dom-title">{{ labels.inventory_title || labels.inventory || 'Items' }}</h3>
-              <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
               <p v-if="!(player.inventory || []).length" class="muted">{{ labels.inventory_empty || 'Empty' }}</p>
@@ -315,7 +334,7 @@ function slotSkillName(slotState) {
           <template v-else-if="openPanel === 'customize'">
             <div class="dom-game-panel-header">
               <h3 class="dom-title">{{ labels.customize || 'Customize Character' }}</h3>
-              <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
               <p class="muted" style="margin:0 0 8px 0">
@@ -363,7 +382,7 @@ function slotSkillName(slotState) {
           <template v-else-if="openPanel === 'skills'">
             <div class="dom-game-panel-header">
               <h3 class="dom-title">{{ labels.skills_title || labels.skills || 'Skills' }}</h3>
-              <button type="button" class="dom-btn small secondary" @click.prevent.stop="openPanel = null">{{ labels.close || 'Close' }}</button>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">
               <p class="dom-subtitle">{{ labels.assign || 'Assign to slot' }}</p>

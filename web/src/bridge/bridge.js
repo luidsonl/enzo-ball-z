@@ -84,6 +84,15 @@ export function focusGameCanvas() {
   } catch (_) {}
 }
 
+// Central abstraction for closing any HTML menu/panel: always return focus to the game canvas.
+export function closeMenuAndFocusGame(onClose) {
+  try {
+    if (typeof onClose === "function") onClose();
+  } finally {
+    focusGameCanvas();
+  }
+}
+
 export function actionDown(code) {
   if (exportsReady()) globalThis.wasm_exports.enzo_action_down(code);
 }
