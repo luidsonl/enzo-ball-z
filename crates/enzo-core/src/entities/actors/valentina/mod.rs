@@ -6,9 +6,9 @@ use super::humanoid::PlayableHumanoidConfig;
 use super::player::{PlayableCharacter, PlayerId};
 use crate::entities::spec::EntitySpec;
 
-/// Valentina standing body size (2 tiles high).
-pub const VALENTINA_SIZE: Vec2 = Vec2::new(26.0, 64.0);
-/// Valentina crouching body size (1 tile high; collision halved).
+/// Valentina standing body size (1.7 tiles high).
+pub const VALENTINA_SIZE: Vec2 = Vec2::new(26.0, 54.4);
+/// Valentina crouching body size (1 tile high).
 pub const VALENTINA_CROUCH_SIZE: Vec2 = Vec2::new(26.0, 32.0);
 
 /// Visual/animation contract (pure data). Rendering resolves frames from this.
