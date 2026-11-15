@@ -7,9 +7,10 @@ const props = defineProps({
   state: { type: Object, default: null },
 });
 
-const openPanel = ref(null); // status | equipment | skills | items | null
+const openPanel = ref(null); // status | equipment | skills | items | customize | null
 const selectedSkillSlot = ref(0);
 const fullscreen = ref(false);
+const detailSkill = ref(null); // catalog entry shown in skills detail window
 
 const state = computed(() => props.state);
 const showHud = computed(() => state.value?.scene === "game");
@@ -46,9 +47,12 @@ function fullscreenLabel() {
 
 function onHudKeyDown(e) {
   if (e.key !== "Escape" || !openPanel.value) return;
-  // Close HUD panel and return focus to the game canvas.
   e.preventDefault();
   e.stopPropagation();
+  if (detailSkill.value) {
+    detailSkill.value = null;
+    return;
+  }
   closePanel();
 }
 
@@ -71,6 +75,7 @@ function pct(current, max) {
 function act(code, a = 0, b = 0, c = 0) { uiAction(code, a, b, c); }
 function closePanel() {
   closeMenuAndFocusGame(() => {
+    detailSkill.value = null;
     openPanel.value = null;
   });
 }
@@ -78,6 +83,7 @@ function togglePanel(panel) {
   if (openPanel.value === panel) {
     closePanel();
   } else {
+    detailSkill.value = null;
     openPanel.value = panel;
   }
 }
@@ -158,7 +164,32 @@ const attrDefs = computed(() => {
   ];
 });
 
-const unlockedSkills = computed(() => (player.value?.catalog || []).filter((entry) => entry.available));
+const catalogSkills = computed(() => player.value?.catalog || []);
+
+function openSkillDetails(entry) {
+  detailSkill.value = entry;
+}
+function closeSkillDetails() {
+  detailSkill.value = null;
+}
+function formatDamagePreview(entry) {
+  const values = entry?.damage_preview || [];
+  if (!values.length) return labels.value.skill_no_damage || "—";
+  const fmt = (v) => (Number.isInteger(v) ? String(v) : Number(v).toFixed(1).replace(/\.0$/, ""));
+  return values.map(fmt).join(" / ");
+}
+function formatCooldown(sec) {
+  if (sec == null) return "—";
+  const n = Number(sec);
+  if (!Number.isFinite(n) || n <= 0) return "0s";
+  return `${n.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1")}s`;
+}
+function formatAuraCost(cost) {
+  if (cost == null) return "0";
+  const n = Number(cost);
+  if (!Number.isFinite(n)) return "0";
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, "");
+}
 const showActionBar = computed(() => showHud.value && player.value && !mobileControlsVisible(state.value?.settings, state.value?.scene));
 const showPhaseOverlay = computed(() => showHud.value && (phase.value === "Dead" || phase.value === "Victory"));
 
@@ -411,13 +442,13 @@ function slotSkillName(slotState) {
               <div class="dom-option-row">
                 <button type="button" class="dom-btn small danger" @click.prevent.stop="loadoutClear(selectedSkillSlot)">{{ labels.clear || 'Clear' }}</button>
               </div>
-              <p v-if="!unlockedSkills.length" class="muted">{{ labels.locked || 'Locked' }}</p>
+              <p v-if="!catalogSkills.length" class="muted">{{ labels.locked || 'Locked' }}</p>
               <div v-else class="dom-skill-list">
                 <div
-                  v-for="entry in unlockedSkills"
+                  v-for="entry in catalogSkills"
                   :key="entry.skill"
                   class="dom-skill-row"
-                  :class="{ equipped: entry.equipped_slot != null }"
+                  :class="{ equipped: entry.equipped_slot != null, locked: !entry.available }"
                 >
                   <div class="dom-skill-info dom-skill-info--icon">
                     <img v-if="entry.icon" class="dom-skill-icon" :src="entry.icon" :alt="entry.name || ''" :title="entry.name || ''" />
@@ -426,8 +457,39 @@ function slotSkillName(slotState) {
                       <div class="dom-skill-meta">{{ skillMeta(entry) }}</div>
                     </div>
                   </div>
-                  <div class="dom-skill-actions">
-                    <button type="button" class="dom-btn small primary" @click.prevent.stop="loadoutAssign(selectedSkillSlot, entry.skill)">{{ labels.assign || 'Assign' }}</button>
+                  <div class="dom-skill-actions" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end">
+                    <button type="button" class="dom-btn small secondary" @click.prevent.stop="openSkillDetails(entry)">{{ labels.skill_details || 'Details' }}</button>
+                    <button
+                      type="button"
+                      class="dom-btn small primary"
+                      :disabled="!entry.available"
+                      @click.prevent.stop="entry.available && loadoutAssign(selectedSkillSlot, entry.skill)"
+                    >{{ labels.assign || 'Assign' }}</button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="detailSkill" class="dom-modal-overlay" style="position:absolute; inset:0; pointer-events:auto; z-index:30;" @click.self.prevent.stop="closeSkillDetails()">
+                <div class="dom-modal-panel" style="max-width:420px; width:calc(100% - 24px); pointer-events:auto" @click.stop>
+                  <div class="dom-game-panel-header" style="margin-bottom:8px">
+                    <div style="display:flex; align-items:center; gap:10px">
+                      <img v-if="detailSkill.icon" class="dom-skill-icon" :src="detailSkill.icon" :alt="detailSkill.name || ''" />
+                      <h3 class="dom-title" style="margin:0">{{ detailSkill.name }}</h3>
+                    </div>
+                    <button type="button" class="dom-btn small secondary" @click.prevent.stop="closeSkillDetails()">{{ labels.close || 'Close' }}</button>
+                  </div>
+                  <div class="dom-game-panel-body">
+                    <p class="muted" style="margin:0 0 10px 0; white-space:pre-wrap">{{ detailSkill.description || '' }}</p>
+                    <div class="dom-status-grid">
+                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_level || 'Level' }}</span><span class="dom-status-val">{{ detailSkill.effective_level ?? 0 }}</span></div>
+                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_tier || 'Active tier' }}</span><span class="dom-status-val">{{ detailSkill.active_tier != null ? detailSkill.active_tier : '—' }}</span></div>
+                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_damage || 'Damage' }}</span><span class="dom-status-val">{{ formatDamagePreview(detailSkill) }}</span></div>
+                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_aura_cost || 'Aura cost' }}</span><span class="dom-status-val">{{ formatAuraCost(detailSkill.aura_cost) }}</span></div>
+                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_cooldown || 'Cooldown' }}</span><span class="dom-status-val">{{ formatCooldown(detailSkill.cooldown_max) }}</span></div>
+                      <div v-if="detailSkill.category" class="dom-status-row"><span class="dom-status-key">Type</span><span class="dom-status-val">{{ detailSkill.category }}</span></div>
+                      <div v-if="detailSkill.equipped_slot != null" class="dom-status-row"><span class="dom-status-key">{{ labels.equipped || 'Equipped' }}</span><span class="dom-status-val">{{ labels.equipped || 'Slot' }} {{ detailSkill.equipped_slot + 1 }}</span></div>
+                      <div v-if="!detailSkill.available && detailSkill.lock_reason" class="dom-status-row"><span class="dom-status-key">{{ labels.locked || 'Locked' }}</span><span class="dom-status-val">{{ detailSkill.lock_reason }}</span></div>
+                    </div>
                   </div>
                 </div>
               </div>

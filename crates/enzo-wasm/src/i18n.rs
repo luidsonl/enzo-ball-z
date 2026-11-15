@@ -145,6 +145,12 @@ pub enum Text {
     SkillNoAura,
     SkillCooldown,
     SkillLocked,
+    SkillDetails,
+    SkillLevel,
+    SkillTier,
+    SkillDamage,
+    SkillNoDamage,
+    SkillAuraCost,
 
     // Itens
     ItemSword,
@@ -383,6 +389,18 @@ impl I18n {
             (Language::English, Text::SkillCooldown) => "Cooldown",
             (Language::PtBr, Text::SkillLocked) => "Bloqueada",
             (Language::English, Text::SkillLocked) => "Locked",
+            (Language::PtBr, Text::SkillDetails) => "Detalhes",
+            (Language::English, Text::SkillDetails) => "Details",
+            (Language::PtBr, Text::SkillLevel) => "Nível",
+            (Language::English, Text::SkillLevel) => "Level",
+            (Language::PtBr, Text::SkillTier) => "Tier ativo",
+            (Language::English, Text::SkillTier) => "Active tier",
+            (Language::PtBr, Text::SkillDamage) => "Dano",
+            (Language::English, Text::SkillDamage) => "Damage",
+            (Language::PtBr, Text::SkillNoDamage) => "Sem dano direto",
+            (Language::English, Text::SkillNoDamage) => "No direct damage",
+            (Language::PtBr, Text::SkillAuraCost) => "Custo de aura",
+            (Language::English, Text::SkillAuraCost) => "Aura cost",
 
             // Itens
             (Language::PtBr, Text::ItemSword) => "Espada",
@@ -500,6 +518,25 @@ impl I18n {
             SkillId::Mogging => self.t(Text::MoveMogging),
             SkillId::NutellaShot => self.t(Text::SkillNutellaShot),
             SkillId::Shout => self.t(Text::SkillShout),
+        }
+    }
+
+    pub fn skill_description(self, id: SkillId) -> &'static str {
+        match (self.language(), id) {
+            (Language::PtBr, SkillId::Jump) => "Pula. A altura depende dos atributos de velocidade.",
+            (Language::English, SkillId::Jump) => "Jump. Height scales with speed attributes.",
+            (Language::PtBr, SkillId::Dash) => "Avança rapidamente em uma investida com tempo de recarga.",
+            (Language::English, SkillId::Dash) => "Quickly dash forward with a cooldown.",
+            (Language::PtBr, SkillId::Fly) => "Permite voar enquanto a habilidade estiver ativa.",
+            (Language::English, SkillId::Fly) => "Allows flying while the skill is active.",
+            (Language::PtBr, SkillId::Melee) => "Combo físico de 3 golpes. O dano escala com força, ego e equipamentos.",
+            (Language::English, SkillId::Melee) => "3-hit physical combo. Damage scales with strength, ego, and equipment.",
+            (Language::PtBr, SkillId::Mogging) => "Dispara um projétil de aura que atravessa inimigos. Dano baseado em aura, ego e tier da habilidade.",
+            (Language::English, SkillId::Mogging) => "Fires an aura projectile that pierces enemies. Damage is based on aura, ego, and skill tier.",
+            (Language::PtBr, SkillId::NutellaShot) => "Disparo de projétil concedido por equipamento. Dano escala com ego e nível da habilidade.",
+            (Language::English, SkillId::NutellaShot) => "Equipment-granted projectile shot. Damage scales with ego and skill level.",
+            (Language::PtBr, SkillId::Shout) => "Grito em área que causa dano e empurra inimigos. Dano/alcance escalam com ego e nível da habilidade.",
+            (Language::English, SkillId::Shout) => "Area shout that deals damage and knocks enemies back. Damage/range scale with ego and skill level.",
         }
     }
 

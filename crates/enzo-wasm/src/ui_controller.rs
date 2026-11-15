@@ -80,6 +80,13 @@ pub struct UiLabels {
     pub main_clothing_color: String,
     pub equip: String,
     pub unequip: String,
+    pub skill_details: String,
+    pub skill_level: String,
+    pub skill_tier: String,
+    pub skill_damage: String,
+    pub skill_no_damage: String,
+    pub skill_aura_cost: String,
+    pub skill_cooldown: String,
 }
 
 impl UiLabels {
@@ -223,6 +230,13 @@ impl UiLabels {
             } else {
                 "Desequipar".to_owned()
             },
+            skill_details: i18n.t(Text::SkillDetails).to_owned(),
+            skill_level: i18n.t(Text::SkillLevel).to_owned(),
+            skill_tier: i18n.t(Text::SkillTier).to_owned(),
+            skill_damage: i18n.t(Text::SkillDamage).to_owned(),
+            skill_no_damage: i18n.t(Text::SkillNoDamage).to_owned(),
+            skill_aura_cost: i18n.t(Text::SkillAuraCost).to_owned(),
+            skill_cooldown: i18n.t(Text::SkillCooldown).to_owned(),
         }
     }
 }
@@ -283,11 +297,15 @@ pub struct UiCatalogEntry {
     pub name: String,
     pub icon: String,
     pub category: String,
+    pub description: String,
     pub available: bool,
     pub lock_reason: Option<String>,
     pub equipped_slot: Option<u8>,
     pub aura_cost: f32,
     pub cooldown_max: f32,
+    pub effective_level: u8,
+    pub active_tier: Option<u8>,
+    pub damage_preview: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -508,11 +526,15 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
             name: i18n.skill(entry.skill).to_owned(),
             icon: entry.skill.def().assets.icon.to_owned(),
             category: category_label(entry.skill.def().category).to_owned(),
+            description: i18n.skill_description(entry.skill).to_owned(),
             available: entry.available,
             lock_reason: entry.lock.as_ref().map(|l| format!("{:?}", l)),
             equipped_slot: entry.equipped_slot.map(|s| s.index() as u8),
             aura_cost: entry.aura_cost,
             cooldown_max: entry.cooldown_max,
+            effective_level: entry.effective_level,
+            active_tier: entry.active_tier,
+            damage_preview: entry.damage_preview.clone(),
         })
         .collect();
 

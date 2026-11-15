@@ -129,6 +129,50 @@ impl SkillId {
     }
 }
 
+/// Damage preview values for UI/details, computed from core formulas and current stats.
+/// Returns an empty vec for non-damaging skills.
+pub fn damage_preview(
+    skill: SkillId,
+    context: SkillContext,
+    stats: &crate::entities::Stats,
+    attributes: &crate::entities::Attributes,
+) -> Vec<f32> {
+    let steps = skill.tier_steps(context).max(0) as f32;
+    let scale = 1.0 + 0.10 * steps;
+    let ego = attributes.ego as f32;
+    match skill {
+        SkillId::Melee => {
+            let ego_damage_bonus = ego * 0.5 * (1.0 + 0.25 * steps);
+            (0..melee::visual::COMBO_STEPS as usize)
+                .map(|hit| {
+                    (stats.melee_damage(hit) * scale + ego_damage_bonus)
+                        .round()
+                        .max(1.0)
+                })
+                .collect()
+        }
+        SkillId::Mogging => {
+            let tier = skill.active_tier(context).unwrap_or(1);
+            let params = mogging::tier_params(tier);
+            let damage = stats.mogging_damage + ego * params.damage_bonus_ego;
+            vec![damage.max(0.0)]
+        }
+        SkillId::NutellaShot => {
+            let damage = (nutella_shot::DAMAGE * scale + ego * 0.5 * (1.0 + 0.25 * steps))
+                .round()
+                .max(1.0);
+            vec![damage]
+        }
+        SkillId::Shout => {
+            let damage = (shout::DAMAGE * scale + ego * 0.5 * (1.0 + 0.25 * steps))
+                .round()
+                .max(1.0);
+            vec![damage]
+        }
+        _ => Vec::new(),
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SkillCategory {

@@ -77,6 +77,12 @@ pub struct SkillCatalogEntry {
     pub equipped_slot: Option<ActionSlot>,
     pub aura_cost: f32,
     pub cooldown_max: f32,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub effective_level: u8,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub active_tier: Option<u8>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub damage_preview: Vec<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -304,15 +310,25 @@ impl PlayerSnapshot {
             .iter()
             .copied()
             .map(|skill| {
-                let def = skill.def();
                 let lock = skill.availability(context).err();
+                let effective_level = skill.effective_level(context);
+                let active_tier = skill.active_tier(context);
+                let damage_preview = crate::skills::damage_preview(
+                    skill,
+                    context,
+                    &entity.stats,
+                    &entity.attributes,
+                );
                 SkillCatalogEntry {
                     skill,
                     available: lock.is_none(),
                     lock,
                     equipped_slot: entity.skills.loadout.slot_of(skill),
-                    aura_cost: def.aura_cost,
-                    cooldown_max: def.cooldown,
+                    aura_cost: skill.effective_aura_cost(context),
+                    cooldown_max: skill.effective_cooldown(context),
+                    effective_level,
+                    active_tier,
+                    damage_preview,
                 }
             })
             .collect();
