@@ -109,7 +109,7 @@ function fieldLabel(field, fallbackKey) {
   const k = field.labelKey || fallbackKey || field.key;
   const isEnglish = (state.value?.settings?.language || "pt-BR") === "en";
   const fallbacks = {
-    outfit_top: isEnglish ? "Top color (predominant)" : "Cor da parte de cima (predominante)",
+    outfit_top: isEnglish ? "Shirt color (predominant)" : "Cor da camiseta (predominante)",
     outfit_bottom: isEnglish ? "Pants color (predominant)" : "Cor da calça (predominante)",
     shoes: isEnglish ? "Details color" : "Cor dos detalhes",
   };
@@ -320,8 +320,8 @@ function slotSkillName(slotState) {
             <div class="dom-game-panel-body">
               <p class="muted" style="margin:0 0 8px 0">
                 {{ (state.settings?.language || 'pt-BR') === 'en'
-                  ? 'Clothing uses 3 colors: top (predominant), pants (predominant), and details.'
-                  : 'As roupas usam 3 cores: parte de cima (predominante), calça (predominante) e detalhes.' }}
+                  ? 'Clothing uses 3 colors: shirt (predominant), pants (predominant), and details.'
+                  : 'As roupas usam 3 cores: cor da camiseta (predominante), calça (predominante) e detalhes.' }}
               </p>
               <div class="dom-list">
                 <div class="dom-list-row" style="align-items:center; gap:10px; flex-wrap:wrap;">

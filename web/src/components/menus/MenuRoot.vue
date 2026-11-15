@@ -282,7 +282,7 @@ function isSelectedColor(fieldKey, value) {
         <template v-else-if="menu.screen === 'customize'">
           <h2 class="dom-title">{{ labels.character_editor || labels.customize || 'Character Editor' }}</h2>
           <p class="dom-subtitle" style="margin-bottom:6px">
-            {{ isEnglish ? 'Outfit uses 3 colors: top, pants, and details.' : 'A roupa usa 3 cores: parte de cima, calça e detalhes.' }}
+            {{ isEnglish ? 'Outfit uses 3 colors: shirt, pants, and details.' : 'A roupa usa 3 cores: cor da camiseta, calça e detalhes.' }}
           </p>
           <p class="dom-subtitle" style="margin-bottom:10px">
             {{ labels.customize_hint || (isEnglish ? 'Changes apply to all animation states (idle, walk, jump, attack, swim, etc.).' : 'As mudanças se aplicam a todos os estados de animação (parado, andar, pular, atacar, nadar etc.).') }}
@@ -320,9 +320,9 @@ function isSelectedColor(fieldKey, value) {
             </div>
 
             <div class="dom-option-row">
-              <div class="dom-option-label">{{ labels.outfit_top || (isEnglish ? 'Top color (predominant)' : 'Cor da parte de cima (predominante)') }}</div>
+              <div class="dom-option-label">{{ labels.outfit_top || (isEnglish ? 'Shirt color (predominant)' : 'Cor da camiseta (predominante)') }}</div>
               <div class="dom-option-buttons dom-swatch-row">
-                <button v-for="(c, i) in CLOTH_COLORS" :key="'ot'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top||'Top') + ' ' + (i+1)" @click.prevent.stop="setProfileField(4, i)" />
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'ot'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top||'Shirt') + ' ' + (i+1)" @click.prevent.stop="setProfileField(4, i)" />
               </div>
             </div>
 

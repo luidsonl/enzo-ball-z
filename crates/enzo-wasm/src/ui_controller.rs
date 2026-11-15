@@ -184,9 +184,9 @@ impl UiLabels {
                 "Rosto".to_owned()
             },
             outfit_top: if i18n.language().code() == "en" {
-                "Top color".to_owned()
+                "Shirt color".to_owned()
             } else {
-                "Cor da parte de cima".to_owned()
+                "Cor da camiseta".to_owned()
             },
             outfit_bottom: if i18n.language().code() == "en" {
                 "Pants color".to_owned()
