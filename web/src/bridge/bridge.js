@@ -93,7 +93,9 @@ export function actionUp(code) {
 }
 
 export function uiAction(code, a = 0, b = 0, c = 0) {
-  if (code === UiAction.MenuResume) focusGameCanvas();
+  if (code === UiAction.MenuResume || code === UiAction.MenuStart || code === UiAction.HudRestart) {
+    focusGameCanvas();
+  }
   if (exportsReady() && typeof globalThis.wasm_exports.enzo_ui_action === "function") {
     globalThis.wasm_exports.enzo_ui_action(code, a, b, c);
     return;

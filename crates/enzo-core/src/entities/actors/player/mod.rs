@@ -55,8 +55,8 @@ impl PlayableCharacter {
 
 /// Stable visual customization IDs (no image paths in core).
 /// Values are interpreted by the client/asset manifest.
-/// Layers: skin/body, face, hair (style+color), outfit top/shirt, outfit bottom/pants, shoes.
-/// Equipment items may override or add layers at render time.
+/// Layers: skin/body, face, hair (style+color), outfit top/shirt (+ body details),
+/// outfit bottom/pants, shoes. Equipment items may override or add layers at render time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VisualProfile {
@@ -68,8 +68,15 @@ pub struct VisualProfile {
     pub hair_color: u8,
     #[cfg_attr(feature = "serde", serde(default))]
     pub face: u8,
+    /// Main/body clothing base color.
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_top: u8,
+    /// Body clothing detail color 1 (e.g. stripes/trim/details; future equipment).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub outfit_top_detail1: u8,
+    /// Body clothing detail color 2 (e.g. secondary details; future equipment).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub outfit_top_detail2: u8,
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_bottom: u8,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -84,6 +91,8 @@ impl VisualProfile {
     pub const FIELD_OUTFIT_TOP: u8 = 4;
     pub const FIELD_OUTFIT_BOTTOM: u8 = 5;
     pub const FIELD_SHOES: u8 = 6;
+    pub const FIELD_OUTFIT_TOP_DETAIL1: u8 = 7;
+    pub const FIELD_OUTFIT_TOP_DETAIL2: u8 = 8;
 
     /// Sensible defaults per character (hair/face indices map to gender-exclusive catalogs).
     pub fn default_for(character: PlayableCharacter) -> Self {
@@ -96,6 +105,8 @@ impl VisualProfile {
                 face: 0,
                 outfit_top: 0,
                 outfit_bottom: 0,
+                outfit_top_detail1: 5,
+                outfit_top_detail2: 7,
                 shoes: 0,
             },
             // Valentina: feminine default.
@@ -106,6 +117,8 @@ impl VisualProfile {
                 face: 0,
                 outfit_top: 1,
                 outfit_bottom: 1,
+                outfit_top_detail1: 7,
+                outfit_top_detail2: 3,
                 shoes: 0,
             },
         }
@@ -120,6 +133,8 @@ impl VisualProfile {
             Self::FIELD_OUTFIT_TOP => self.outfit_top = value,
             Self::FIELD_OUTFIT_BOTTOM => self.outfit_bottom = value,
             Self::FIELD_SHOES => self.shoes = value,
+            Self::FIELD_OUTFIT_TOP_DETAIL1 => self.outfit_top_detail1 = value,
+            Self::FIELD_OUTFIT_TOP_DETAIL2 => self.outfit_top_detail2 = value,
             _ => {}
         }
         self

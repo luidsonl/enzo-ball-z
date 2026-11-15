@@ -29,7 +29,6 @@ export const STATE_FRAME_SPECS = {
   kick:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   cast:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   shout:      { w: 64, h: 64, anchor: { x: 32, y: 62 } },
-  hurt:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   dying:      { w: 64, h: 64, anchor: { x: 32, y: 62 } },
   dead:       { w: 64, h: 64, anchor: { x: 32, y: 62 } },
 };

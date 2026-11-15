@@ -67,7 +67,6 @@ const HUMANOID_CANONICAL_FRAMES: &[&str] = &[
     "kick_0",
     "cast_0",
     "shout_0",
-    "hurt_0",
     "dying_0",
     "dead_0",
 ];
@@ -93,7 +92,6 @@ fn canonical_clip(name: &str) -> Option<(&'static [&'static str], f32, bool)> {
         "kick" => (&["kick_0"][..], 10.0, false),
         "cast" => (&["cast_0"][..], 8.0, false),
         "shout" => (&["shout_0"][..], 8.0, false),
-        "hurt" => (&["hurt_0"][..], 1.0, true),
         "dying" => (&["dying_0"][..], 4.0, false),
         "dead" => (&["dead_0"][..], 1.0, true),
         _ => return None,
@@ -115,7 +113,7 @@ fn canonical_fallbacks(name: &str) -> &'static [&'static str] {
         "kick" => &["attack_1"],
         "cast" => &["attack_1", "idle"],
         "shout" => &["cast", "attack_1", "idle"],
-        "dying" => &["dead", "hurt"],
+        "dying" => &["dead", "idle"],
         "sixseven_a" | "sixseven_b" => &["idle"],
         _ => &["idle"],
     }
@@ -270,6 +268,8 @@ pub struct HumanoidRig {
     pub face: Option<Texture2D>,
     pub hair: Option<Texture2D>,
     pub outfit_top: Option<Texture2D>,
+    pub outfit_top_detail1: Option<Texture2D>,
+    pub outfit_top_detail2: Option<Texture2D>,
     pub outfit_bottom: Option<Texture2D>,
     pub shoes: Option<Texture2D>,
 }
@@ -315,6 +315,14 @@ impl HumanoidRig {
             hair: opt_texture(&format!("assets/entities/{entity_id}/layers/hair.png")).await,
             outfit_top: opt_texture(&format!(
                 "assets/entities/{entity_id}/layers/outfit_top.png"
+            ))
+            .await,
+            outfit_top_detail1: opt_texture(&format!(
+                "assets/entities/{entity_id}/layers/outfit_top_detail1.png"
+            ))
+            .await,
+            outfit_top_detail2: opt_texture(&format!(
+                "assets/entities/{entity_id}/layers/outfit_top_detail2.png"
             ))
             .await,
             outfit_bottom: opt_texture(&format!(
@@ -457,6 +465,8 @@ impl HumanoidRig {
         let skin = skin_tint(profile.skin_tone, tint);
         let hair = hair_tint(profile.hair_color, tint);
         let outfit_main = clothing_tint(profile.outfit_top, tint);
+        let outfit_detail1 = clothing_tint(profile.outfit_top_detail1, tint);
+        let outfit_detail2 = clothing_tint(profile.outfit_top_detail2, tint);
         let outfit_bottom = clothing_tint(profile.outfit_bottom, tint);
         if let Some(tex) = &self.base {
             draw_sheet_tex(tex, source, draw_dest, flip_x, skin);
@@ -476,6 +486,12 @@ impl HumanoidRig {
         }
         if let Some(tex) = &self.outfit_top {
             draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_main);
+        }
+        if let Some(tex) = &self.outfit_top_detail1 {
+            draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_detail1);
+        }
+        if let Some(tex) = &self.outfit_top_detail2 {
+            draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_detail2);
         }
         let hair_tex = hair_override.or(self.hair.as_ref());
         if let Some(tex) = hair_tex {
@@ -558,7 +574,6 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
         "kick",
         "cast",
         "shout",
-        "hurt",
         "dying",
         "dead",
     ]
@@ -590,7 +605,7 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
         ("kick", vec!["attack_1"]),
         ("cast", vec!["attack_1", "idle"]),
         ("shout", vec!["cast", "attack_1", "idle"]),
-        ("dying", vec!["dead", "hurt"]),
+        ("dying", vec!["dead", "idle"]),
         ("sixseven_a", vec!["idle"]),
         ("sixseven_b", vec!["idle"]),
     ]
@@ -614,6 +629,8 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
             "outfit_bottom".into(),
             "shoes".into(),
             "outfit_top".into(),
+            "outfit_top_detail1".into(),
+            "outfit_top_detail2".into(),
         ],
     }
 }
@@ -681,29 +698,33 @@ fn skin_tint(id: u8, base: Color) -> Color {
 }
 
 fn hair_tint(id: u8, base: Color) -> Color {
+    // Target colors applied over neutral/desaturated hair sprites (multiply tint).
+    // Keep in sync with customization swatches in the web UI.
     let a = base.a;
     match id % 8 {
-        0 => base,
-        1 => Color::new(0.12, 0.10, 0.10, a),
-        2 => Color::new(0.36, 0.24, 0.16, a),
-        3 => Color::new(0.82, 0.68, 0.30, a),
-        4 => Color::new(0.62, 0.22, 0.18, a),
-        5 => Color::new(0.78, 0.80, 0.86, a),
-        6 => Color::new(0.30, 0.52, 0.88, a),
-        _ => Color::new(0.72, 0.38, 0.82, a),
+        0 => Color::new(0.353, 0.227, 0.133, a), // #5a3a22 brown
+        1 => Color::new(0.122, 0.102, 0.102, a), // #1f1a1a black
+        2 => Color::new(0.361, 0.239, 0.161, a), // #5c3d29 dark brown
+        3 => Color::new(0.820, 0.678, 0.302, a), // #d1ad4d blonde
+        4 => Color::new(0.620, 0.220, 0.188, a), // #9e3830 red
+        5 => Color::new(0.780, 0.800, 0.851, a), // #c7ccd9 silver
+        6 => Color::new(0.302, 0.522, 0.878, a), // #4d85e0 blue
+        _ => Color::new(0.722, 0.380, 0.820, a), // #b861d1 purple
     }
 }
 
 fn clothing_tint(id: u8, base: Color) -> Color {
+    // Target colors applied over neutral/desaturated outfit sprites (multiply tint).
+    // Keep in sync with customization swatches in the web UI.
     let a = base.a;
     match id % 8 {
-        0 => base,
-        1 => Color::new(0.30, 0.52, 1.00, a),
-        2 => Color::new(0.95, 0.45, 0.65, a),
-        3 => Color::new(0.30, 0.78, 0.45, a),
-        4 => Color::new(0.95, 0.72, 0.28, a),
-        5 => Color::new(0.90, 0.35, 0.30, a),
-        6 => Color::new(0.55, 0.45, 0.85, a),
-        _ => Color::new(0.78, 0.80, 0.84, a),
+        0 => Color::new(0.310, 0.486, 1.000, a), // #4f7cff blue
+        1 => Color::new(0.310, 0.518, 1.000, a), // #4f84ff blue
+        2 => Color::new(0.949, 0.455, 0.659, a), // #f274a8 pink
+        3 => Color::new(0.302, 0.780, 0.451, a), // #4dc773 green
+        4 => Color::new(0.949, 0.722, 0.278, a), // #f2b847 yellow
+        5 => Color::new(0.902, 0.349, 0.302, a), // #e6594d red
+        6 => Color::new(0.549, 0.451, 0.851, a), // #8c73d9 purple
+        _ => Color::new(0.780, 0.800, 0.851, a), // #c7ccd9 silver
     }
 }

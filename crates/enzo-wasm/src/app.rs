@@ -954,10 +954,11 @@ fn draw_character_preview(
     let tint = WHITE;
     match character {
         enzo_core::entities::PlayableCharacter::Valentina => {
-            let _ = sprites.draw_valentina_rig("idle", time, foot, false, tint, profile);
+            let _ =
+                sprites.draw_valentina_rig("idle", time, foot, false, tint, profile, false, 0.0, 0);
         }
         _ => {
-            let _ = sprites.draw_enzo_rig("idle", time, foot, false, tint, profile);
+            let _ = sprites.draw_enzo_rig("idle", time, foot, false, tint, profile, false, 0.0, 0);
         }
     }
 }

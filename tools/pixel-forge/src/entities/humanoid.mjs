@@ -13,7 +13,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../../..');
 export const HUMANOID_STATE_ORDER = [
   'idle', 'walk', 'run', 'crouch', 'crawl', 'jump', 'jump_rise', 'jump_fall',
   'fly', 'swim', 'climb', 'dash', 'sixseven_a', 'sixseven_b',
-  'attack_1', 'attack_2', 'attack_3', 'kick', 'cast', 'shout', 'hurt', 'dying', 'dead',
+  'attack_1', 'attack_2', 'attack_3', 'kick', 'cast', 'shout', 'dying', 'dead',
 ];
 
 export const HUMANOID_CLIPS = {
@@ -37,7 +37,6 @@ export const HUMANOID_CLIPS = {
   kick: { frames: ['kick_0'], frameDuration: 0.1, fps: 10, loop: false },
   cast: { frames: ['cast_0'], frameDuration: 0.125, fps: 8, loop: false },
   shout: { frames: ['shout_0'], frameDuration: 0.125, fps: 8, loop: false },
-  hurt: { frames: ['hurt_0'], frameDuration: 1.0, fps: 1, loop: true },
   dying: { frames: ['dying_0'], frameDuration: 0.25, fps: 4, loop: false },
   dead: { frames: ['dead_0'], frameDuration: 1.0, fps: 1, loop: true },
 };
@@ -56,7 +55,7 @@ export const HUMANOID_FALLBACKS = {
   kick: ['attack_1'],
   cast: ['attack_1', 'idle'],
   shout: ['cast', 'attack_1', 'idle'],
-  dying: ['dead', 'hurt'],
+  dying: ['dead', 'idle'],
   sixseven_a: ['idle'],
   sixseven_b: ['idle'],
 };
@@ -162,7 +161,6 @@ function poseFromFrame(frame) {
   if (f === 'kick_0') return { ...base, lean: 1, armL: 2, armR: 2, legL: -1, legR: -3 };
   if (f === 'cast_0') return { ...base, bob: -1, armL: 1, armOutR: true };
   if (f === 'shout_0') return { ...base, bob: -1, armOutL: true, armOutR: true, lean: 0 };
-  if (f === 'hurt_0') return { ...base, bob: 1, lean: -1, armL: 2, armR: 2, legL: 1, legR: 0 };
   if (f === 'dying_0') return { ...base, crouch: true, dead: true, bob: 3, lean: -1, armL: 3, armR: 3, legL: 0, legR: 0 };
   if (f === 'dead_0') return { ...base, crouch: true, dead: true, bob: 4, lean: -2, armL: 4, armR: 4, legL: 0, legR: 0 };
   return base;
@@ -267,14 +265,15 @@ function blockLeg(c, leg, thickness, color) {
   c.rect(leg.ankleX - 1, leg.kneeY + 1, thickness, Math.max(1, leg.ankleY - leg.kneeY), color);
 }
 
-function drawFaceAt(c, hx, headY, frame, charId, variant = 0) {
-  const dead = frame === 'dying_0' || frame === 'dead_0';
-  const hurt = frame === 'hurt_0';
+function drawFaceAt(c, hx, headY, frame, charId, variant = 0, expression = 'normal') {
   const isVal = charId === 'valentina';
-  const eye = dead ? '#7a6a8a' : P.outline;
-  const mouthY = headY + 6;
   const eyeY = headY + 3;
+  const mouthY = headY + 6;
   const fs = Math.max(0, Math.min(7, variant | 0));
+  const expr = expression || 'normal';
+  const eye = (expr === 'cry') ? '#2d4f8f' : '#1f1a17';
+
+  // Base face features by style.
   if (isVal) {
     if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, '#3a2418'); c.rect(hx + 17, eyeY, 2, 2, '#3a2418'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 18, eyeY, '#ffffff'); c.rect(hx + 12, eyeY + 2, 1, 1, '#e8a0b0'); c.rect(hx + 19, eyeY + 2, 1, 1, '#e8a0b0'); }
     else if (fs === 1) { c.rect(hx + 13, eyeY, 2, 2, '#5a3820'); c.rect(hx + 17, eyeY, 2, 2, '#5a3820'); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
@@ -284,11 +283,8 @@ function drawFaceAt(c, hx, headY, frame, charId, variant = 0) {
     else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.set(hx + 19, eyeY + 2, '#f0b8c0'); }
     else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, '#4a2818'); c.rect(hx + 17, eyeY, 3, 2, '#4a2818'); c.set(hx + 14, eyeY, '#ffffff'); c.set(hx + 19, eyeY, '#ffffff'); }
     else { c.rect(hx + 13, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 17, eyeY, 2, 2, '#7a4a28'); c.rect(hx + 12, eyeY - 1, 1, 1, '#3a2418'); c.rect(hx + 19, eyeY - 1, 1, 1, '#3a2418'); }
-    if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
-    if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
-    else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
-    else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
-    else if (fs === 0 || fs === 2 || fs === 4) { c.rect(hx + 14, mouthY, 4, 1, '#e07a8a'); c.set(hx + 14, mouthY - 1, '#e07a8a'); c.set(hx + 17, mouthY - 1, '#e07a8a'); }
+    // Default mouth.
+    if (fs === 0 || fs === 2 || fs === 4) { c.rect(hx + 14, mouthY, 4, 1, '#e07a8a'); c.set(hx + 14, mouthY - 1, '#e07a8a'); c.set(hx + 17, mouthY - 1, '#e07a8a'); }
     else c.rect(hx + 15, mouthY - 1, 2, 1, '#d98b8b');
   } else {
     if (fs === 0) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY, 2, 2, eye); c.rect(hx + 12, eyeY - 1, 3, 1, '#3a2418'); c.rect(hx + 17, eyeY - 1, 3, 1, '#3a2418'); }
@@ -299,18 +295,49 @@ function drawFaceAt(c, hx, headY, frame, charId, variant = 0) {
     else if (fs === 5) { c.rect(hx + 13, eyeY, 2, 2, eye); c.rect(hx + 17, eyeY + 1, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 2, 1, '#3a2418'); }
     else if (fs === 6) { c.rect(hx + 12, eyeY, 3, 2, eye); c.rect(hx + 17, eyeY, 3, 2, eye); c.rect(hx + 13, mouthY + 1, 6, 1, '#6a4a32'); }
     else { c.rect(hx + 13, eyeY, 2, 1, eye); c.rect(hx + 17, eyeY, 2, 1, eye); c.rect(hx + 12, eyeY - 1, 8, 1, '#3a2418'); }
-    if (hurt) { c.rect(hx + 12, eyeY - 1, 3, 1, '#c06060'); c.rect(hx + 17, eyeY - 1, 3, 1, '#c06060'); }
-    if (frame === 'shout_0') c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
-    else if (dead) c.rect(hx + 15, mouthY, 2, 1, '#7a6a8a');
-    else if (hurt) c.rect(hx + 14, mouthY, 3, 1, '#c06060');
-    else if (fs === 2) c.rect(hx + 14, mouthY, 4, 1, P.outline);
+    // Default mouth.
+    if (fs === 2) c.rect(hx + 14, mouthY, 4, 1, '#1f1a17');
     else c.rect(hx + 15, mouthY - 1, 2, 1, '#b07060');
+  }
+
+  // Shout overlay keeps its open mouth.
+  if (frame === 'shout_0' && expr === 'normal') {
+    c.clear(hx + 14, mouthY - 1, 4, 3);
+    c.rect(hx + 14, mouthY - 1, 4, 3, '#4a2030');
+  }
+
+  // Expression overlays (3 extra face types): blink, pain, cry.
+  if (expr === 'blink') {
+    c.clear(hx + 12, eyeY - 1, 8, 4);
+    c.rect(hx + 13, eyeY + 1, 2, 1, '#3a2418');
+    c.rect(hx + 17, eyeY + 1, 2, 1, '#3a2418');
+  } else if (expr === 'pain') {
+    c.clear(hx + 12, eyeY - 1, 8, 4);
+    c.rect(hx + 13, eyeY, 1, 1, eye); c.rect(hx + 14, eyeY + 1, 1, 1, eye);
+    c.rect(hx + 18, eyeY, 1, 1, eye); c.rect(hx + 17, eyeY + 1, 1, 1, eye);
+    c.rect(hx + 12, eyeY - 1, 3, 1, '#8a4a4a');
+    c.rect(hx + 17, eyeY - 1, 3, 1, '#8a4a4a');
+    c.clear(hx + 13, mouthY - 1, 6, 4);
+    c.rect(hx + 14, mouthY - 1, 4, 2, '#4a2030');
+    c.rect(hx + 15, mouthY, 2, 1, '#d07070');
+  } else if (expr === 'cry') {
+    c.clear(hx + 12, eyeY - 1, 8, 5);
+    c.rect(hx + 13, eyeY, 1, 1, eye); c.rect(hx + 14, eyeY + 1, 1, 1, eye);
+    c.rect(hx + 18, eyeY, 1, 1, eye); c.rect(hx + 17, eyeY + 1, 1, 1, eye);
+    c.rect(hx + 12, eyeY - 1, 3, 1, '#3a5f9a');
+    c.rect(hx + 17, eyeY - 1, 3, 1, '#3a5f9a');
+    c.rect(hx + 12, eyeY + 2, 1, 2, '#6fb7ff'); // tear
+    c.rect(hx + 19, eyeY + 2, 1, 2, '#6fb7ff'); // tear
+    c.clear(hx + 13, mouthY - 1, 6, 4);
+    c.rect(hx + 14, mouthY, 4, 2, '#5a3a3a');
+    c.rect(hx + 15, mouthY, 2, 1, '#8a5a5a');
   }
 }
 
 function drawHairAt(c, hx, headY, frame, charId, variant = 0, low = false) {
   const isVal = charId === 'valentina';
-  const hair = isVal ? '#5a3218' : '#5a3a22';
+  // Neutral, desaturated base so runtime hair_color tint can colorize accurately.
+  const hair = '#d6d6d6';
   const hs = Math.max(0, Math.min(7, variant | 0));
   const longBack = low ? 3 : 10;
   if (isVal) {
@@ -420,23 +447,24 @@ function drawBlockLeg(c, hipLeft, spec, bob, pantsColor, kneeColor) {
   return { footLeft, footTop };
 }
 
-function drawGaitLayer(c, frame, charId, layer, variant = 0) {
+function drawGaitLayer(c, frame, charId, layer, variant = 0, expression = 'normal') {
   const gait = WALK_GAIT[frame] || RUN_GAIT[frame];
   if (!gait) return;
   const isVal = charId === 'valentina';
   const skin = '#f2c9a0';
   const skinFar = '#d8a878';
   const handShade = '#b8895c';
-  const shirt = isVal ? '#ff6fae' : '#4f7cff';
-  const shirtDark = isVal ? '#e0578f' : '#3d63d6';
-  const shirtLight = isVal ? '#ff9fc8' : '#7fa0ff';
-  const pants = isVal ? '#5a3f8f' : '#2f3a66';
-  const pantsFar = isVal ? '#472f72' : '#232b4d';
+  // Neutral, desaturated bases so runtime outfit tints can colorize accurately.
+  const shirt = '#d9d9d9';
+  const shirtDark = '#a6a6a6';
+  const shirtLight = '#f2f2f2';
+  const pants = '#bfbfbf';
+  const pantsFar = '#999999';
   const shoe = '#3a2a1a';
   const shoeFar = '#2a1d12';
   const sole = '#1d140d';
-  const knee = isVal ? '#4a2f6a' : '#263055';
-  const kneeFar = isVal ? '#3b2455' : '#1c2340';
+  const knee = '#8c8c8c';
+  const kneeFar = '#737373';
 
   const bob = gait.bob;
   const lean = gait.lean;
@@ -470,7 +498,7 @@ function drawGaitLayer(c, frame, charId, layer, variant = 0) {
     drawArmPose(c, nearShoulderX, shoulderY, 1, gait.nearArm, skin, skinFar);
   }
 
-  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant, expression);
 
   if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
     // Waistband bridging the torso and both legs.
@@ -499,6 +527,15 @@ function drawGaitLayer(c, frame, charId, layer, variant = 0) {
     c.rect(nearShoulderX, shoulderY, 2, 3, shirt);
     c.rect(nearShoulderX, shoulderY + 2, 2, 1, shirtDark);
   }
+  // Body clothing details (separately tintable for customization/equipment).
+  if (layer === 'full' || layer === 'outfit_top_detail1') {
+    c.rect(torsoX + 1, torsoY + 4, torsoW - 2, 2, '#d9d9d9'); // chest stripe
+  }
+  if (layer === 'full' || layer === 'outfit_top_detail2') {
+    c.rect(torsoX + 4, torsoY, 4, 1, '#e6e6e6'); // collar detail
+    c.rect(farShoulderX, shoulderY + 2, 2, 1, '#d9d9d9');
+    c.rect(nearShoulderX, shoulderY + 2, 2, 1, '#d9d9d9');
+  }
 
   if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, false);
 }
@@ -506,19 +543,20 @@ function drawGaitLayer(c, frame, charId, layer, variant = 0) {
 // ---------------------------------------------------------------------------
 // Dash: a single explosive lunge pose (contract keeps one frame).
 // ---------------------------------------------------------------------------
-function drawDashLayer(c, frame, charId, layer, variant = 0) {
+function drawDashLayer(c, frame, charId, layer, variant = 0, expression = 'normal') {
   const isVal = charId === 'valentina';
   const skin = '#f2c9a0';
   const skinFar = '#d8a878';
-  const shirt = isVal ? '#ff6fae' : '#4f7cff';
-  const shirtDark = isVal ? '#e0578f' : '#3d63d6';
-  const collar = isVal ? '#ff9fc8' : '#7fa0ff';
-  const pants = isVal ? '#5a3f8f' : '#2f3a66';
-  const pantsFar = isVal ? '#472f72' : '#232b4d';
+  // Neutral, desaturated bases so runtime outfit tints can colorize accurately.
+  const shirt = '#d9d9d9';
+  const shirtDark = '#a6a6a6';
+  const collar = '#f2f2f2';
+  const pants = '#bfbfbf';
+  const pantsFar = '#999999';
   const shoe = '#3a2a1a';
   const shoeFar = '#2a1d12';
-  const knee = isVal ? '#4a2f6a' : '#263055';
-  const kneeFar = isVal ? '#3b2455' : '#1c2340';
+  const knee = '#8c8c8c';
+  const kneeFar = '#737373';
 
   const headX = 13;
   const headY = 4;
@@ -543,7 +581,7 @@ function drawDashLayer(c, frame, charId, layer, variant = 0) {
     handShape(c, leadShoulder.hx - 1, leadShoulder.hy, skin, skinFar);
   }
 
-  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant, expression);
 
   if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
     c.rect(9, 20, 9, 1, pantsFar);
@@ -573,24 +611,34 @@ function drawDashLayer(c, frame, charId, layer, variant = 0) {
     limb(c, leadShoulder.x, leadShoulder.y, leadShoulder.ex, leadShoulder.ey, 4, shirt);
     c.rect(leadShoulder.ex - 1, leadShoulder.ey, 3, 1, shirtDark);
   }
+  // Body clothing details (separately tintable for customization/equipment).
+  if (layer === 'full' || layer === 'outfit_top_detail1') {
+    c.rect(12, 15, 8, 2, '#d9d9d9'); // chest stripe
+  }
+  if (layer === 'full' || layer === 'outfit_top_detail2') {
+    c.rect(15, 11, 4, 1, '#e6e6e6'); // collar detail
+    c.rect(trailShoulder.ex - 1, trailShoulder.ey, 3, 1, '#d9d9d9');
+    c.rect(leadShoulder.ex - 1, leadShoulder.ey, 3, 1, '#d9d9d9');
+  }
 
   if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, false);
 }
 
-function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHeight(frame)) {
+function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHeight(frame), expression = 'normal') {
   const isVal = charId === 'valentina';
   const crawl = frame.startsWith('crawl');
   const skin = '#f2c9a0';
   const skinFar = '#d8a878';
-  const shirt = isVal ? '#ff6fae' : '#4f7cff';
-  const shirtDark = isVal ? '#e0578f' : '#3d63d6';
-  const collar = isVal ? '#ff9fc8' : '#7fa0ff';
-  const pants = isVal ? '#5a3f8f' : '#2f3a66';
-  const pantsFar = isVal ? '#472f72' : '#232b4d';
+  // Neutral, desaturated bases so runtime outfit tints can colorize accurately.
+  const shirt = '#d9d9d9';
+  const shirtDark = '#a6a6a6';
+  const collar = '#f2f2f2';
+  const pants = '#bfbfbf';
+  const pantsFar = '#999999';
   const shoe = '#3a2a1a';
   const shoeFar = '#2a1d12';
-  const knee = isVal ? '#4a2f6a' : '#263055';
-  const kneeFar = isVal ? '#3b2455' : '#1c2340';
+  const knee = '#8c8c8c';
+  const kneeFar = '#737373';
   const gy = ch - 2; // top row of ground contact (shoes/hands rest on it)
 
   // Crouch: low side-view kneel facing right — roughly half standing height.
@@ -631,7 +679,7 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
       c.rect(22, waistY, 3, gy - waistY, skinFar);
     }
 
-    if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+    if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant, expression);
 
     if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
       // Waistband under the torso.
@@ -676,9 +724,16 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
       c.rect(34, 9, 3, 1, skin);
       handShape(c, 37, 9, skin, skinFar);
     }
+    // Body clothing details (separately tintable for customization/equipment).
+    if (layer === 'full' || layer === 'outfit_top_detail1') {
+      c.rect(22, bodyY + 2, 11, 1, '#d9d9d9'); // chest stripe
+    }
+    if (layer === 'full' || layer === 'outfit_top_detail2') {
+      c.rect(30, bodyY, 4, 1, '#e6e6e6'); // collar detail
+    }
 
     if (layer === 'full') drawNearKnee();
-    if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+    if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant, expression);
     if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, true);
     return;
   }
@@ -720,7 +775,7 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
     handShape(c, nearHandX, handY, skin, skinFar);
   }
 
-  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant);
+  if (layer === 'full' || layer === 'face') drawFaceAt(c, headX - 11, headY, frame, charId, variant, expression);
 
   if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
     // Waist band directly under the torso; legs fold below it only.
@@ -757,19 +812,61 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
   if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, true);
 }
 
-function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
+function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, expression = 'normal') {
   const pose = poseFromFrame(frame);
-  const hurt = frame === 'hurt_0';
   const dead = frame === 'dying_0' || frame === 'dead_0';
   const isVal = charId === 'valentina';
   const low = !!(pose.crouch || pose.crawl);
   const skinBase = '#f2c9a0';
-  const skin = dead ? '#d8d0e8' : hurt ? '#ffd0d0' : skinBase;
-  const shirtBase = isVal ? '#ff6fae' : '#4f7cff';
-  const pantsBase = isVal ? '#5a3f8f' : '#2f3a66';
-  const shirt = hurt ? '#ff8a8a' : shirtBase;
-  const pants = pantsBase;
+  const skin = dead ? '#d8d0e8' : skinBase;
+  // Neutral, desaturated bases so runtime outfit tints can colorize accurately.
+  const shirt = '#d9d9d9';
+  const pants = '#bfbfbf';
   const shoe = '#3a2a1a';
+
+  // Death: character sits on the ground (no hurt/damage body sprite).
+  if (dead) {
+    const sitHeadX = 10;
+    const sitHeadY = 13;
+    const sitBodyY = 21;
+    const sitBodyH = 6;
+    if (layer === 'full' || layer === 'base' || layer === 'skin') {
+      c.rect(ox + sitHeadX, sitHeadY, 10, 7, skin);
+      c.rect(ox + sitHeadX + 2, sitHeadY + 7, 6, 1, skin);
+      c.rect(ox + 8, sitBodyY, 2, 4, skin);   // left arm resting
+      c.rect(ox + 22, sitBodyY, 2, 4, skin);  // right arm resting
+      c.rect(ox + 10, 28, 10, 2, skin);       // legs/feet area base
+    }
+    if (layer === 'full' || layer === 'face') {
+      drawFaceAt(c, ox, sitHeadY, frame, charId, variant, expression);
+    }
+    if (layer === 'full' || layer === 'hair') {
+      drawHairAt(c, ox, sitHeadY, frame, charId, variant, false);
+    }
+    if (layer === 'full' || layer === 'outfit_top' || layer === 'shirt') {
+      c.rect(ox + 10, sitBodyY, 12, sitBodyH, shirt);
+      c.rect(ox + 10, sitBodyY, 12, 1, '#f2f2f2');
+      c.rect(ox + 8, sitBodyY, 2, 3, shirt);
+      c.rect(ox + 22, sitBodyY, 2, 3, shirt);
+    }
+    // Body clothing details (separately tintable for customization/equipment).
+    if (layer === 'full' || layer === 'outfit_top_detail1') {
+      c.rect(ox + 10, sitBodyY + 3, 12, 1, '#d9d9d9');
+    }
+    if (layer === 'full' || layer === 'outfit_top_detail2') {
+      c.rect(ox + 13, sitBodyY, 6, 1, '#e6e6e6');
+    }
+    if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
+      c.rect(ox + 10, 26, 12, 3, pants); // hips seated
+      c.rect(ox + 12, 28, 8, 2, pants);  // legs forward on ground
+    }
+    if (layer === 'full' || layer === 'shoes') {
+      c.rect(ox + 18, 29, 5, 2, shoe);
+      c.rect(ox + 11, 29, 5, 2, shoe);
+    }
+    return;
+  }
+
   // Unified humanoid layout (coherent with idle/walk/run): head/face stay the same,
   // only position/height change in low states; limbs/body adapt most.
   // Low states are half-height and drawn in a wider frame; feet anchored near source bottom.
@@ -782,7 +879,7 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
   const armH = lowState ? 4 : 7;
   const legTop = lowState ? 25 : 23;
   const footY = lowState ? 28 : 29;
-  const legH = lowState ? 3 : (dead ? 3 : 6);
+  const legH = lowState ? 3 : 6;
   const draw = (cond, fn) => { if (cond) fn(); };
   const armRect = (x, _y0, up, out, dy) => {
     if (up) c.rect(ox + x, bodyY - 3 + dy, 2, 8, skin);
@@ -816,7 +913,7 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
     }
   });
   draw(layer === 'full' || layer === 'face', () => {
-    drawFaceAt(c, ox + lean, headY, frame, charId, variant);
+    drawFaceAt(c, ox + lean, headY, frame, charId, variant, expression);
   });
   draw(layer === 'full' || layer === 'hair', () => {
     drawHairAt(c, ox + lean, headY, frame, charId, variant, low);
@@ -824,7 +921,7 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
   draw(layer === 'full' || layer === 'outfit_top' || layer === 'shirt', () => {
     const tx = ox + lean;
     c.rect(tx + 10, bodyY, 12, bodyH, shirt);
-    c.rect(tx + 10, bodyY, 12, 1, hurt ? '#ffaaaa' : (isVal ? '#ff9fc8' : '#7fa0ff'));
+    c.rect(tx + 10, bodyY, 12, 1, '#f2f2f2');
     // sleeves follow arm pose (same logic as standing, only position changes in low states)
     if (pose.armUpL) c.rect(tx + 8, bodyY - 1, 3, 3, shirt);
     else c.rect(tx + 8, bodyY + 1, 3, 2, shirt);
@@ -832,6 +929,15 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
     else if (pose.armOutR) c.rect(tx + 21, bodyY + 2, 3, 2, shirt);
     else c.rect(tx + 21, bodyY + 1, 3, 2, shirt);
   });
+  // Body clothing details (separately tintable for customization/equipment).
+  if (layer === 'full' || layer === 'outfit_top_detail1') {
+    const tx = ox + lean;
+    c.rect(tx + 10, bodyY + Math.max(1, Math.floor(bodyH / 2)), 12, 2, '#d9d9d9'); // chest stripe
+  }
+  if (layer === 'full' || layer === 'outfit_top_detail2') {
+    const tx = ox + lean;
+    c.rect(tx + 13, bodyY, 6, 1, '#e6e6e6'); // collar detail
+  }
   draw(layer === 'full' || layer === 'outfit_bottom' || layer === 'pants', () => {
     if (pose.climb) {
       c.rect(ox + 11, 24, 4, frame === 'climb_1' ? 5 : 4, pants);
@@ -873,7 +979,6 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0) {
     if (frame === 'shout_0') { c.rect(ox + 4, bodyY - 2, 4, 3, '#f6c44566'); c.rect(ox + 24, bodyY - 2, 4, 3, '#f6c44566'); c.rect(ox + 13, headY - 2, 6, 2, '#f6c44544'); }
     if (frame === 'fly_0' || frame === 'fly_1') c.rect(ox + 10, 28, 12, 2, frame === 'fly_1' ? '#5ef2ff77' : '#5ef2ff44');
     if (frame === 'swim_0' || frame === 'swim_1') c.rect(ox + 5, 27, 22, 2, '#4f7cff55');
-    if (frame === 'hurt_0') c.rect(ox + 24, bodyY - 2, 4, 4, '#ff9aa844');
   }
 }
 
@@ -905,7 +1010,7 @@ function cropCanvas(src, sx, sy, w, h) {
   return out;
 }
 
-function buildFrameCanvas(entity, frame, layer, variant, fw, fh) {
+function buildFrameCanvas(entity, frame, layer, variant, fw, fh, expression = 'normal') {
   const id = entity.ENTITY_ID || entity.id;
 
   // Low states (crouch/crawl): drawn natively in canonical low space and scaled.
@@ -913,7 +1018,7 @@ function buildFrameCanvas(entity, frame, layer, variant, fw, fh) {
     const ch = lowCanonicalHeight(frame);
     const low = new Canvas(LOW_FRAME_W, ch);
     const view = offsetView(low, ch - LOW_CONTENT_H);
-    drawLowLayer(view, frame, id, layer, variant, LOW_CONTENT_H);
+    drawLowLayer(view, frame, id, layer, variant, LOW_CONTENT_H, expression);
     if (fw === LOW_FRAME_W * 2 && fh === ch * 2) return low.scale2x();
     return scaleCanvas(low, fw, fh);
   }
@@ -922,20 +1027,20 @@ function buildFrameCanvas(entity, frame, layer, variant, fw, fh) {
   // four-frame contact/passing gait.
   if (typeof frame === 'string' && (frame.startsWith('walk_') || frame.startsWith('run_'))) {
     const gait = new Canvas(32, 32);
-    drawGaitLayer(gait, frame, id, layer, variant);
+    drawGaitLayer(gait, frame, id, layer, variant, expression);
     return fw === 64 && fh === 64 ? gait.scale2x() : scaleCanvas(gait, fw, fh);
   }
 
   // Dash is a single explosive lunge pose.
   if (frame === 'dash_0') {
     const dash = new Canvas(32, 32);
-    drawDashLayer(dash, frame, id, layer, variant);
+    drawDashLayer(dash, frame, id, layer, variant, expression);
     return fw === 64 && fh === 64 ? dash.scale2x() : scaleCanvas(dash, fw, fh);
   }
 
   // Draw in canonical 32x32 humanoid space, then adapt to state-specific frame size.
   const src = new Canvas(32, 32);
-  drawHumanoidLayer(src, 0, frame, id, layer, variant);
+  drawHumanoidLayer(src, 0, frame, id, layer, variant, expression);
 
   // Standing/default humanoid frame.
   if (fw === 64 && fh === 64) return src.scale2x();
@@ -956,11 +1061,11 @@ function buildFrameCanvas(entity, frame, layer, variant, fw, fh) {
   return scaleCanvas(src, fw, fh);
 }
 
-function buildMatrixSheet(entity, layer, variant = 0, layout = computeMatrixLayout(entity)) {
+function buildMatrixSheet(entity, layer, variant = 0, layout = computeMatrixLayout(entity), expression = 'normal') {
   const c = new Canvas(layout.width, layout.height);
   for (const row of layout.rows) {
     for (const frame of row.frames) {
-      const fc = buildFrameCanvas(entity, frame.name, layer, variant, row.frameW, row.frameH);
+      const fc = buildFrameCanvas(entity, frame.name, layer, variant, row.frameW, row.frameH, expression);
       for (let y = 0; y < row.frameH; y++) for (let x = 0; x < row.frameW; x++) {
         const si = (y * fc.w + x) * 4;
         if (si + 3 >= fc.data.length) continue;
@@ -983,7 +1088,7 @@ function makeRig(entity, layout) {
     states: layout.states,
     clips: HUMANOID_CLIPS,
     fallbacks: HUMANOID_FALLBACKS,
-    layers: ['base', 'face', 'hair', 'outfit_bottom', 'shoes', 'outfit_top', 'headgear', 'accessory', 'weapon'],
+    layers: ['base', 'face', 'hair', 'outfit_bottom', 'shoes', 'outfit_top', 'outfit_top_detail1', 'outfit_top_detail2', 'headgear', 'accessory', 'weapon'],
     customization: {
       variants: CUSTOMIZATION_VARIANTS,
       layer_variants: {
@@ -1005,16 +1110,19 @@ export function buildHumanoidEntity(entity) {
   const defaultFace = entity.DEFAULT_FACE ?? 0;
 
   writePng(join(dir, 'sheet.png'), buildMatrixSheet(entity, 'full', 0, layout));
-  for (const layer of ['base', 'outfit_top', 'outfit_bottom', 'shoes']) {
+  for (const layer of ['base', 'outfit_top', 'outfit_top_detail1', 'outfit_top_detail2', 'outfit_bottom', 'shoes']) {
     writePng(join(dir, 'layers', `${layer}.png`), buildMatrixSheet(entity, layer, 0, layout));
   }
   writePng(join(dir, 'layers', 'hair.png'), buildMatrixSheet(entity, 'hair', defaultHair, layout));
-  writePng(join(dir, 'layers', 'face.png'), buildMatrixSheet(entity, 'face', defaultFace, layout));
+  writePng(join(dir, 'layers', 'face.png'), buildMatrixSheet(entity, 'face', defaultFace, layout, 'normal'));
   for (let i = 0; i < CUSTOMIZATION_VARIANTS.hair_style; i++) {
     writePng(join(dir, 'layers', `hair_style_${i}.png`), buildMatrixSheet(entity, 'hair', i, layout));
   }
   for (let i = 0; i < CUSTOMIZATION_VARIANTS.face; i++) {
-    writePng(join(dir, 'layers', `face_${i}.png`), buildMatrixSheet(entity, 'face', i, layout));
+    writePng(join(dir, 'layers', `face_${i}.png`), buildMatrixSheet(entity, 'face', i, layout, 'normal'));
+    writePng(join(dir, 'layers', `face_${i}_blink.png`), buildMatrixSheet(entity, 'face', i, layout, 'blink'));
+    writePng(join(dir, 'layers', `face_${i}_pain.png`), buildMatrixSheet(entity, 'face', i, layout, 'pain'));
+    writePng(join(dir, 'layers', `face_${i}_cry.png`), buildMatrixSheet(entity, 'face', i, layout, 'cry'));
   }
 
   const rig = makeRig(entity, layout);
@@ -1065,7 +1173,7 @@ export function validateHumanoidEntity(entity, errors = []) {
   let rig = null;
   try { rig = JSON.parse(readFileSync(rigPath, 'utf8')); } catch (e) { errors.push(`entity ${id}: invalid rig.json (${e.message})`); return errors; }
 
-  for (const clip of ['idle', 'walk', 'jump_rise', 'attack_1', 'sixseven_a', 'hurt', 'dead']) {
+  for (const clip of ['idle', 'walk', 'jump_rise', 'attack_1', 'sixseven_a', 'dead']) {
     if (!rig.clips?.[clip]) errors.push(`entity ${id}: rig missing clip ${clip}`);
   }
   if (!Array.isArray(rig.layers)) errors.push(`entity ${id}: rig missing layers`);
@@ -1090,7 +1198,7 @@ export function validateHumanoidEntity(entity, errors = []) {
     }
   }
 
-  for (const rel of ['sheet.png', 'layers/base.png', 'layers/face.png', 'layers/hair.png', 'layers/outfit_top.png', 'layers/outfit_bottom.png', 'layers/shoes.png']) {
+  for (const rel of ['sheet.png', 'layers/base.png', 'layers/face.png', 'layers/hair.png', 'layers/outfit_top.png', 'layers/outfit_top_detail1.png', 'layers/outfit_top_detail2.png', 'layers/outfit_bottom.png', 'layers/shoes.png']) {
     const p = join(ROOT, 'assets/entities', id, rel);
     if (!existsSync(p)) { errors.push(`entity ${id}: missing ${rel}`); continue; }
     try {

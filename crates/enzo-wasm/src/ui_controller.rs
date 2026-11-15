@@ -74,6 +74,8 @@ pub struct UiLabels {
     pub face: String,
     pub outfit_top: String,
     pub outfit_bottom: String,
+    pub outfit_top_detail1: String,
+    pub outfit_top_detail2: String,
     pub shoes: String,
     pub main_clothing_color: String,
     pub equip: String,
@@ -190,6 +192,16 @@ impl UiLabels {
                 "Pants".to_owned()
             } else {
                 "Calça".to_owned()
+            },
+            outfit_top_detail1: if i18n.language().code() == "en" {
+                "Outfit detail 1".to_owned()
+            } else {
+                "Detalhe da roupa 1".to_owned()
+            },
+            outfit_top_detail2: if i18n.language().code() == "en" {
+                "Outfit detail 2".to_owned()
+            } else {
+                "Detalhe da roupa 2".to_owned()
             },
             shoes: if i18n.language().code() == "en" {
                 "Shoes".to_owned()
@@ -311,6 +323,8 @@ pub struct UiVisualProfile {
     pub face: u8,
     pub outfit_top: u8,
     pub outfit_bottom: u8,
+    pub outfit_top_detail1: u8,
+    pub outfit_top_detail2: u8,
     pub shoes: u8,
 }
 
@@ -439,6 +453,8 @@ fn draft_player_state(
             face: visual_profile.face,
             outfit_top: visual_profile.outfit_top,
             outfit_bottom: visual_profile.outfit_bottom,
+            outfit_top_detail1: visual_profile.outfit_top_detail1,
+            outfit_top_detail2: visual_profile.outfit_top_detail2,
             shoes: visual_profile.shoes,
         },
         health: 10.0,
@@ -534,6 +550,8 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
             face: p.visual_profile.face,
             outfit_top: p.visual_profile.outfit_top,
             outfit_bottom: p.visual_profile.outfit_bottom,
+            outfit_top_detail1: p.visual_profile.outfit_top_detail1,
+            outfit_top_detail2: p.visual_profile.outfit_top_detail2,
             shoes: p.visual_profile.shoes,
         },
         health: entity.health,

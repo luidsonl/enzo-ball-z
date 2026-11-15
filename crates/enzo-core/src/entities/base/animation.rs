@@ -165,7 +165,7 @@ impl AnimationState {
         swimming: bool,
         climbing: bool,
         crouching: bool,
-        hurt: bool,
+        _hurt: bool,
         melee_step: u8,
         melee_active: bool,
         kick_active: bool,
@@ -209,8 +209,6 @@ impl AnimationState {
 
         let action = if !alive {
             ActionPose::Dead
-        } else if hurt {
-            ActionPose::Hurt
         } else if shout_active {
             ActionPose::Shout
         } else if cast_active {
@@ -291,17 +289,22 @@ mod tests {
     }
 
     #[test]
-    fn action_priority_prefers_damage_and_attacks() {
+    fn action_priority_prefers_attacks_and_death() {
+        // Damage feedback is expressed via facial expression, not a hurt body pose.
         let hurt = AnimationState::resolve(
-            true, 1, true, 0.0, 0.0, false, false, false, false, true, 0, true, false, false, true,
-            None, 0.0,
+            true, 1, true, 0.0, 0.0, false, false, false, false, true, 0, false, false, false,
+            false, None, 0.0,
         );
-        assert_eq!(hurt.action, ActionPose::Hurt);
-        let melee = AnimationState::resolve(
-            true, 1, true, 0.0, 0.0, false, false, false, false, false, 2, true, false, false,
-            true, None, 0.0,
+        assert_eq!(hurt.action, ActionPose::None);
+        assert_eq!(hurt.pose, LocomotionPose::Idle);
+
+        // Combat actions still take priority over locomotion while damaged.
+        let melee_while_hurt = AnimationState::resolve(
+            true, 1, true, 0.0, 0.0, false, false, false, false, true, 2, true, false, false,
+            false, None, 0.0,
         );
-        assert_eq!(melee.action, ActionPose::Melee(2));
+        assert_eq!(melee_while_hurt.action, ActionPose::Melee(2));
+
         let dead = AnimationState::resolve(
             false, 1, true, 0.0, 0.0, false, false, false, false, false, 0, false, false, false,
             false, None, 0.0,

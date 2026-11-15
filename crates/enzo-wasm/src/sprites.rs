@@ -154,16 +154,52 @@ impl Sprites {
         self.assets.get_or_request(&path)
     }
 
-    fn profile_face_texture(&self, character: &str, profile: VisualProfile) -> Option<Texture2D> {
-        let path = format!(
-            "assets/entities/{character}/layers/face_{}.png",
-            profile.face % 8
-        );
-        self.assets.get_or_request(&path)
+    fn profile_face_texture(
+        &self,
+        character: &str,
+        profile: VisualProfile,
+        expression: &str,
+    ) -> Option<Texture2D> {
+        let style = profile.face % 8;
+        let path = match expression {
+            "blink" => format!("assets/entities/{character}/layers/face_{style}_blink.png"),
+            "pain" => format!("assets/entities/{character}/layers/face_{style}_pain.png"),
+            "cry" => format!("assets/entities/{character}/layers/face_{style}_cry.png"),
+            _ => format!("assets/entities/{character}/layers/face_{style}.png"),
+        };
+        self.assets.get_or_request(&path).or_else(|| {
+            self.assets.get_or_request(&format!(
+                "assets/entities/{character}/layers/face_{style}.png"
+            ))
+        })
+    }
+
+    fn face_expression(dead: bool, iframes: f32, time: f32, seed: u32) -> &'static str {
+        if dead {
+            return "cry";
+        }
+        if iframes > 0.0 {
+            // Cry sometimes on hit, otherwise pain.
+            let bucket = ((time * 13.0) as u32).wrapping_add(seed.wrapping_mul(2654435761));
+            return if bucket.is_multiple_of(3) {
+                "cry"
+            } else {
+                "pain"
+            };
+        }
+        // Occasional blink.
+        let t = time + seed as f32 * 0.37;
+        let cycle = (t * 0.9).fract();
+        if cycle > 0.94 {
+            "blink"
+        } else {
+            "normal"
+        }
     }
 
     /// Resolves a humanoid frame and draws it anchored to entity feet (bottom-center).
     /// Returns the resolved frame (for aligned overlays) if drawn from a ready rig.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_enzo_rig(
         &self,
         clip: &str,
@@ -172,10 +208,14 @@ impl Sprites {
         flip_x: bool,
         tint: Color,
         profile: VisualProfile,
+        dead: bool,
+        iframes: f32,
+        seed: u32,
     ) -> Option<ResolvedFrame> {
         self.ensure_rig(&self.enzo_rig);
         let hair = self.profile_hair_texture("enzo", profile);
-        let face = self.profile_face_texture("enzo", profile);
+        let expression = Self::face_expression(dead, iframes, time, seed);
+        let face = self.profile_face_texture("enzo", profile, expression);
         let r = self.enzo_rig.borrow();
         if let RigState::Ready(rig) = &r.state {
             if let Some(frame) = rig.resolve_frame(clip, time) {
@@ -199,6 +239,7 @@ impl Sprites {
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_valentina_rig(
         &self,
         clip: &str,
@@ -207,10 +248,14 @@ impl Sprites {
         flip_x: bool,
         tint: Color,
         profile: VisualProfile,
+        dead: bool,
+        iframes: f32,
+        seed: u32,
     ) -> Option<ResolvedFrame> {
         self.ensure_rig(&self.valentina_rig);
         let hair = self.profile_hair_texture("valentina", profile);
-        let face = self.profile_face_texture("valentina", profile);
+        let expression = Self::face_expression(dead, iframes, time, seed);
+        let face = self.profile_face_texture("valentina", profile, expression);
         let r = self.valentina_rig.borrow();
         if let RigState::Ready(rig) = &r.state {
             if let Some(frame) = rig.resolve_frame(clip, time) {

@@ -74,9 +74,10 @@ const tabs = computed(() => [
   ["items", labels.value.inventory || "Items", false],
 ]);
 
-const SKIN_COLORS = ["#f2c9a0","#e3b07a","#f5d0b5","#c68642","#e8c39e","#d9a066","#f0c8a0","#b97a56"];
-const HAIR_COLORS = ["#5a3a22","#33241c","#d9b85c","#8c332e","#c0c5d9","#5c8cd9","#3a2f2a","#7a4a2a"];
-const CLOTH_COLORS = ["#4f7cff","#ff6fae","#67d86b","#f2c94c","#9b6bff","#ff8a4c","#5ce1e6","#e8eefc"];
+const SKIN_COLORS = ["#f6d7b0", "#efc89a", "#ddb07a", "#c89262", "#a8744c", "#86583a", "#f0e0c8", "#f2b8a8"];
+// Keep in sync with runtime tints in crates/enzo-wasm/src/rig.rs
+const HAIR_COLORS = ["#5a3a22", "#1f1a1a", "#5c3d29", "#d1ad4d", "#9e3830", "#c7ccd9", "#4d85e0", "#b861d1"];
+const CLOTH_COLORS = ["#4f7cff", "#4f84ff", "#f274a8", "#4dc773", "#f2b847", "#e6594d", "#8c73d9", "#c7ccd9"];
 
 const CUSTOM_SECTIONS = [
   { titleKey: "character", fields: [] },
@@ -88,6 +89,8 @@ const CUSTOM_SECTIONS = [
   { titleKey: "face", fields: [{ code: 3, key: "face", max: 7, kind: "style" }] },
   { titleKey: "outfit", fields: [
     { code: 4, key: "outfit_top", labelKey: "outfit_top", max: 7, kind: "color", palette: CLOTH_COLORS },
+    { code: 7, key: "outfit_top_detail1", labelKey: "outfit_top_detail1", max: 7, kind: "color", palette: CLOTH_COLORS },
+    { code: 8, key: "outfit_top_detail2", labelKey: "outfit_top_detail2", max: 7, kind: "color", palette: CLOTH_COLORS },
     { code: 5, key: "outfit_bottom", labelKey: "outfit_bottom", max: 7, kind: "color", palette: CLOTH_COLORS },
   ]},
   { titleKey: "shoes", fields: [{ code: 6, key: "shoes", max: 7, kind: "style" }] },

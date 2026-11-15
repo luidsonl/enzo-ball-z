@@ -328,6 +328,20 @@ function isSelectedColor(fieldKey, value) {
             </div>
 
             <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.outfit_top_detail1 || 'Outfit detail 1' }}</div>
+              <div class="dom-option-buttons dom-swatch-row">
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'cd1'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top_detail1', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top_detail1||'Detail 1') + ' ' + (i+1)" @click.prevent.stop="setProfileField(7, i)" />
+              </div>
+            </div>
+
+            <div class="dom-option-row">
+              <div class="dom-option-label">{{ labels.outfit_top_detail2 || 'Outfit detail 2' }}</div>
+              <div class="dom-option-buttons dom-swatch-row">
+                <button v-for="(c, i) in CLOTH_COLORS" :key="'cd2'+i" type="button" class="dom-swatch" :class="{ selected: isSelectedColor('outfit_top_detail2', i) }" :style="{ background: c }" :aria-label="(labels.outfit_top_detail2||'Detail 2') + ' ' + (i+1)" @click.prevent.stop="setProfileField(8, i)" />
+              </div>
+            </div>
+
+            <div class="dom-option-row">
               <div class="dom-option-label">{{ labels.face || 'Face' }}: {{ (profileValue('face') ?? 0) + 1 }}</div>
               <div class="dom-option-buttons">
                 <button type="button" class="dom-btn small" @click.prevent.stop="cycle('face', 3, 7, -1)">−</button>

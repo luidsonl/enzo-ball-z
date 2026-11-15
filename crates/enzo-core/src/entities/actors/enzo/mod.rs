@@ -27,7 +27,6 @@ pub mod visual {
         "attack_2",
         "attack_3",
         "cast",
-        "hurt",
         "sixseven_6",
         "sixseven_7",
     ];

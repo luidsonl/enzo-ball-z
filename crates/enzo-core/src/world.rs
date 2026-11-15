@@ -880,6 +880,8 @@ mod tests {
             hair_color: 1,
             face: 2,
             outfit_top: 1,
+            outfit_top_detail1: 4,
+            outfit_top_detail2: 6,
             outfit_bottom: 1,
             shoes: 2,
         };

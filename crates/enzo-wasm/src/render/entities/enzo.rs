@@ -42,7 +42,17 @@ pub fn draw(
 
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
-    let frame = sprites.draw_enzo_rig(clip, time, foot, flip, tint, player.visual_profile);
+    let frame = sprites.draw_enzo_rig(
+        clip,
+        time,
+        foot,
+        flip,
+        tint,
+        player.visual_profile,
+        anim.is_dead(),
+        entity.iframes,
+        entity.id.0,
+    );
     if let Some(frame) = frame {
         let dest = frame.dest_for_foot(foot.x, foot.y);
         compositor::draw_equipped_layers_rig(sprites, player, Some(frame.source), dest, flip, tint);

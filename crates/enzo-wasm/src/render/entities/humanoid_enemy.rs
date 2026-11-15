@@ -29,12 +29,34 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
     let flip = entity.facing < 0;
     let clip = clip_name(anim);
     let profile = entity.visual_profile;
+    let dead = anim.is_dead();
+    let seed = entity.id.0;
     match character {
         PlayableCharacter::Valentina => {
-            let _ = sprites.draw_valentina_rig(clip, time, foot, flip, tint, profile);
+            let _ = sprites.draw_valentina_rig(
+                clip,
+                time,
+                foot,
+                flip,
+                tint,
+                profile,
+                dead,
+                entity.iframes,
+                seed,
+            );
         }
         PlayableCharacter::Enzo => {
-            let _ = sprites.draw_enzo_rig(clip, time, foot, flip, tint, profile);
+            let _ = sprites.draw_enzo_rig(
+                clip,
+                time,
+                foot,
+                flip,
+                tint,
+                profile,
+                dead,
+                entity.iframes,
+                seed,
+            );
         }
     }
 
