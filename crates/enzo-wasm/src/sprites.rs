@@ -334,6 +334,7 @@ impl Sprites {
         dest: Rect,
         flip_x: bool,
         tint: Color,
+        profile: VisualProfile,
     ) {
         let Some(src) = source else {
             return;
@@ -347,7 +348,14 @@ impl Sprites {
         }
         let overlay = format!("assets/items/{}/layers/humanoid_overlay.png", kind.id());
         if let Some(tex) = self.assets.get_optional(&overlay) {
-            crate::rig::draw_sheet_tex(&tex, src, dest, flip_x, tint);
+            // Secondary/detail color is applied directly to 67-themed accessories.
+            let draw_tint = match kind {
+                ItemKind::Sword67 | ItemKind::Cap67 | ItemKind::Shirt67 | ItemKind::Sneakers67 => {
+                    crate::rig::clothing_tint(profile.outfit_top_detail2, tint)
+                }
+                _ => tint,
+            };
+            crate::rig::draw_sheet_tex(&tex, src, dest, flip_x, draw_tint);
             return;
         }
         if kind.data().slot().is_some() {

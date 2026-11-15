@@ -527,15 +527,6 @@ function drawGaitLayer(c, frame, charId, layer, variant = 0, expression = 'norma
     c.rect(nearShoulderX, shoulderY, 2, 3, shirt);
     c.rect(nearShoulderX, shoulderY + 2, 2, 1, shirtDark);
   }
-  // Body clothing details (separately tintable for customization/equipment).
-  if (layer === 'full' || layer === 'outfit_top_detail1') {
-    c.rect(torsoX + 1, torsoY + 4, torsoW - 2, 2, '#d9d9d9'); // chest stripe
-  }
-  if (layer === 'full' || layer === 'outfit_top_detail2') {
-    c.rect(torsoX + 4, torsoY, 4, 1, '#e6e6e6'); // collar detail
-    c.rect(farShoulderX, shoulderY + 2, 2, 1, '#d9d9d9');
-    c.rect(nearShoulderX, shoulderY + 2, 2, 1, '#d9d9d9');
-  }
 
   if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, false);
 }
@@ -610,15 +601,6 @@ function drawDashLayer(c, frame, charId, layer, variant = 0, expression = 'norma
     c.rect(6, 20, 2, 1, shirtDark);
     limb(c, leadShoulder.x, leadShoulder.y, leadShoulder.ex, leadShoulder.ey, 4, shirt);
     c.rect(leadShoulder.ex - 1, leadShoulder.ey, 3, 1, shirtDark);
-  }
-  // Body clothing details (separately tintable for customization/equipment).
-  if (layer === 'full' || layer === 'outfit_top_detail1') {
-    c.rect(12, 15, 8, 2, '#d9d9d9'); // chest stripe
-  }
-  if (layer === 'full' || layer === 'outfit_top_detail2') {
-    c.rect(15, 11, 4, 1, '#e6e6e6'); // collar detail
-    c.rect(trailShoulder.ex - 1, trailShoulder.ey, 3, 1, '#d9d9d9');
-    c.rect(leadShoulder.ex - 1, leadShoulder.ey, 3, 1, '#d9d9d9');
   }
 
   if (layer === 'full' || layer === 'hair') drawHairAt(c, headX - 11, headY, frame, charId, variant, false);
@@ -723,13 +705,6 @@ function drawLowLayer(c, frame, charId, layer, variant = 0, ch = lowCanonicalHei
       c.rect(33, 7, 2, 2, skin);
       c.rect(34, 9, 3, 1, skin);
       handShape(c, 37, 9, skin, skinFar);
-    }
-    // Body clothing details (separately tintable for customization/equipment).
-    if (layer === 'full' || layer === 'outfit_top_detail1') {
-      c.rect(22, bodyY + 2, 11, 1, '#d9d9d9'); // chest stripe
-    }
-    if (layer === 'full' || layer === 'outfit_top_detail2') {
-      c.rect(30, bodyY, 4, 1, '#e6e6e6'); // collar detail
     }
 
     if (layer === 'full') drawNearKnee();
@@ -849,13 +824,6 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, expression 
       c.rect(ox + 8, sitBodyY, 2, 3, shirt);
       c.rect(ox + 22, sitBodyY, 2, 3, shirt);
     }
-    // Body clothing details (separately tintable for customization/equipment).
-    if (layer === 'full' || layer === 'outfit_top_detail1') {
-      c.rect(ox + 10, sitBodyY + 3, 12, 1, '#d9d9d9');
-    }
-    if (layer === 'full' || layer === 'outfit_top_detail2') {
-      c.rect(ox + 13, sitBodyY, 6, 1, '#e6e6e6');
-    }
     if (layer === 'full' || layer === 'outfit_bottom' || layer === 'pants') {
       c.rect(ox + 10, 26, 12, 3, pants); // hips seated
       c.rect(ox + 12, 28, 8, 2, pants);  // legs forward on ground
@@ -929,15 +897,6 @@ function drawHumanoidLayer(c, ox, frame, charId, layer, variant = 0, expression 
     else if (pose.armOutR) c.rect(tx + 21, bodyY + 2, 3, 2, shirt);
     else c.rect(tx + 21, bodyY + 1, 3, 2, shirt);
   });
-  // Body clothing details (separately tintable for customization/equipment).
-  if (layer === 'full' || layer === 'outfit_top_detail1') {
-    const tx = ox + lean;
-    c.rect(tx + 10, bodyY + Math.max(1, Math.floor(bodyH / 2)), 12, 2, '#d9d9d9'); // chest stripe
-  }
-  if (layer === 'full' || layer === 'outfit_top_detail2') {
-    const tx = ox + lean;
-    c.rect(tx + 13, bodyY, 6, 1, '#e6e6e6'); // collar detail
-  }
   draw(layer === 'full' || layer === 'outfit_bottom' || layer === 'pants', () => {
     if (pose.climb) {
       c.rect(ox + 11, 24, 4, frame === 'climb_1' ? 5 : 4, pants);
@@ -1088,7 +1047,7 @@ function makeRig(entity, layout) {
     states: layout.states,
     clips: HUMANOID_CLIPS,
     fallbacks: HUMANOID_FALLBACKS,
-    layers: ['base', 'face', 'hair', 'outfit_bottom', 'shoes', 'outfit_top', 'outfit_top_detail1', 'outfit_top_detail2', 'headgear', 'accessory', 'weapon'],
+    layers: ['base', 'face', 'hair', 'outfit_bottom', 'shoes', 'outfit_top', 'headgear', 'accessory', 'weapon'],
     customization: {
       variants: CUSTOMIZATION_VARIANTS,
       layer_variants: {
@@ -1110,7 +1069,7 @@ export function buildHumanoidEntity(entity) {
   const defaultFace = entity.DEFAULT_FACE ?? 0;
 
   writePng(join(dir, 'sheet.png'), buildMatrixSheet(entity, 'full', 0, layout));
-  for (const layer of ['base', 'outfit_top', 'outfit_top_detail1', 'outfit_top_detail2', 'outfit_bottom', 'shoes']) {
+  for (const layer of ['base', 'outfit_top', 'outfit_bottom', 'shoes']) {
     writePng(join(dir, 'layers', `${layer}.png`), buildMatrixSheet(entity, layer, 0, layout));
   }
   writePng(join(dir, 'layers', 'hair.png'), buildMatrixSheet(entity, 'hair', defaultHair, layout));
@@ -1198,7 +1157,7 @@ export function validateHumanoidEntity(entity, errors = []) {
     }
   }
 
-  for (const rel of ['sheet.png', 'layers/base.png', 'layers/face.png', 'layers/hair.png', 'layers/outfit_top.png', 'layers/outfit_top_detail1.png', 'layers/outfit_top_detail2.png', 'layers/outfit_bottom.png', 'layers/shoes.png']) {
+  for (const rel of ['sheet.png', 'layers/base.png', 'layers/face.png', 'layers/hair.png', 'layers/outfit_top.png', 'layers/outfit_bottom.png', 'layers/shoes.png']) {
     const p = join(ROOT, 'assets/entities', id, rel);
     if (!existsSync(p)) { errors.push(`entity ${id}: missing ${rel}`); continue; }
     try {

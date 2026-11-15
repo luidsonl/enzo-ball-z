@@ -38,7 +38,14 @@ pub fn draw_equipped_layers_rig(
         let Some(item) = player.equipped[slot.index()].as_ref() else {
             continue;
         };
-        sprites.draw_item_equipped_rig(item.kind, source, dest, flip_x, tint);
+        sprites.draw_item_equipped_rig(
+            item.kind,
+            source,
+            dest,
+            flip_x,
+            tint,
+            player.visual_profile,
+        );
     }
 }
 

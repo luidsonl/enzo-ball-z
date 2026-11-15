@@ -268,8 +268,6 @@ pub struct HumanoidRig {
     pub face: Option<Texture2D>,
     pub hair: Option<Texture2D>,
     pub outfit_top: Option<Texture2D>,
-    pub outfit_top_detail1: Option<Texture2D>,
-    pub outfit_top_detail2: Option<Texture2D>,
     pub outfit_bottom: Option<Texture2D>,
     pub shoes: Option<Texture2D>,
 }
@@ -315,14 +313,6 @@ impl HumanoidRig {
             hair: opt_texture(&format!("assets/entities/{entity_id}/layers/hair.png")).await,
             outfit_top: opt_texture(&format!(
                 "assets/entities/{entity_id}/layers/outfit_top.png"
-            ))
-            .await,
-            outfit_top_detail1: opt_texture(&format!(
-                "assets/entities/{entity_id}/layers/outfit_top_detail1.png"
-            ))
-            .await,
-            outfit_top_detail2: opt_texture(&format!(
-                "assets/entities/{entity_id}/layers/outfit_top_detail2.png"
             ))
             .await,
             outfit_bottom: opt_texture(&format!(
@@ -465,8 +455,6 @@ impl HumanoidRig {
         let skin = skin_tint(profile.skin_tone, tint);
         let hair = hair_tint(profile.hair_color, tint);
         let outfit_main = clothing_tint(profile.outfit_top, tint);
-        let outfit_detail1 = clothing_tint(profile.outfit_top_detail1, tint);
-        let outfit_detail2 = clothing_tint(profile.outfit_top_detail2, tint);
         let outfit_bottom = clothing_tint(profile.outfit_bottom, tint);
         let detail_color = clothing_tint(profile.shoes, tint);
         if let Some(tex) = &self.base {
@@ -487,12 +475,6 @@ impl HumanoidRig {
         }
         if let Some(tex) = &self.outfit_top {
             draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_main);
-        }
-        if let Some(tex) = &self.outfit_top_detail1 {
-            draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_detail1);
-        }
-        if let Some(tex) = &self.outfit_top_detail2 {
-            draw_sheet_tex(tex, source, draw_dest, flip_x, outfit_detail2);
         }
         let hair_tex = hair_override.or(self.hair.as_ref());
         if let Some(tex) = hair_tex {
@@ -630,8 +612,6 @@ fn embedded_manifest(entity_id: &str) -> RigManifest {
             "outfit_bottom".into(),
             "shoes".into(),
             "outfit_top".into(),
-            "outfit_top_detail1".into(),
-            "outfit_top_detail2".into(),
         ],
     }
 }
@@ -714,7 +694,7 @@ fn hair_tint(id: u8, base: Color) -> Color {
     }
 }
 
-fn clothing_tint(id: u8, base: Color) -> Color {
+pub(crate) fn clothing_tint(id: u8, base: Color) -> Color {
     // Target colors applied over neutral/desaturated outfit sprites (multiply tint).
     // Keep in sync with customization swatches in the web UI.
     let a = base.a;

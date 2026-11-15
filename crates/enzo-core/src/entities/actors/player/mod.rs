@@ -56,11 +56,13 @@ impl PlayableCharacter {
 /// Stable visual customization IDs (no image paths in core).
 /// Values are interpreted by the client/asset manifest.
 /// Layers: skin/body, face, hair (style+color), outfit top/shirt, outfit bottom/pants, shoes.
+///
 /// Clothing colors follow a 3-color logic:
 /// - `outfit_top`: predominant color for the top clothing.
 /// - `outfit_bottom`: predominant color for the pants.
 /// - `shoes`: detail/accent color (shoes and other details).
-/// Additional top-detail fields may exist for compatibility/future equipment overlays.
+///
+/// Additional top-detail fields may exist for compatibility/future equipment tinting.
 /// Equipment items may override or add layers at render time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
