@@ -56,6 +56,10 @@ impl PlayableCharacter {
 /// Stable visual customization IDs (no image paths in core).
 /// Values are interpreted by the client/asset manifest.
 /// Layers: skin/body, face, hair (style+color), outfit top/shirt, outfit bottom/pants, shoes.
+/// Clothing colors follow a 3-color logic:
+/// - `outfit_top`: predominant color for the top clothing.
+/// - `outfit_bottom`: predominant color for the pants.
+/// - `shoes`: detail/accent color (shoes and other details).
 /// Equipment items may override or add layers at render time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -68,10 +72,13 @@ pub struct VisualProfile {
     pub hair_color: u8,
     #[cfg_attr(feature = "serde", serde(default))]
     pub face: u8,
+    /// Predominant top clothing color (palette index).
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_top: u8,
+    /// Predominant pants color (palette index).
     #[cfg_attr(feature = "serde", serde(default))]
     pub outfit_bottom: u8,
+    /// Detail/accent color (palette index), applied to shoes/details.
     #[cfg_attr(feature = "serde", serde(default))]
     pub shoes: u8,
 }
@@ -113,13 +120,13 @@ impl VisualProfile {
 
     pub fn with_field(mut self, field: u8, value: u8) -> Self {
         match field {
-            Self::FIELD_SKIN_TONE => self.skin_tone = value,
+            Self::FIELD_SKIN_TONE => self.skin_tone = value.min(7),
             Self::FIELD_HAIR_STYLE => self.hair_style = value.min(7),
-            Self::FIELD_HAIR_COLOR => self.hair_color = value,
+            Self::FIELD_HAIR_COLOR => self.hair_color = value.min(7),
             Self::FIELD_FACE => self.face = value.min(7),
-            Self::FIELD_OUTFIT_TOP => self.outfit_top = value,
-            Self::FIELD_OUTFIT_BOTTOM => self.outfit_bottom = value,
-            Self::FIELD_SHOES => self.shoes = value,
+            Self::FIELD_OUTFIT_TOP => self.outfit_top = value.min(7),
+            Self::FIELD_OUTFIT_BOTTOM => self.outfit_bottom = value.min(7),
+            Self::FIELD_SHOES => self.shoes = value.min(7),
             _ => {}
         }
         self

@@ -182,24 +182,24 @@ impl UiLabels {
                 "Rosto".to_owned()
             },
             outfit_top: if i18n.language().code() == "en" {
-                "Shirt".to_owned()
+                "Top color".to_owned()
             } else {
-                "Camisa".to_owned()
+                "Cor da parte de cima".to_owned()
             },
             outfit_bottom: if i18n.language().code() == "en" {
-                "Pants".to_owned()
+                "Pants color".to_owned()
             } else {
-                "Calça".to_owned()
+                "Cor da calça".to_owned()
             },
             shoes: if i18n.language().code() == "en" {
-                "Shoes".to_owned()
+                "Details color".to_owned()
             } else {
-                "Tênis".to_owned()
+                "Cor dos detalhes".to_owned()
             },
             main_clothing_color: if i18n.language().code() == "en" {
-                "Main clothing color".to_owned()
+                "Clothing colors".to_owned()
             } else {
-                "Cor principal da roupa".to_owned()
+                "Cores das roupas".to_owned()
             },
             equip: if i18n.language().code() == "en" {
                 "Equip".to_owned()
