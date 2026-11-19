@@ -138,9 +138,15 @@ function act(code, a = 0, b = 0, c = 0) {
 }
 
 function setScale(delta) {
+  if (settings.value?.interface_scale_auto) return;
   const current = Number(settings.value.interface_scale ?? 1);
   const pct = Math.round(Math.min(200, Math.max(75, (current + delta) * 100)));
   act(UiAction.SetInterfaceScale, Math.floor(pct / 256), pct % 256);
+}
+
+function toggleInterfaceScaleAuto() {
+  const enabled = !settings.value?.interface_scale_auto;
+  act(UiAction.SetInterfaceScaleAuto, enabled ? 1 : 0, 0);
 }
 
 const SKIN_COLORS = ["#f6d7b0", "#efc89a", "#ddb07a", "#c89262", "#a8744c", "#86583a", "#f0e0c8", "#f2b8a8"];
@@ -251,8 +257,17 @@ function isSelectedColor(fieldKey, value) {
           <div class="dom-option-row">
             <div class="dom-option-label">{{ labels.interface_size }}: {{ Math.round((settings.interface_scale || 1) * 100) }}%</div>
             <div class="dom-option-buttons">
-              <button type="button" class="dom-btn small" @click.prevent.stop="setScale(-0.25)">-</button>
-              <button type="button" class="dom-btn small" @click.prevent.stop="setScale(0.25)">+</button>
+              <label class="dom-btn small" :class="{ selected: !!settings.interface_scale_auto }" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                <input
+                  type="checkbox"
+                  :checked="!!settings.interface_scale_auto"
+                  @change.prevent.stop="toggleInterfaceScaleAuto()"
+                  style="pointer-events:auto"
+                />
+                <span>{{ labels.auto || (settings.language === 'en' ? 'Auto' : 'Automático') }}</span>
+              </label>
+              <button type="button" class="dom-btn small" :disabled="!!settings.interface_scale_auto" @click.prevent.stop="setScale(-0.25)">-</button>
+              <button type="button" class="dom-btn small" :disabled="!!settings.interface_scale_auto" @click.prevent.stop="setScale(0.25)">+</button>
             </div>
           </div>
 

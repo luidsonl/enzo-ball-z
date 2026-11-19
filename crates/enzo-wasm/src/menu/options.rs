@@ -12,7 +12,7 @@ use crate::ui_bridge;
 
 pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Option<MenuEvent> {
     let width = (screen_width() * 0.62).clamp(380.0 * ui, 560.0 * ui);
-    let height = (screen_height() * 0.74).clamp(430.0 * ui, 560.0 * ui);
+    let height = (screen_height() * 0.76).clamp(450.0 * ui, 590.0 * ui);
     let x = (screen_width() - width) * 0.5;
     let y = (screen_height() - height) * 0.5;
 
@@ -73,20 +73,45 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
         rgba(206, 212, 236, 230),
     );
 
-    let minus = Rect::new(button_x, y + 256.0 * ui, 46.0 * ui, button_h);
+    let auto_scale = save::load_interface_scale_auto();
+    let auto_label = if auto_scale {
+        format!("[x] {}", i18n.t(Text::MobileControlsAuto))
+    } else {
+        format!("[ ] {}", i18n.t(Text::MobileControlsAuto))
+    };
+    let auto_rect = Rect::new(button_x, y + 252.0 * ui, button_w, 36.0 * ui);
+    if ui::button(
+        pointer,
+        auto_rect,
+        &auto_label,
+        ui,
+        true,
+        if auto_scale { GOLD } else { ui::STEEL },
+    ) {
+        let new_auto = !auto_scale;
+        let _ = save::store_interface_scale_auto(new_auto);
+        if !new_auto {
+            let scale = ui::interface_scale();
+            let _ = save::store_interface_scale(scale);
+        }
+    }
+
+    let minus = Rect::new(button_x, y + 296.0 * ui, 46.0 * ui, button_h);
     let plus = Rect::new(
         button_x + button_w - 46.0 * ui,
-        y + 256.0 * ui,
+        y + 296.0 * ui,
         46.0 * ui,
         button_h,
     );
 
-    if ui::button(pointer, minus, "-", ui, true, ui::STEEL) {
+    if ui::button(pointer, minus, "-", ui, !auto_scale, ui::STEEL) {
+        let _ = save::store_interface_scale_auto(false);
         let new_scale = (ui::interface_scale() - 0.25).clamp(0.75, 2.0);
         ui::set_interface_scale(new_scale);
         let _ = save::store_interface_scale(new_scale);
     }
-    if ui::button(pointer, plus, "+", ui, true, ui::STEEL) {
+    if ui::button(pointer, plus, "+", ui, !auto_scale, ui::STEEL) {
+        let _ = save::store_interface_scale_auto(false);
         let new_scale = (ui::interface_scale() + 0.25).clamp(0.75, 2.0);
         ui::set_interface_scale(new_scale);
         let _ = save::store_interface_scale(new_scale);
@@ -96,15 +121,19 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     ui::center_text(
         &size_text,
         x + width * 0.5,
-        y + 278.0 * ui,
+        y + 318.0 * ui,
         (18.0 * ui).max(14.0),
-        GOLD,
+        if auto_scale {
+            rgba(170, 180, 210, 230)
+        } else {
+            GOLD
+        },
     );
 
     ui::center_text(
         i18n.t(Text::MobileControls),
         x + width * 0.5,
-        y + 332.0 * ui,
+        y + 366.0 * ui,
         (15.0 * ui).max(11.0),
         rgba(206, 212, 236, 230),
     );
@@ -119,7 +148,7 @@ pub(super) fn draw(pointer: Pointer, i18n: &mut I18n, ui: f32, _time: f32) -> Op
     for (index, (mode, label)) in modes.iter().copied().enumerate() {
         let rect = Rect::new(
             button_x + index as f32 * (seg_w + 8.0 * ui),
-            y + 350.0 * ui,
+            y + 384.0 * ui,
             seg_w,
             40.0 * ui,
         );

@@ -202,9 +202,24 @@ impl Menu {
                 None
             }
             UiAction::SetInterfaceScale { percent } => {
+                let _ = save::store_interface_scale_auto(false);
                 let scale = (percent as f32 / 100.0).clamp(0.75, 2.0);
                 crate::ui::set_interface_scale(scale);
                 let _ = save::store_interface_scale(scale);
+                None
+            }
+            UiAction::SetInterfaceScaleAuto { enabled } => {
+                let _ = save::store_interface_scale_auto(enabled);
+                if !enabled {
+                    let scale = save::load_interface_scale();
+                    crate::ui::set_interface_scale(scale);
+                }
+                // When enabling auto, runtime scale is applied by the web/UI layer
+                // (device-dependent 100% mobile / 125% desktop). Rust falls back to
+                // 125% until the runtime scale is synced.
+                if enabled && save::load_stored_interface_scale().is_none() {
+                    crate::ui::set_interface_scale(1.25);
+                }
                 None
             }
             UiAction::SetPlayableCharacter { character } => {

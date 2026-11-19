@@ -12,9 +12,11 @@ import {
   loadoutClear,
   uiAction,
 } from "./bridge/bridge.js";
+import { syncInterfaceScale } from "./lib/mobile.js";
 import { startStatePolling } from "./state/uiState.js";
 
 createApp(App).mount("#dom-ui");
+syncInterfaceScale();
 startStatePolling(150);
 
 // Compatibility surface for web tests/debugging and external integrations.

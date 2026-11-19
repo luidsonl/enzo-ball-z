@@ -246,6 +246,7 @@ pub struct UiSettings {
     pub language: String,
     pub mobile_controls: String,
     pub interface_scale: f32,
+    pub interface_scale_auto: bool,
 }
 
 impl UiSettings {
@@ -253,7 +254,8 @@ impl UiSettings {
         Self {
             language: save::load_language().code().to_owned(),
             mobile_controls: save::load_mobile_controls_mode().code().to_owned(),
-            interface_scale: save::load_interface_scale(),
+            interface_scale: crate::ui::interface_scale(),
+            interface_scale_auto: save::load_interface_scale_auto(),
         }
     }
 }
@@ -824,7 +826,8 @@ pub fn apply_menu_action(
         | UiAction::MenuConfirmDelete
         | UiAction::SetLanguage { .. }
         | UiAction::SetMobileControls { .. }
-        | UiAction::SetInterfaceScale { .. } => menu.apply_ui_action(action, i18n),
+        | UiAction::SetInterfaceScale { .. }
+        | UiAction::SetInterfaceScaleAuto { .. } => menu.apply_ui_action(action, i18n),
         _ => None,
     }
 }

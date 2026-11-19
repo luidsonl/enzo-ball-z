@@ -51,6 +51,7 @@ export const UiAction = Object.freeze({
   ControlsResetDefaults: 25,
   ControlsSetKey: 26,
   ControlsClearAction: 27,
+  SetInterfaceScaleAuto: 28,
 });
 
 const pendingUi = [];

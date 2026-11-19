@@ -10,6 +10,7 @@ pub const LEGACY_KEY: &str = "enzoballz.save.v1";
 pub const SLOT_KEY_PREFIX: &str = "enzoballz.save.slot";
 pub const LANGUAGE_KEY: &str = "enzoballz.language";
 pub const INTERFACE_SCALE_KEY: &str = "enzoballz.interface_scale";
+pub const INTERFACE_SCALE_AUTO_KEY: &str = "enzoballz.interface_scale_auto";
 pub const MOBILE_CONTROLS_KEY: &str = "enzoballz.mobile_controls";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -125,14 +126,19 @@ pub fn store_language(language: Language) -> Result<(), String> {
     write_key(LANGUAGE_KEY, language.code())
 }
 
+pub fn load_stored_interface_scale() -> Option<f32> {
+    read_key(INTERFACE_SCALE_KEY).and_then(|raw| {
+        raw.parse::<f32>()
+            .ok()
+            .filter(|&v| (0.75..=2.0).contains(&v))
+    })
+}
+
+/// Returns the user-saved interface scale, if any. Defaults to 125% when no
+/// explicit preference is stored; device-specific automatic defaults (e.g.
+/// mobile 100%) may be applied at runtime by the UI bootstrap/bridge.
 pub fn load_interface_scale() -> f32 {
-    read_key(INTERFACE_SCALE_KEY)
-        .and_then(|raw| {
-            raw.parse::<f32>()
-                .ok()
-                .filter(|&v| (0.75..=2.0).contains(&v))
-        })
-        .unwrap_or(1.25)
+    load_stored_interface_scale().unwrap_or(1.25)
 }
 
 pub fn store_interface_scale(interface_scale: f32) -> Result<(), String> {
@@ -140,6 +146,18 @@ pub fn store_interface_scale(interface_scale: f32) -> Result<(), String> {
         return Err("interface scale out of valid range".to_owned());
     }
     write_key(INTERFACE_SCALE_KEY, &interface_scale.to_string())
+}
+
+pub fn load_interface_scale_auto() -> bool {
+    match read_key(INTERFACE_SCALE_AUTO_KEY).as_deref() {
+        Some("1") | Some("true") | Some("on") => true,
+        Some("0") | Some("false") | Some("off") => false,
+        _ => load_stored_interface_scale().is_none(),
+    }
+}
+
+pub fn store_interface_scale_auto(auto: bool) -> Result<(), String> {
+    write_key(INTERFACE_SCALE_AUTO_KEY, if auto { "1" } else { "0" })
 }
 
 pub fn load_mobile_controls_mode() -> MobileControlsMode {

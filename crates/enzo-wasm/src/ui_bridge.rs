@@ -52,6 +52,9 @@ pub enum UiAction {
     SetInterfaceScale {
         percent: u16,
     },
+    SetInterfaceScaleAuto {
+        enabled: bool,
+    },
     HudAllocate {
         attribute: u8,
     },
@@ -110,6 +113,7 @@ impl UiAction {
             11 => UiAction::SetInterfaceScale {
                 percent: (a as u16) * 256 + b as u16,
             },
+            28 => UiAction::SetInterfaceScaleAuto { enabled: a != 0 },
             12 => UiAction::HudAllocate { attribute: a },
             13 => UiAction::HudConfirmLevelUp,
             14 => UiAction::HudRestart,
@@ -266,12 +270,22 @@ pub extern "C" fn enzo_set_visual_profile_field(field: u8, value: u8) {
 /// 19=equip inventory item(a=item code), 20=unequip slot(a=slot code),
 /// 21=set playable character(a=code), 22=set visual profile field(a=field,b=value),
 /// 23=open customize, 24=open controls, 25=reset controls to defaults,
-/// 26=set control key(a=input action code,b=supported key index,c=1 replace/0 add), 27=clear action keys(a=input action code)
+/// 26=set control key(a=input action code,b=supported key index,c=1 replace/0 add), 27=clear action keys(a=input action code),
+/// 28=set interface scale auto(a=1/0)
 #[no_mangle]
 pub extern "C" fn enzo_ui_action(code: u8, a: u8, b: u8, c: u8) {
     if let Some(action) = UiAction::from_ffi(code, a, b, c) {
         push_ui_action(action);
     }
+}
+
+/// Sets the effective interface scale at runtime without persisting a user preference.
+/// Used for automatic device defaults (e.g. mobile 100%, desktop 125%) when no saved
+/// preference exists.
+#[no_mangle]
+pub extern "C" fn enzo_set_interface_scale_runtime(scale_x100: u16) {
+    let scale = (scale_x100 as f32 / 100.0).clamp(0.75, 2.0);
+    crate::ui::set_interface_scale(scale);
 }
 
 thread_local! {

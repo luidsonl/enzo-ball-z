@@ -86,7 +86,11 @@ impl App {
             bindings,
         };
 
-        ui::set_interface_scale(save::load_interface_scale());
+        if save::load_interface_scale_auto() {
+            ui::set_interface_scale(1.25);
+        } else {
+            ui::set_interface_scale(save::load_interface_scale());
+        }
         ui_bridge::set_mobile_controls_mode(save::load_mobile_controls_mode().bridge_code());
 
         app
