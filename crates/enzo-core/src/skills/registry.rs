@@ -1,4 +1,4 @@
-use super::{dash, fly, jump, melee, mogging, nutella_shot, shout, SkillDef, SkillId};
+use super::{dash, fly, jump, mogging, nutella_shot, punch, shout, SkillDef, SkillId};
 
 impl SkillId {
     pub const ALL: [SkillId; 7] = [
@@ -47,7 +47,7 @@ impl SkillId {
             SkillId::Jump => &jump::DEF,
             SkillId::Dash => &dash::DEF,
             SkillId::Fly => &fly::DEF,
-            SkillId::Melee => &melee::DEF,
+            SkillId::Melee => &punch::DEF,
             SkillId::Mogging => &mogging::DEF,
             SkillId::NutellaShot => &nutella_shot::DEF,
             SkillId::Shout => &shout::DEF,

@@ -166,7 +166,7 @@ requirements and typed state (Shout/Kick are planned additions).
 ### 8.1 Punch (Melee skill)
 
 - Simple single-hit punch (no combo chain/window/finisher).
-- Cooldown: `0.30 s` (core `melee::DEF.cooldown`).
+- Cooldown: `0.30 s` (core `punch::DEF.cooldown`).
 - Damage: `1 + Strength` base, scaled by melee skill tier/ego bonuses as
   implemented (`stats.melee_damage()` with skill scaling in `skills::melee`).
   Values remain subject to the planned unified stat/damage rebalance.

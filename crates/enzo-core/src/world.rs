@@ -16,7 +16,7 @@ use crate::math::Vec2;
 use crate::mechanics::{self, Locomotion};
 use crate::progression::{self, SaveData};
 use crate::skills::{
-    melee, mogging, nutella_shot, shout, LoadoutChange, LoadoutError, LoadoutRequest,
+    mogging, nutella_shot, punch, shout, LoadoutChange, LoadoutError, LoadoutRequest,
     SkillActivation, SkillId, SkillResult, SkillTiming,
 };
 use crate::snapshot::WorldSnapshot;
@@ -552,10 +552,10 @@ impl World {
                     let Some(entity) = self.store.get_mut(entity_id) else {
                         return;
                     };
-                    let mut state = entity.skills.melee;
-                    let r = melee::activate(&mut state, act, &mut self.store, events);
+                    let mut state = entity.skills.punch;
+                    let r = punch::activate(&mut state, act, &mut self.store, events);
                     if let Some(entity) = self.store.get_mut(entity_id) {
-                        entity.skills.melee = state;
+                        entity.skills.punch = state;
                     }
                     r
                 }

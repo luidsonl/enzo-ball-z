@@ -2,9 +2,9 @@
 //!
 //! `render/world.rs` orquestra; cada skill decide como desenhar seus efeitos.
 
-pub mod melee;
 pub mod mogging;
 pub mod nutella_shot;
+pub mod punch;
 
 use enzo_core::skills::SkillId;
 use enzo_core::snapshot::{EntitySnapshot, PlayerSnapshot};
@@ -31,6 +31,6 @@ pub fn draw_player_overlays(
     player: &PlayerSnapshot,
     center: Vec2,
 ) {
-    melee::draw_overlay(sprites, entity, player, center);
+    punch::draw_overlay(sprites, entity, player, center);
     // Shout/outros overlays podem entrar aqui.
 }

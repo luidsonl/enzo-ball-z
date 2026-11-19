@@ -7,9 +7,9 @@ pub mod dash;
 pub mod fly;
 pub mod jump;
 pub mod loadout;
-pub mod melee;
 pub mod mogging;
 pub mod nutella_shot;
+pub mod punch;
 pub mod registry;
 pub mod requirements;
 pub mod shout;
@@ -258,7 +258,7 @@ pub struct Skills {
     pub jump: jump::State,
     pub dash: dash::State,
     pub fly: fly::State,
-    pub melee: melee::State,
+    pub punch: punch::State,
     pub mogging: mogging::State,
     pub nutella_shot: nutella_shot::State,
     pub shout: shout::State,
@@ -298,7 +298,7 @@ impl Skills {
             SkillId::Jump => false,
             SkillId::Dash => self.dash.is_active(),
             SkillId::Fly => self.fly.active,
-            SkillId::Melee => self.melee.anim_timer > 0.0,
+            SkillId::Melee => self.punch.anim_timer > 0.0,
             SkillId::Mogging => false,
             SkillId::NutellaShot => false,
             SkillId::Shout => self.shout.anim_timer > 0.0,
@@ -440,7 +440,7 @@ impl Skills {
         }
         self.jump.tick_timers(dt);
         self.dash.tick_timers(dt);
-        self.melee.tick(dt);
+        self.punch.tick(dt);
         self.mogging.tick(dt);
         self.nutella_shot.tick(dt);
         self.shout.tick(dt);

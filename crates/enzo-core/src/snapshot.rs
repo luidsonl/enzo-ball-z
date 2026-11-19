@@ -193,7 +193,7 @@ impl EntitySnapshot {
         let farming = entity.locomotion.sixseven.is_active();
         let sixseven_last = entity.locomotion.sixseven.last_key;
         let melee_active = entity.skills.is_active(SkillId::Melee);
-        let melee_step = entity.skills.melee.variant;
+        let melee_step = entity.skills.punch.variant;
         let flying = entity.skills.is_active(SkillId::Fly);
         let dashing = entity.skills.is_active(SkillId::Dash);
         let shout_active = entity.skills.is_active(SkillId::Shout);
@@ -360,8 +360,8 @@ impl PlayerSnapshot {
             slots,
             catalog,
             combo_window: 0.0,
-            melee_step: entity.skills.melee.variant,
-            melee_timer: entity.skills.melee.anim_timer,
+            melee_step: entity.skills.punch.variant,
+            melee_timer: entity.skills.punch.anim_timer,
         }
     }
 }
