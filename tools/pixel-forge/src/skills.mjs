@@ -1,8 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Canvas, encodePng } from './png.mjs';
 import { P } from './palette.mjs';
+import {
+  createStats,
+  fingerprint,
+  loadCache,
+  saveCache,
+  scopeCached,
+  updateScopeCache,
+  writeJsonIfChanged,
+  writePngIfChanged,
+} from './cache.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const CORE_SKILLS_PATH = join(ROOT, 'assets/definitions/generated/skills.json');
@@ -21,11 +31,6 @@ const VISUAL_HINTS = {
 function loadContract() {
   if (existsSync(CORE_SKILLS_PATH)) return JSON.parse(readFileSync(CORE_SKILLS_PATH, 'utf8'));
   return { source: 'fallback', skills: [] };
-}
-
-function writePng(absPath, canvas) {
-  mkdirSync(dirname(absPath), { recursive: true });
-  writeFileSync(absPath, encodePng(canvas));
 }
 
 function icon(bg, fg) {
@@ -358,13 +363,40 @@ function assetKindFromPath(path) {
   return name;
 }
 
-export function buildSkillAssets({ force = false } = {}) {
+export function buildSkillAssets(opts = {}) {
+  const force = opts.force ?? false;
+  const stats = opts.stats ?? createStats();
+  const cache = opts.cache ?? loadCache();
   const contract = loadContract();
   const files = [];
+  const outputs = [];
+  for (const skill of contract.skills) {
+    const declared = skill.assets || {};
+    const moduleId = skill.id.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+    const moduleDir = join(ROOT, 'assets/skills', moduleId);
+    for (const relPath of Object.values(declared)) {
+      if (!relPath) continue;
+      files.push(relPath);
+      outputs.push(join(ROOT, relPath));
+    }
+    outputs.push(join(moduleDir, 'manifest.json'));
+  }
+  const fp = fingerprint([
+    { kind: 'file', path: CORE_SKILLS_PATH },
+    { kind: 'files', paths: [
+      join(ROOT, 'tools/pixel-forge/src/skills.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/palette.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/png.mjs'),
+    ]},
+  ]);
+  if (scopeCached(cache, 'skills', fp, outputs, force)) {
+    stats.skippedScopes += 1;
+    if (!opts.cache) saveCache(cache);
+    return files;
+  }
+
   for (const skill of contract.skills) {
     const hint = VISUAL_HINTS[skill.id] || { icon: [P.stoneDark, P.stoneLight], particles: 'impact' };
-    const skillDir = join(ROOT, 'assets/skills', skill.id.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase());
-    // Use authoritative declared paths; keep per-module manifest in skill dir inferred from id.
     const declared = skill.assets || {};
     const manifestAssets = {};
     for (const [slot, relPath] of Object.entries(declared)) {
@@ -375,14 +407,13 @@ export function buildSkillAssets({ force = false } = {}) {
       if (kind === 'icon') canvas = skillIcon(skill.id, hint);
       else if (kind === 'projectile') canvas = projectile(typeof hint.entity === 'string' ? hint.entity : '#8aefff');
       else canvas = particleCanvas(kind === 'impact' ? 'impact' : kind, hint);
-      if (canvas && (force || !existsSync(abs))) writePng(abs, canvas);
-      files.push(relPath);
+      if (canvas) writePngIfChanged(abs, canvas, stats, encodePng);
       manifestAssets[slot] = basename(relPath);
     }
     const moduleId = skill.id.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
     const moduleDir = join(ROOT, 'assets/skills', moduleId);
     mkdirSync(moduleDir, { recursive: true });
-    writeFileSync(join(moduleDir, 'manifest.json'), JSON.stringify({
+    writeJsonIfChanged(join(moduleDir, 'manifest.json'), {
       framework: 'pixel-forge',
       id: moduleId,
       coreId: skill.id,
@@ -392,8 +423,11 @@ export function buildSkillAssets({ force = false } = {}) {
       activation: skill.activation,
       assets: manifestAssets,
       declaredPaths: declared,
-    }, null, 2) + '\n');
+    }, stats);
   }
+
+  updateScopeCache(cache, 'skills', fp, outputs);
+  if (!opts.cache) saveCache(cache);
   return files;
 }
 

@@ -1,9 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Canvas, encodePng } from './png.mjs';
 import { P } from './palette.mjs';
 import { HUMANOID_FRAMES } from './entities.mjs';
+import {
+  createStats,
+  fingerprint,
+  loadCache,
+  saveCache,
+  scopeCached,
+  updateScopeCache,
+  writeJsonIfChanged,
+  writePngIfChanged,
+} from './cache.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 export const CORE_ITEMS_PATH = join(ROOT, 'assets/definitions/generated/items.json');
@@ -28,11 +38,6 @@ function loadContract() {
     world: `assets/items/${id}/world.png`,
     equipped: `assets/items/${id}/equipped.png`,
   }})) };
-}
-
-function writePng(path, canvas) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, encodePng(canvas));
 }
 
 function draw67Mark(c, x, y, fg, accent) {
@@ -130,9 +135,45 @@ function humanoidOverlaySheet(kind, fg, accent = null) {
   return c;
 }
 
-export function buildItemAssets({ force = false } = {}) {
+export function buildItemAssets(opts = {}) {
+  const force = opts.force ?? false;
+  const stats = opts.stats ?? createStats();
+  const cache = opts.cache ?? loadCache();
   const contract = loadContract();
   const files = [];
+  const outputs = [];
+  for (const item of contract.items || []) {
+    const hint = VISUAL_HINTS[item.id] || { bg: '#444', fg: '#ddd', world: 'box', equipped: 'box', layer: null };
+    const visual = item.visual || {};
+    const dir = join(ROOT, 'assets/items', item.id);
+    for (const slot of ['icon', 'world', 'equipped']) {
+      const rel = visual[slot] || `assets/items/${item.id}/${slot}.png`;
+      files.push(rel);
+      outputs.push(join(ROOT, rel));
+    }
+    if (hint.layer || item.slot) {
+      const layerRel = `assets/items/${item.id}/layers/humanoid_overlay.png`;
+      files.push(layerRel);
+      outputs.push(join(ROOT, layerRel));
+    }
+    outputs.push(join(dir, 'manifest.json'));
+  }
+  const fp = fingerprint([
+    { kind: 'file', path: CORE_ITEMS_PATH },
+    { kind: 'files', paths: [
+      join(ROOT, 'tools/pixel-forge/src/items.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/entities.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/entities/humanoid.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/palette.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/png.mjs'),
+    ]},
+  ]);
+  if (scopeCached(cache, 'items', fp, outputs, force)) {
+    stats.skippedScopes += 1;
+    if (!opts.cache) saveCache(cache);
+    return files;
+  }
+
   for (const item of contract.items || []) {
     const hint = VISUAL_HINTS[item.id] || { bg: '#444', fg: '#ddd', world: 'box', equipped: 'box', layer: null };
     const visual = item.visual || {};
@@ -146,17 +187,14 @@ export function buildItemAssets({ force = false } = {}) {
     for (const [slot, canvas] of assets) {
       const rel = visual[slot] || `assets/items/${item.id}/${slot}.png`;
       const abs = join(ROOT, rel);
-      if (force || !existsSync(abs)) writePng(abs, canvas);
-      files.push(rel);
+      writePngIfChanged(abs, canvas, stats, encodePng);
     }
-    // Rig-aligned per-frame overlay for humanoid composition.
     if (hint.layer || item.slot) {
       const layerRel = `assets/items/${item.id}/layers/humanoid_overlay.png`;
       const layerAbs = join(ROOT, layerRel);
-      if (force || !existsSync(layerAbs)) writePng(layerAbs, humanoidOverlaySheet(hint.equipped || hint.world, hint.fg, hint.accent || null));
-      files.push(layerRel);
+      writePngIfChanged(layerAbs, humanoidOverlaySheet(hint.equipped || hint.world, hint.fg, hint.accent || null), stats, encodePng);
     }
-    writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+    writeJsonIfChanged(join(dir, 'manifest.json'), {
       framework: 'pixel-forge',
       id: item.id,
       kind: item.kind,
@@ -169,8 +207,11 @@ export function buildItemAssets({ force = false } = {}) {
         equipped: basename(visual.equipped || 'equipped.png'),
         humanoid_overlay: (hint.layer || item.slot) ? 'layers/humanoid_overlay.png' : null,
       },
-    }, null, 2) + '\n');
+    }, stats);
   }
+
+  updateScopeCache(cache, 'items', fp, outputs);
+  if (!opts.cache) saveCache(cache);
   return files;
 }
 

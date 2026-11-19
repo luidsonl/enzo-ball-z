@@ -8,7 +8,7 @@
     "build:wasm": "bash scripts/build-wasm.sh",
     "build": "bash scripts/build.sh",
     "build:dev": "cargo build -p enzo-wasm --target wasm32-unknown-unknown && node scripts/test-web.mjs --build-dev --no-browser",
-    "dev": "bash scripts/build.sh && node scripts/serve.mjs",
+    "dev": "NODE_ENV=development bash scripts/build.sh && node scripts/serve.mjs",
     "dev:wasm": "bash scripts/build-wasm.sh && node scripts/serve.mjs",
     "serve": "node scripts/serve.mjs",
     "sprites:blocks": "node tools/pixel-forge/cli.mjs build blocks",
@@ -20,7 +20,8 @@
     "test:web": "node scripts/test-web.mjs",
     "test:web:static": "node scripts/test-web.mjs --no-browser",
     "poc:vue:build": "vite build --config vite.config.mjs",
-    "poc:vue:dev": "vite --config vite.config.mjs"
+    "poc:vue:dev": "vite --config vite.config.mjs",
+    "build:sprites:dev": "NODE_ENV=development bash scripts/build-sprites.sh"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.10",

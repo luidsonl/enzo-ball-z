@@ -1,8 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Canvas, encodePng } from './png.mjs';
 import { P } from './palette.mjs';
+import {
+  createStats,
+  fingerprint,
+  loadCache,
+  saveCache,
+  scopeCached,
+  updateScopeCache,
+  writeBufferIfChanged,
+  writeJsonIfChanged,
+} from './cache.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 // New-system modular block assets. Legacy assets/sprites/* is not used.
@@ -226,64 +236,99 @@ export function buildManifest() {
   };
 }
 
-function writePngFile(path, canvas) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, encodePng(canvas));
+const PER_BLOCK_DEFS = [
+  { id: 'ground', files: [['top.png', (c) => drawGroundTop(c, 0)], ['fill.png', (c) => drawGroundFill(c, 0)]] },
+  { id: 'block', files: [['default.png', (c) => drawBlock(c, 0)]] },
+  { id: 'platform', files: [['default.png', (c) => drawPlatform(c, 0)]] },
+  {
+    id: 'crate',
+    files: [
+      ['intact.png', (c) => drawCrate(c, 0, 0)],
+      ['damaged_1.png', (c) => drawCrate(c, 0, 1)],
+      ['damaged_2.png', (c) => drawCrate(c, 0, 2)],
+    ],
+  },
+  { id: 'flag_bottom', files: [['default.png', (c) => drawFlagBottom(c, 0)]] },
+  { id: 'flag_top', files: [['default.png', (c) => drawFlagTop(c, 0)]] },
+  { id: 'breakable_stone', files: [['intact.png', (c) => drawBreakableStone(c, 0, 0)], ['damaged_1.png', (c) => drawBreakableStone(c, 0, 1)], ['damaged_2.png', (c) => drawBreakableStone(c, 0, 2)]] },
+];
+
+function perBlockOutputs() {
+  const out = [];
+  for (const def of PER_BLOCK_DEFS) {
+    const dir = join(ROOT, 'assets/blocks', def.id);
+    for (const [name] of def.files) out.push(join(dir, name));
+    out.push(join(dir, 'manifest.json'));
+  }
+  return out;
 }
 
-export function writePerBlockSprites() {
+export function writePerBlockSprites(stats = createStats()) {
   const out = [];
-  const defs = [
-    { id: 'ground', files: [['top.png', (c) => drawGroundTop(c, 0)], ['fill.png', (c) => drawGroundFill(c, 0)]] },
-    { id: 'block', files: [['default.png', (c) => drawBlock(c, 0)]] },
-    { id: 'platform', files: [['default.png', (c) => drawPlatform(c, 0)]] },
-    {
-      id: 'crate',
-      files: [
-        ['intact.png', (c) => drawCrate(c, 0, 0)],
-        ['damaged_1.png', (c) => drawCrate(c, 0, 1)],
-        ['damaged_2.png', (c) => drawCrate(c, 0, 2)],
-      ],
-    },
-    { id: 'flag_bottom', files: [['default.png', (c) => drawFlagBottom(c, 0)]] },
-    { id: 'flag_top', files: [['default.png', (c) => drawFlagTop(c, 0)]] },
-    { id: 'breakable_stone', files: [['intact.png', (c) => drawBreakableStone(c, 0, 0)], ['damaged_1.png', (c) => drawBreakableStone(c, 0, 1)], ['damaged_2.png', (c) => drawBreakableStone(c, 0, 2)]] },
-  ];
-  for (const def of defs) {
+  for (const def of PER_BLOCK_DEFS) {
     const dir = join(ROOT, 'assets/blocks', def.id);
+    mkdirSync(dir, { recursive: true });
     for (const [name, draw] of def.files) {
       const c = new Canvas(TILE_CELL, TILE_CELL);
       draw(c);
       const path = join(dir, name);
-      writePngFile(path, c);
+      writeBufferIfChanged(path, encodePng(c), stats);
       out.push(path);
     }
-    writeFileSync(
+    writeJsonIfChanged(
       join(dir, 'manifest.json'),
-      JSON.stringify(
-        {
-          id: def.id,
-          sprites: def.files.map(([f]) => f),
-          sheet: 'assets/blocks/tiles.png',
-          contract: CORE_BLOCKS_PATH.replace(ROOT + '/', ''),
-        },
-        null,
-        2
-      ) + '\n'
+      {
+        id: def.id,
+        sprites: def.files.map(([f]) => f),
+        sheet: 'assets/blocks/tiles.png',
+        contract: CORE_BLOCKS_PATH.replace(ROOT + '/', ''),
+      },
+      stats,
     );
   }
   return out;
 }
 
-export function writeOutputs({ syncRuntimeTiles = true, perBlock = true } = {}) {
+export function writeOutputs(opts = {}) {
+  const syncRuntimeTiles = opts.syncRuntime ?? opts.syncRuntimeTiles ?? true;
+  const perBlock = opts.perBlock ?? true;
+  const force = opts.force ?? false;
+  const stats = opts.stats ?? createStats();
+  const cache = opts.cache ?? loadCache();
+
+  const outputs = [join(GENERATED_DIR, 'tiles.blocks.png'), MANIFEST_PATH];
+  if (syncRuntimeTiles) outputs.push(RUNTIME_TILES_PATH);
+  if (perBlock) outputs.push(...perBlockOutputs());
+
+  const fp = fingerprint([
+    { kind: 'file', path: CORE_BLOCKS_PATH },
+    { kind: 'files', paths: [
+      join(ROOT, 'tools/pixel-forge/src/blocks.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/palette.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/png.mjs'),
+    ]},
+    `sync:${syncRuntimeTiles}`,
+    `perBlock:${perBlock}`,
+  ]);
+
+  if (scopeCached(cache, 'blocks', fp, outputs, force)) {
+    stats.skippedScopes += 1;
+    if (!opts.cache) saveCache(cache);
+    return { sheet: { w: TILE_CELL * 12, h: TILE_CELL }, png: null, manifest: MANIFEST_PATH, perBlockFiles: perBlock ? perBlockOutputs().filter((p) => p.endsWith('.png')) : [], stats, skipped: true };
+  }
+
   mkdirSync(GENERATED_DIR, { recursive: true });
   const sheet = buildTilesSheet();
   const png = encodePng(sheet);
-  writeFileSync(join(GENERATED_DIR, 'tiles.blocks.png'), png);
-  writeFileSync(MANIFEST_PATH, JSON.stringify(buildManifest(), null, 2) + '\n');
+  writeBufferIfChanged(join(GENERATED_DIR, 'tiles.blocks.png'), png, stats);
+  writeJsonIfChanged(MANIFEST_PATH, buildManifest(), stats);
   if (syncRuntimeTiles) {
     mkdirSync(dirname(RUNTIME_TILES_PATH), { recursive: true });
-    writeFileSync(RUNTIME_TILES_PATH, png);
+    writeBufferIfChanged(RUNTIME_TILES_PATH, png, stats);
   }
-  return { sheet, png, manifest: buildManifest(), perBlockFiles: perBlock ? writePerBlockSprites() : [] };
+  const perBlockFiles = perBlock ? writePerBlockSprites(stats) : [];
+
+  updateScopeCache(cache, 'blocks', fp, outputs);
+  if (!opts.cache) saveCache(cache);
+  return { sheet, png, manifest: MANIFEST_PATH, perBlockFiles, stats, skipped: false };
 }

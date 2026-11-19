@@ -12,3 +12,6 @@
 /assets/items/
 /assets/skills/
 /assets/definitions/generated/
+
+# pixel-forge local build cache
+/tools/pixel-forge/.build-cache.json

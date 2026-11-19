@@ -1,8 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Canvas, encodePng } from '../png.mjs';
 import { P } from '../palette.mjs';
+import {
+  createStats,
+  fingerprint,
+  loadCache,
+  saveCache,
+  scopeCached,
+  updateScopeCache,
+  writeJsonIfChanged,
+  writePngIfChanged,
+} from '../cache.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
@@ -73,10 +83,6 @@ export const CUSTOMIZATION_VARIANTS = {
   shoes: 8,
 };
 
-function writePng(path, canvas) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, encodePng(canvas));
-}
 
 function stateSpec(entity, state) {
   if (entity && typeof entity.getStateFrameSpec === 'function') {
@@ -1064,35 +1070,72 @@ function makeRig(entity, layout) {
   };
 }
 
-export function buildHumanoidEntity(entity) {
+export function buildHumanoidEntity(entity, opts = {}) {
   const id = entity.ENTITY_ID || entity.id;
   const dir = join(ROOT, 'assets/entities', id);
-  mkdirSync(join(dir, 'layers'), { recursive: true });
-  // Per-entity frame dimensions logic defines the matrix layout.
+  const force = opts.force ?? false;
+  const stats = opts.stats ?? createStats();
+  const cache = opts.cache ?? loadCache();
   const layout = computeMatrixLayout(entity);
 
+  const outputs = [
+    join(dir, 'sheet.png'),
+    join(dir, 'layers', 'base.png'),
+    join(dir, 'layers', 'outfit_top.png'),
+    join(dir, 'layers', 'outfit_bottom.png'),
+    join(dir, 'layers', 'shoes.png'),
+    join(dir, 'layers', 'hair.png'),
+    join(dir, 'layers', 'face.png'),
+  ];
+  for (let i = 0; i < CUSTOMIZATION_VARIANTS.hair_style; i++) outputs.push(join(dir, 'layers', `hair_style_${i}.png`));
+  for (let i = 0; i < CUSTOMIZATION_VARIANTS.face; i++) {
+    outputs.push(join(dir, 'layers', `face_${i}.png`));
+    outputs.push(join(dir, 'layers', `face_${i}_blink.png`));
+    outputs.push(join(dir, 'layers', `face_${i}_pain.png`));
+    outputs.push(join(dir, 'layers', `face_${i}_cry.png`));
+  }
+  outputs.push(join(dir, 'rig.json'), join(dir, 'atlas.json'), join(dir, 'manifest.json'));
+
+  const entitySpecPath = join(ROOT, 'tools/pixel-forge/src/entities', `${id}.mjs`);
+  const fp = fingerprint([
+    { kind: 'file', path: entitySpecPath },
+    { kind: 'files', paths: [
+      join(ROOT, 'tools/pixel-forge/src/entities/humanoid.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/entities.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/palette.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/png.mjs'),
+    ]},
+  ]);
+  const scope = `entity:${id}`;
+  if (scopeCached(cache, scope, fp, outputs, force)) {
+    stats.skippedScopes += 1;
+    if (!opts.cache) saveCache(cache);
+    return [`assets/entities/${id}/sheet.png`, `assets/entities/${id}/rig.json`, `assets/entities/${id}/atlas.json`];
+  }
+
+  mkdirSync(join(dir, 'layers'), { recursive: true });
   const defaultHair = entity.DEFAULT_HAIR_STYLE ?? 0;
   const defaultFace = entity.DEFAULT_FACE ?? 0;
 
-  writePng(join(dir, 'sheet.png'), buildMatrixSheet(entity, 'full', 0, layout));
+  writePngIfChanged(join(dir, 'sheet.png'), buildMatrixSheet(entity, 'full', 0, layout), stats, encodePng);
   for (const layer of ['base', 'outfit_top', 'outfit_bottom', 'shoes']) {
-    writePng(join(dir, 'layers', `${layer}.png`), buildMatrixSheet(entity, layer, 0, layout));
+    writePngIfChanged(join(dir, 'layers', `${layer}.png`), buildMatrixSheet(entity, layer, 0, layout), stats, encodePng);
   }
-  writePng(join(dir, 'layers', 'hair.png'), buildMatrixSheet(entity, 'hair', defaultHair, layout));
-  writePng(join(dir, 'layers', 'face.png'), buildMatrixSheet(entity, 'face', defaultFace, layout, 'normal'));
+  writePngIfChanged(join(dir, 'layers', 'hair.png'), buildMatrixSheet(entity, 'hair', defaultHair, layout), stats, encodePng);
+  writePngIfChanged(join(dir, 'layers', 'face.png'), buildMatrixSheet(entity, 'face', defaultFace, layout, 'normal'), stats, encodePng);
   for (let i = 0; i < CUSTOMIZATION_VARIANTS.hair_style; i++) {
-    writePng(join(dir, 'layers', `hair_style_${i}.png`), buildMatrixSheet(entity, 'hair', i, layout));
+    writePngIfChanged(join(dir, 'layers', `hair_style_${i}.png`), buildMatrixSheet(entity, 'hair', i, layout), stats, encodePng);
   }
   for (let i = 0; i < CUSTOMIZATION_VARIANTS.face; i++) {
-    writePng(join(dir, 'layers', `face_${i}.png`), buildMatrixSheet(entity, 'face', i, layout, 'normal'));
-    writePng(join(dir, 'layers', `face_${i}_blink.png`), buildMatrixSheet(entity, 'face', i, layout, 'blink'));
-    writePng(join(dir, 'layers', `face_${i}_pain.png`), buildMatrixSheet(entity, 'face', i, layout, 'pain'));
-    writePng(join(dir, 'layers', `face_${i}_cry.png`), buildMatrixSheet(entity, 'face', i, layout, 'cry'));
+    writePngIfChanged(join(dir, 'layers', `face_${i}.png`), buildMatrixSheet(entity, 'face', i, layout, 'normal'), stats, encodePng);
+    writePngIfChanged(join(dir, 'layers', `face_${i}_blink.png`), buildMatrixSheet(entity, 'face', i, layout, 'blink'), stats, encodePng);
+    writePngIfChanged(join(dir, 'layers', `face_${i}_pain.png`), buildMatrixSheet(entity, 'face', i, layout, 'pain'), stats, encodePng);
+    writePngIfChanged(join(dir, 'layers', `face_${i}_cry.png`), buildMatrixSheet(entity, 'face', i, layout, 'cry'), stats, encodePng);
   }
 
   const rig = makeRig(entity, layout);
-  writeFileSync(join(dir, 'rig.json'), JSON.stringify(rig, null, 2) + '\n');
-  writeFileSync(join(dir, 'atlas.json'), JSON.stringify({
+  writeJsonIfChanged(join(dir, 'rig.json'), rig, stats);
+  writeJsonIfChanged(join(dir, 'atlas.json'), {
     framework: 'pixel-forge',
     layout: 'state_matrix',
     image: 'sheet.png',
@@ -1102,8 +1145,8 @@ export function buildHumanoidEntity(entity) {
     states: layout.states,
     clips: HUMANOID_CLIPS,
     fallbacks: HUMANOID_FALLBACKS,
-  }, null, 2) + '\n');
-  writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+  }, stats);
+  writeJsonIfChanged(join(dir, 'manifest.json'), {
     framework: 'pixel-forge',
     version: 3,
     id,
@@ -1116,7 +1159,10 @@ export function buildHumanoidEntity(entity) {
     clips: Object.keys(rig.clips),
     layers: rig.layers,
     customization: rig.customization,
-  }, null, 2) + '\n');
+  }, stats);
+
+  updateScopeCache(cache, scope, fp, outputs);
+  if (!opts.cache) saveCache(cache);
   return [`assets/entities/${id}/sheet.png`, `assets/entities/${id}/rig.json`, `assets/entities/${id}/atlas.json`];
 }
 

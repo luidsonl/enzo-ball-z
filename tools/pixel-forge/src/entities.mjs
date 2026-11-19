@@ -14,23 +14,26 @@ import {
   computeMatrixLayout,
   validateHumanoidEntity,
 } from './entities/humanoid.mjs';
+import { createStats, loadCache, saveCache } from './cache.mjs';
 
 export { HUMANOID_CLIPS, HUMANOID_FALLBACKS, HUMANOID_FRAMES, HUMANOID_STATE_ORDER, computeMatrixLayout };
 
-// Compatibility export: compute layout for a humanoid entity definition (entity owns frame dimensions).
 export function computeHumanoidMatrixLayout(entity = enzo) {
   return computeMatrixLayout(entity);
 }
 
 const HUMANOID_ENTITIES = [enzo, valentina];
 
-export function buildEntityAssets({ force = false } = {}) {
+export function buildEntityAssets(opts = {}) {
+  const force = opts.force ?? false;
+  const stats = opts.stats ?? createStats();
+  const cache = opts.cache ?? loadCache();
   const files = [];
-  // Humanoids always regenerate rig-aligned assets (deterministic, contract-driven).
   for (const entity of HUMANOID_ENTITIES) {
-    files.push(...buildHumanoidEntity(entity));
+    files.push(...buildHumanoidEntity(entity, { force, stats, cache }));
   }
-  files.push(...buildSlimeAssets({ force }));
+  files.push(...buildSlimeAssets({ force, stats, cache }));
+  if (!opts.cache) saveCache(cache);
   return files;
 }
 
@@ -42,4 +45,3 @@ export function validateEntityAssets() {
   validateSlimeAssets(errors);
   return errors;
 }
-

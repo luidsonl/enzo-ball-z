@@ -5,12 +5,13 @@ import { generateBlock, generateEntity, generateItem, generateSkill } from './sr
 import { buildSkillAssets } from './src/skills.mjs';
 import { buildItemAssets } from './src/items.mjs';
 import { buildEntityAssets } from './src/entities.mjs';
+import { createStats, formatStats, loadCache, saveCache } from './src/cache.mjs';
 
 function usage() {
   console.log(`pixel-forge
 
 Usage:
-  node tools/pixel-forge/cli.mjs build blocks [--no-sync-runtime]
+  node tools/pixel-forge/cli.mjs build blocks [--no-sync-runtime] [--force]
   node tools/pixel-forge/cli.mjs build skills [--force]
   node tools/pixel-forge/cli.mjs build items [--force]
   node tools/pixel-forge/cli.mjs build entities [--force]
@@ -23,89 +24,114 @@ Usage:
 `);
 }
 
-function flag(args, name, fallback = undefined) {
-  const i = args.indexOf(name);
-  if (i === -1) return fallback;
-  const v = args[i + 1];
-  if (!v || v.startsWith('--')) return true;
-  return v;
+function printErrors(errors) {
+  for (const err of errors) console.error(`- ${err}`);
 }
 
-const [, , cmd, sub, ...rest] = process.argv;
+function printStats(stats, extra = '') {
+  if (!stats) return;
+  const suffix = extra ? ` ${extra}` : '';
+  console.log(`stats: ${formatStats(stats)}${suffix}`);
+}
 
-if (cmd === 'build' && sub === 'blocks') {
+function cmdBuildBlocks(rest = []) {
   const syncRuntimeTiles = !rest.includes('--no-sync-runtime');
-  const { sheet, manifest, perBlockFiles } = writeOutputs({ syncRuntimeTiles });
-  console.log(`built block tiles: ${sheet.w}x${sheet.h}`);
-  console.log(`manifest: ${MANIFEST_PATH}`);
-  if (syncRuntimeTiles) console.log(`runtime sheet: ${RUNTIME_TILES_PATH}`);
-  console.log(`per-module sprites: ${perBlockFiles.length}`);
-  console.log(`blocks: ${manifest.blocks.map((b) => b.id).join(', ')}`);
-  process.exit(0);
-}
-
-if (cmd === 'build' && sub === 'skills') {
   const force = rest.includes('--force');
-  const files = buildSkillAssets({ force });
-  console.log(`built skill module assets: ${files.length} (contract: assets/definitions/generated/skills.json)`);
-  for (const f of files) console.log(`  - ${f}`);
-  process.exit(0);
+  const cache = loadCache();
+  const stats = createStats();
+  const { sheet, manifest, perBlockFiles, skipped } = writeOutputs({ syncRuntimeTiles, force, cache, stats });
+  saveCache(cache);
+  console.log(`built block tilesheet: ${sheet.w}x${sheet.h}`);
+  console.log(`manifest: ${manifest}`);
+  if (syncRuntimeTiles) console.log(`runtime sheet: ${RUNTIME_TILES_PATH}`);
+  console.log(`per-block sprites: ${perBlockFiles.length}`);
+  console.log(`blocks: ${BLOCK_DEFS.map((b) => b.id).join(', ')}`);
+  printStats(stats, skipped ? '(cache hit)' : '');
 }
 
-if (cmd === 'build' && sub === 'items') {
-  const files = buildItemAssets({ force: rest.includes('--force') });
-  console.log(`built item module assets: ${files.length}`);
-  for (const f of files) console.log(`  - ${f}`);
-  process.exit(0);
+function cmdBuildSkills(rest = []) {
+  const force = rest.includes('--force');
+  const cache = loadCache();
+  const stats = createStats();
+  const files = buildSkillAssets({ force, cache, stats });
+  saveCache(cache);
+  console.log(`skill assets ready: ${files.length} files`);
+  printStats(stats);
 }
 
-if (cmd === 'build' && sub === 'entities') {
-  const files = buildEntityAssets({ force: rest.includes('--force') });
-  console.log(`built entity module assets: ${files.length}`);
-  for (const f of files) console.log(`  - ${f}`);
-  process.exit(0);
+function cmdBuildItems(rest = []) {
+  const force = rest.includes('--force');
+  const cache = loadCache();
+  const stats = createStats();
+  const files = buildItemAssets({ force, cache, stats });
+  saveCache(cache);
+  console.log(`item assets ready: ${files.length} files`);
+  printStats(stats);
 }
 
-if (cmd === 'validate') {
-  const target = sub || 'all';
-  const map = { blocks: validateBlocks, skills: validateSkills, items: validateItems, entities: validateEntities, all: validateAll };
-  const fn = map[target] || validateBlocks;
-  const errors = fn();
-  if (errors.length) {
-    console.error(`pixel-forge: ${target} validation failed`);
-    for (const e of errors) console.error(`- ${e}`);
+function cmdBuildEntities(rest = []) {
+  const force = rest.includes('--force');
+  const cache = loadCache();
+  const stats = createStats();
+  const files = buildEntityAssets({ force, cache, stats });
+  saveCache(cache);
+  console.log(`entity assets ready: ${files.length} files`);
+  printStats(stats);
+}
+
+function cmdValidate(target = 'blocks') {
+  let errors = [];
+  if (target === 'blocks') errors = validateBlocks();
+  else if (target === 'skills') errors = validateSkills();
+  else if (target === 'items') errors = validateItems();
+  else if (target === 'entities') errors = validateEntities();
+  else if (target === 'all') errors = validateAll();
+  else {
+    console.error(`unknown validate target: ${target}`);
     process.exit(1);
   }
-  console.log(`pixel-forge: ${target} OK`);
-  process.exit(0);
+  if (errors.length) {
+    printErrors(errors);
+    process.exit(1);
+  }
+  console.log(`validation ok (${target})`);
 }
 
-if (cmd === 'inspect' && sub === 'block') {
-  const id = rest[0];
+function cmdInspectBlock(id) {
   const def = BLOCK_DEFS.find((b) => b.id === id);
   if (!def) {
-    console.error(`unknown block: ${id ?? '(missing id)'}`);
+    console.error(`unknown block id: ${id}`);
     process.exit(1);
   }
   console.log(JSON.stringify(def, null, 2));
-  process.exit(0);
 }
 
-if (cmd === 'generate') {
-  const kind = sub;
-  const id = rest[0];
-  if (!id) { console.error('missing id'); usage(); process.exit(1); }
-  let result;
-  if (kind === 'block') result = generateBlock({ id, symbol: flag(rest, '--symbol', '?'), solid: !rest.includes('--passable'), hits: Number(flag(rest, '--hits', 0)) || 0 });
-  else if (kind === 'skill') result = generateSkill({ id });
-  else if (kind === 'item') result = generateItem({ id, kind: flag(rest, '--kind', 'passive') });
-  else if (kind === 'entity') result = generateEntity({ id });
-  else { console.error(`unknown generate kind: ${kind}`); usage(); process.exit(1); }
-  console.log(`generated ${kind}: ${result.id}`);
-  for (const c of result.created) console.log(`  + ${c}`);
+function cmdGenerate(kind, id, rest = []) {
+  if (!id) { usage(); process.exit(1); }
+  let result = null;
+  if (kind === 'block') {
+    result = generateBlock(id, { symbol: flag(rest, '--symbol', 'D'), hits: Number(flag(rest, '--hits', '3')), passable: rest.includes('--passable') });
+  } else if (kind === 'skill') result = generateSkill(id);
+  else if (kind === 'item') result = generateItem(id, { kind: flag(rest, '--kind', 'passive') });
+  else if (kind === 'entity') result = generateEntity(id);
+  else { usage(); process.exit(1); }
+  console.log(`scaffolded ${kind} ${result.id}`);
+  for (const f of result.created) console.log(`  + ${f}`);
+  if (!result.created.length) console.log('  (no files created: outputs already exist)');
   for (const n of result.notes || []) console.log(`  note: ${n}`);
-  process.exit(0);
 }
 
-usage();
-process.exit(cmd ? 1 : 0);
+function flag(args, name, fallback) {
+  const i = args.indexOf(name);
+  return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
+}
+
+const [, , cmd, sub, ...rest] = process.argv;
+if (cmd === 'build' && sub === 'blocks') cmdBuildBlocks(rest);
+else if (cmd === 'build' && sub === 'skills') cmdBuildSkills(rest);
+else if (cmd === 'build' && sub === 'items') cmdBuildItems(rest);
+else if (cmd === 'build' && sub === 'entities') cmdBuildEntities(rest);
+else if (cmd === 'validate') cmdValidate(sub ?? 'blocks');
+else if (cmd === 'inspect' && sub === 'block') cmdInspectBlock(rest[0]);
+else if (cmd === 'generate') cmdGenerate(sub, rest[0], rest.slice(1));
+else usage();

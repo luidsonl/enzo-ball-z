@@ -1,16 +1,21 @@
 // Slime entity sprite generation/validation (separate entity code).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Canvas, encodePng } from '../png.mjs';
 import { P } from '../palette.mjs';
+import {
+  createStats,
+  fingerprint,
+  loadCache,
+  saveCache,
+  scopeCached,
+  updateScopeCache,
+  writeJsonIfChanged,
+  writePngIfChanged,
+} from '../cache.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../../..');
-
-function writePng(path, canvas) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, encodePng(canvas));
-}
 
 export function drawSlime(c, ox, frame) {
   const hurt = frame === 'hurt';
@@ -27,8 +32,30 @@ export function drawSlime(c, ox, frame) {
   c.rect(x + w * 0.35, y + h * 0.65, w * 0.3, 2, '#ffffff66');
 }
 
-export function buildSlimeAssets() {
+export function buildSlimeAssets(opts = {}) {
+  const force = opts.force ?? false;
+  const stats = opts.stats ?? createStats();
+  const cache = opts.cache ?? loadCache();
   const slimeDir = join(ROOT, 'assets/entities/slime');
+  const outputs = [
+    join(slimeDir, 'sheet.png'),
+    join(slimeDir, 'atlas.json'),
+    join(slimeDir, 'manifest.json'),
+  ];
+  const fp = fingerprint([
+    { kind: 'files', paths: [
+      join(ROOT, 'tools/pixel-forge/src/entities/slime.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/entities.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/palette.mjs'),
+      join(ROOT, 'tools/pixel-forge/src/png.mjs'),
+    ]},
+  ]);
+  if (scopeCached(cache, 'entity:slime', fp, outputs, force)) {
+    stats.skippedScopes += 1;
+    if (!opts.cache) saveCache(cache);
+    return ['assets/entities/slime/sheet.png', 'assets/entities/slime/atlas.json'];
+  }
+
   const slimeFrames = [
     { name: 'walk_a', draw: (c, x) => drawSlime(c, x, 'walk_a') },
     { name: 'walk_b', draw: (c, x) => drawSlime(c, x, 'walk_b') },
@@ -38,14 +65,19 @@ export function buildSlimeAssets() {
   const slimeSheet = new Canvas(32 * slimeFrames.length, 32);
   slimeFrames.forEach((f, i) => f.draw(slimeSheet, i * 32));
   mkdirSync(slimeDir, { recursive: true });
-  writePng(join(slimeDir, 'sheet.png'), slimeSheet);
+  writePngIfChanged(join(slimeDir, 'sheet.png'), slimeSheet, stats, encodePng);
   const slimeAtlas = {
     image: 'sheet.png', cell: { w: 32, h: 32 },
     frames: Object.fromEntries(slimeFrames.map((f, i) => [f.name, { x: i * 32, y: 0, w: 32, h: 32 }])),
     clips: { walk: ['walk_a', 'walk_b'], stretch: ['stretch'], hurt: ['hurt'] },
   };
-  writeFileSync(join(slimeDir, 'atlas.json'), JSON.stringify(slimeAtlas, null, 2) + '\n');
-  writeFileSync(join(slimeDir, 'manifest.json'), JSON.stringify({ framework: 'pixel-forge', id: 'slime', sheet: 'sheet.png', atlas: 'atlas.json', clips: Object.keys(slimeAtlas.clips) }, null, 2) + '\n');
+  writeJsonIfChanged(join(slimeDir, 'atlas.json'), slimeAtlas, stats);
+  writeJsonIfChanged(join(slimeDir, 'manifest.json'), {
+    framework: 'pixel-forge', id: 'slime', sheet: 'sheet.png', atlas: 'atlas.json', clips: Object.keys(slimeAtlas.clips),
+  }, stats);
+
+  updateScopeCache(cache, 'entity:slime', fp, outputs);
+  if (!opts.cache) saveCache(cache);
   return ['assets/entities/slime/sheet.png', 'assets/entities/slime/atlas.json'];
 }
 
