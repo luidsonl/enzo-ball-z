@@ -468,28 +468,28 @@ function slotSkillName(slotState) {
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div v-if="detailSkill" class="dom-modal-overlay" style="position:absolute; inset:0; pointer-events:auto; z-index:30;" @click.self.prevent.stop="closeSkillDetails()">
-                <div class="dom-modal-panel" style="max-width:420px; width:calc(100% - 24px); pointer-events:auto" @click.stop>
-                  <div class="dom-game-panel-header" style="margin-bottom:8px">
-                    <div style="display:flex; align-items:center; gap:10px">
-                      <img v-if="detailSkill.icon" class="dom-skill-icon" :src="detailSkill.icon" :alt="detailSkill.name || ''" />
-                      <h3 class="dom-title" style="margin:0">{{ detailSkill.name }}</h3>
-                    </div>
-                    <button type="button" class="dom-btn small secondary" @click.prevent.stop="closeSkillDetails()">{{ labels.close || 'Close' }}</button>
+            <div v-if="detailSkill" class="dom-modal-overlay dom-skill-detail-overlay" @click.self.prevent.stop="closeSkillDetails()">
+              <div class="dom-modal dom-skill-detail-modal" @click.stop>
+                <div class="dom-help-header">
+                  <div style="display:flex; align-items:center; gap:10px; min-width:0">
+                    <img v-if="detailSkill.icon" class="dom-skill-icon" :src="detailSkill.icon" :alt="detailSkill.name || ''" />
+                    <h3 class="dom-title" style="margin:0">{{ detailSkill.name }}</h3>
                   </div>
-                  <div class="dom-game-panel-body">
-                    <p class="muted" style="margin:0 0 10px 0; white-space:pre-wrap">{{ detailSkill.description || '' }}</p>
-                    <div class="dom-status-grid">
-                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_level || 'Level' }}</span><span class="dom-status-val">{{ detailSkill.effective_level ?? 0 }}</span></div>
-                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_tier || 'Active tier' }}</span><span class="dom-status-val">{{ detailSkill.active_tier != null ? detailSkill.active_tier : '—' }}</span></div>
-                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_damage || 'Damage' }}</span><span class="dom-status-val">{{ formatDamagePreview(detailSkill) }}</span></div>
-                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_aura_cost || 'Aura cost' }}</span><span class="dom-status-val">{{ formatAuraCost(detailSkill.aura_cost) }}</span></div>
-                      <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_cooldown || 'Cooldown' }}</span><span class="dom-status-val">{{ formatCooldown(detailSkill.cooldown_max) }}</span></div>
-                      <div v-if="detailSkill.category" class="dom-status-row"><span class="dom-status-key">Type</span><span class="dom-status-val">{{ detailSkill.category }}</span></div>
-                      <div v-if="detailSkill.equipped_slot != null" class="dom-status-row"><span class="dom-status-key">{{ labels.equipped || 'Equipped' }}</span><span class="dom-status-val">{{ labels.equipped || 'Slot' }} {{ detailSkill.equipped_slot + 1 }}</span></div>
-                      <div v-if="!detailSkill.available && detailSkill.lock_reason" class="dom-status-row"><span class="dom-status-key">{{ labels.locked || 'Locked' }}</span><span class="dom-status-val">{{ detailSkill.lock_reason }}</span></div>
-                    </div>
+                  <button type="button" class="dom-btn small secondary" @click.prevent.stop="closeSkillDetails()">{{ labels.close || 'Close' }}</button>
+                </div>
+                <div class="dom-help-body">
+                  <p class="muted" style="margin:0 0 10px 0; white-space:pre-wrap">{{ detailSkill.description || '' }}</p>
+                  <div class="dom-status-grid">
+                    <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_level || 'Level' }}</span><span class="dom-status-val">{{ detailSkill.effective_level ?? 0 }}</span></div>
+                    <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_tier || 'Active tier' }}</span><span class="dom-status-val">{{ detailSkill.active_tier != null ? detailSkill.active_tier : '—' }}</span></div>
+                    <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_damage || 'Damage' }}</span><span class="dom-status-val">{{ formatDamagePreview(detailSkill) }}</span></div>
+                    <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_aura_cost || 'Aura cost' }}</span><span class="dom-status-val">{{ formatAuraCost(detailSkill.aura_cost) }}</span></div>
+                    <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_cooldown || 'Cooldown' }}</span><span class="dom-status-val">{{ formatCooldown(detailSkill.cooldown_max) }}</span></div>
+                    <div v-if="detailSkill.category" class="dom-status-row"><span class="dom-status-key">Type</span><span class="dom-status-val">{{ detailSkill.category }}</span></div>
+                    <div v-if="detailSkill.equipped_slot != null" class="dom-status-row"><span class="dom-status-key">{{ labels.equipped || 'Equipped' }}</span><span class="dom-status-val">{{ labels.equipped || 'Slot' }} {{ detailSkill.equipped_slot + 1 }}</span></div>
+                    <div v-if="!detailSkill.available && detailSkill.lock_reason" class="dom-status-row"><span class="dom-status-key">{{ labels.locked || 'Locked' }}</span><span class="dom-status-val">{{ detailSkill.lock_reason }}</span></div>
                   </div>
                 </div>
               </div>
