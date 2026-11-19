@@ -29,7 +29,7 @@ face, and outfit colors/slots) through stable visual profile IDs.
   is being implemented (see `docs/HUMANOID_RIG_AND_CUSTOMIZATION.md`).
 - Mario-style movement, including running via double-tap.
 - Aura farming with alternating `6`/`7`, combo, and slowdown.
-- 3-hit physical combo.
+- Simple physical punch (melee) with cooldown and random animation frames.
 - One special attack: **Mogging** (instant horizontal projectile).
 - One patrolling enemy type.
 - XP, level-up, points, and five attributes.
@@ -87,7 +87,7 @@ Explore and fight enemies
 | Jump (also) | `W` or `↑` | Also triggers slot 1 jump on press (quality-of-life mapping) |
 | Skill slot 1 | `Space` | Default: Jump |
 | Skill slot 2 | `Left Shift` / `Right Shift` | Default: Dash |
-| Skill slot 3 | `J` | Default: Melee (3-hit combo) |
+| Skill slot 3 | `J` | Default: Melee (Punch) |
 | Skill slot 4 | `K` | Default: Mogging |
 | Farm aura (SixSeven) | `6` and `7` | Alternation required; **outside** skill slots |
 | Distribute point | `1` `2` `3` `4` or click | In the status/level-up UI |
@@ -163,15 +163,19 @@ requirements and typed state (Shout/Kick are planned additions).
 
 ## 8. Combat
 
-### 8.1 Physical combo (Melee skill)
+### 8.1 Punch (Melee skill)
 
-- Three chained hits within `0.5 s` between hits.
-- Base damage: `6`, `6`, `12` (+ Strength bonus) (current; **planned rebalance**
-  on the new scale).
-- Range: `34 px` in the facing direction, height `26 px`.
-- The third hit applies knockback of `220 px/s`.
-- No aura cost.
-- If the window expires, the combo restarts at the first hit.
+- Simple single-hit punch (no combo chain/window/finisher).
+- Cooldown: `0.30 s` (core `melee::DEF.cooldown`).
+- Damage: `1 + Strength` base, scaled by melee skill tier/ego bonuses as
+  implemented (`stats.melee_damage()` with skill scaling in `skills::melee`).
+  Values remain subject to the planned unified stat/damage rebalance.
+- Range: `34 px` in the facing direction, height `26 px` (scaled by skill tier as
+  implemented).
+- No aura cost and no third-hit knockback.
+- Each activation chooses a punch animation variant randomly in a deterministic
+  way (from tick/entity context) so attack frames vary per punch while simulation
+  remains deterministic.
 - Enzo can move while attacking.
 
 ### 8.2 Mogging (skill)
@@ -188,7 +192,7 @@ requirements and typed state (Shout/Kick are planned additions).
 - Can be used while walking, running, or in the air.
 - Not enough aura: does not fire (feedback should be shown in the UI).
 - **Planned:** activating Mogging should also trigger the character's punch
-  animation.
+  animation (separate from the simplified melee punch skill behavior).
 
 ### 8.3 Shout and Kick skills (planned)
 
@@ -245,7 +249,7 @@ Systems must not assemble entities by hand or duplicate attributes.
 | Attribute | Effect per point |
 | --- | --- |
 | Speed | `+10 px/s` walk and `+6 px/s` run |
-| Strength | `+2` damage to each physical combo hit |
+| Strength | `+1` damage to each punch (melee) hit |
 | Health | `+10` max health (and heals `+10`) |
 | Aura | `+10` max aura and `+2` aura attack damage |
 | Ego | `+2` aura attack power (intelligence equivalent) |
@@ -338,7 +342,8 @@ generated/wired consistently with skill definitions.
    collides with tiles.
 3. Alternating `6`/`7` fills aura; repeating the same key resets the combo.
 4. Farming slows Enzo and makes timing/risk meaningful.
-5. The 3-hit combo works and the third hit applies knockback.
+5. The melee punch works, respects cooldown, has no combo chain, and uses
+   random animation frames per punch (deterministically).
 6. Mogging consumes aura, hits enemies, and disappears on walls.
 7. Slimes patrol, deal contact damage, and grant XP on death.
 8. Level-up grants a point, pauses, and allows distribution into the four

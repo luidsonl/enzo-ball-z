@@ -16,7 +16,7 @@
 | `InputAction` / `ActionSlot` / `SlotInput` / `PlayerCommand` (core) | **Done** | Core input contract uses 4 generic slots; no fixed `jump`/`dash`/`melee`/`mogging` fields in `PlayerCommand`. |
 | `SkillId` / skill registry / `SkillDef` / requirements / loadout (core) | **Done** | Skills live in `crates/enzo-core/src/skills/`; static registry + `match` dispatch; `Loadout` enforces uniqueness (`assign` swaps, `sanitize` on load). |
 | `Locomotion` + `Skills` replacing old `Movement`/`Combat` flow (core) | **Done** | `mechanics/` holds walk/SixSeven helpers; `skills/` holds slotted abilities; `World` dispatches generically. |
-| Loadout persistence + snapshot/catalog exposure | **Done** | `SAVE_VERSION = 2` (v1 migrated to default loadout), `SNAPSHOT_VERSION = 3` with loadout/slot/catalog data. |
+| Loadout persistence + snapshot/catalog exposure | **Done** | `SAVE_VERSION = 2` (v1 migrated to default loadout), `SNAPSHOT_VERSION = 4` with loadout/slot/catalog data. |
 | Client keyboard → slot commands | **Done (basic)** | `enzo-wasm/src/input.rs` maps defaults (move/arrows, slots `Space/Shift/J/K`, SixSeven `6/7`). **QoL addition:** `W`/`↑` also triggers slot 1 (jump) on press while preserving `move_y=-1` for fly intent. |
 | Render modularization (client) | **Done** | `render/world.rs` orchestrates; projectile/attack visuals in `render/skills/*`; entity/character animations in `render/entities/*`. |
 | Mogging rename | **Done** | `Mogar` → `Mogging` across core/docs/scripts where migrated. |
@@ -512,7 +512,7 @@ Module rules:
 | Jump (`Jump`) | Movement | PressHold | playable, level 1 | 0 | 0 | Pre-physics | Implemented (core) |
 | Dash (`Dash`) | Movement | Press | playable, level 1 | 0 | 0.70 s | Pre-physics | Implemented (core) |
 | Fly (`Fly`) | Movement | Hold | playable, level 5, Aura 5 | 0 | 0 | Pre-physics | Implemented (core) |
-| Melee (`Melee`) | Attack | Press | playable, level 1 | 0 | combo window | Post-physics | Implemented (core) |
+| Melee (`Melee`) | Attack | Press | playable, level 1 | 0 | 0.30 s | Post-physics | Implemented (core, simple punch) |
 | Mogging (`Mogging`) | Attack | Press | playable, level 1 | 25 | 0.35 s | Post-physics | Implemented (core) |
 | Nutella Shot (`NutellaShot`) | Attack | Press | playable, level 1, `NUTELLA_GUN` | 0 | 0.25 s | Post-physics | Placeholder (core) |
 | Shout (`Shout`) | Utility | Press | playable, level 1 | TBD (aura) | TBD | Post-physics | Planned/Placeholder |
@@ -522,14 +522,16 @@ Notes:
 
 - Nutella Shot/Shout/Kick numbers are placeholders; balancing comes later and
   must follow the planned unified stat/damage rebalance.
-- `Melee` is the current “punch” (3-hit combo). Internal name remains `Melee`;
-  UI may display “Punch”.
+- `Melee` is the current punch skill. Internal name remains `Melee`; UI may
+  display “Punch”. It is implemented as a simple single-hit attack (no combo
+  chain/window/finisher), has cooldown, and selects a deterministic random punch
+  animation variant/frame per activation.
 - `Fly` uses `move_y`; it does not need a separate action beyond the slot.
 - **Crouch** is a mechanic outside skill slots (down intent + grounded state as
   implemented), not a `SkillId`. While crouching, character height/collision body
   becomes half and crouch animation frames are used.
 - **Mogging (planned animation change):** firing Mogging should also trigger the
-  character punch animation.
+  character punch animation (separate from the melee punch skill implementation).
 - **Shout (planned):** must have a defined range, play shout animation frames,
   emit particles/effects in addition to character animation, and have a dedicated
   icon and modular assets.
@@ -547,8 +549,8 @@ holds only what is not a slot.
   respond to input.
 - Cooldowns live in a central array so they cannot be bypassed by swapping
   slots. A skill unequipped and re-equipped remains on cooldown.
-- Internal timers (combo window, jump buffer, active dash) live in the module
-  state.
+- Internal timers (punch animation timer, jump buffer, active dash, etc.) live
+  in the module state. Melee no longer uses a combo window/step chain.
 - `Skills::tick(dt)` advances cooldowns/timers once per tick.
 
 ### 6.5 Activation, aura, and cooldown
@@ -683,7 +685,7 @@ pub struct SkillAssets {
 
 ## 8. Snapshot, save, and networking
 
-### 8.1 Snapshot (`SNAPSHOT_VERSION = 3`) — **implemented**
+### 8.1 Snapshot (`SNAPSHOT_VERSION = 4`) — **implemented**
 
 The snapshot exposes loadout, slot status, and catalog data for the UI (read-only
 on the client). Key concepts:
@@ -694,8 +696,10 @@ on the client). Key concepts:
 - `lock` is `None` when available; otherwise it carries the reason for the UI.
 - `cooldown`/`cooldown_max` drive radial overlays and text.
 - `active` covers `Hold` skills (e.g., fly).
-- `melee_step`/`melee_timer` remain melee-specific visual state; generalize to
-  per-slot state if a second melee skill is added.
+- `melee_step`/`melee_timer` remain melee-specific visual state in snapshots
+  (`melee_step` now carries the selected punch animation variant; `combo_window`
+  is no longer used for melee chaining); generalize to per-slot state if a second
+  melee skill is added.
 - Old `moves`/fixed Mogging cooldown fields are replaced by slot/catalog data.
 - Snapshots are not persisted, so no snapshot migration is needed; all consumers
   must compile against the new version.

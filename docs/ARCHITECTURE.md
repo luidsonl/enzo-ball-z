@@ -11,11 +11,13 @@
 > render has been modularized. A DOM UI layer now exists (`web/ui/*`) backed by
 > Rust `ui_bridge`/`ui_controller` (`UiState` + semantic actions/loadout actions),
 > covering menus, in-game HUD tabs/panels (including Status point distribution and
-> Skills assignment for unlocked skills), and mobile controls. Remaining/planned
-> work includes full keybinding persistence/UI, skill-owned asset pipeline, richer
-> loadout/action-bar UX (locks/toasts/icons/pause polish), and a possible migration
-> of the DOM UI implementation to Vue/Vite. Where this document describes planned
-> work, it is labeled explicitly.
+> Skills assignment for unlocked skills), and mobile controls. Melee is currently
+> implemented as a simple punch skill with cooldown and deterministic random
+> animation frame selection (no 3-hit combo). Remaining/planned work includes full
+> keybinding persistence/UI, skill-owned asset pipeline, richer loadout/action-bar
+> UX (locks/toasts/icons/pause polish), and a possible migration of the DOM UI
+> implementation to Vue/Vite. Where this document describes planned work, it is
+> labeled explicitly.
 >
 > **Humanoid visuals/customization:** see
 > [`HUMANOID_RIG_AND_CUSTOMIZATION.md`](HUMANOID_RIG_AND_CUSTOMIZATION.md) for the
@@ -65,7 +67,7 @@ enzoballz/
 │   │       ├── progression.rs # XP/attributes + SaveData v2
 │   │       ├── world.rs       # fixed-step orchestration
 │   │       ├── state.rs       # neutral game phase/state
-│   │       ├── snapshot.rs    # WorldSnapshot v3
+│   │       ├── snapshot.rs    # WorldSnapshot v4
 │   │       └── events.rs
 │   ├── enzo-wasm/             # client: macroquad; wasm exports for DOM UI bridge
 │   │   └── src/
@@ -271,7 +273,7 @@ pub struct TickOutput {
 ## 5. Snapshot and serialization
 
 ```rust
-pub const SNAPSHOT_VERSION: u16 = 3;
+pub const SNAPSHOT_VERSION: u16 = 4;
 
 pub struct WorldSnapshot {
     pub version: u16, // SNAPSHOT_VERSION
@@ -434,7 +436,7 @@ supported/tested MVP path.
 | Level | What it covers | Where |
 | --- | --- | --- |
 | Unit | math, map, aura, progression, mechanics/skills helpers | `#[cfg(test)]` per module |
-| Scenario | jump, collision, combo, Mogging, death, flag, slot/loadout behavior (target) | `crates/enzo-core/tests/` |
+| Scenario | jump, collision, punch/combat, Mogging, death, flag, slot/loadout behavior (target) | `crates/enzo-core/tests/` |
 | Determinism | same input + same seed = same hash | `tests/determinism.rs` (and related tests) |
 | Headless (manual/CI) | run command/loadout sequences and print snapshots/hash | `enzo-sim` |
 
@@ -446,8 +448,8 @@ supported/tested MVP path.
 3. **Run:** double-tap within the window starts running; releasing cancels.
 4. **Aura:** alternating `6,7,6,7` increases aura; repeating a key resets combo;
    without farming, the combo expires and slowdown ends.
-5. **Melee combo:** three presses within the window apply 3 hits; third applies
-   knockback; outside the window it restarts.
+5. **Melee punch:** a press performs a single punch (no combo chain), respects
+   cooldown, and uses a deterministic random animation variant per activation.
 6. **Mogging:** not enough aura does not fire; with aura it consumes cost, hits
    enemies, and disappears on solid tiles.
 7. **Progression:** enough XP levels up, grants 1 point, and pauses.

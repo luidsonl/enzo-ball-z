@@ -10,9 +10,9 @@ working in this repository. Also read:
 ## 1. The project
 
 EnzoBallZ is a 2D platformer in the style of Mario, written in Rust and compiled
-to WebAssembly. Enzo runs, jumps, performs a physical combo, farms aura by
+to WebAssembly. Enzo runs, jumps, performs a physical punch, farms aura by
 alternating `6`/`7`, and spends aura on the **Mogging** special. Enemies grant
-XP; leveling up distributes points into Speed, Strength, Health, and Aura.
+XP; leveling up distributes points into Speed, Strength, Health, Aura, and Ego.
 
 The MVP is single-player, but the core is designed for N players and for a
 future authoritative server.
@@ -154,7 +154,7 @@ Every game-rule change needs a test. At minimum:
 
 - **Unit:** functions in `math`, `map`, `aura`, `progression`, `mechanics`, and
   `skills` (including `Loadout::assign`, `sanitize`, and requirements).
-- **Scenario:** jump, collision, double-tap, 3-hit combo, Mogging, death, flag.
+- **Scenario:** jump, collision, double-tap, punch, Mogging, death, flag.
   Also cover slot/loadout behavior (swap/move, level/attribute/item locks,
   cooldown not bypassed by slot changes) where applicable.
 - **Determinism:** same seed + same commands = same snapshot.

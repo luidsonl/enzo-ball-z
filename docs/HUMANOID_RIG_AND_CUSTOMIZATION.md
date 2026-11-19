@@ -50,7 +50,7 @@ Core resolves deterministic gameplay state into `AnimationState` (`pose` +
 | --- | --- |
 | `none` | No priority action |
 | `sixseven(hand)` | Aura farming pose/hand alternation (`6/7`) |
-| `melee(step)` | Melee/punch combo step |
+| `melee(step)` | Melee/punch animation variant (random per activation, deterministic) |
 | `kick` | Kick attack (character/skill-specific) |
 | `cast` | Ranged/magic/aura cast |
 | `hurt` | Damage reaction / invulnerability flash context |

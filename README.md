@@ -1,7 +1,7 @@
 # EnzoBallZ
 
 A 2D platformer in the style of Mario, written in Rust and compiled to
-WebAssembly. Enzo runs, jumps, performs a physical combo, farms aura by
+WebAssembly. Enzo runs, jumps, performs a physical punch, farms aura by
 alternating `6`/`7`, and spends aura on the **Mogging** special.
 
 ## Status
