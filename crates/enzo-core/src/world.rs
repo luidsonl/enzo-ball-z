@@ -400,7 +400,7 @@ impl World {
             );
             entity.locomotion = locomotion;
 
-            if entity.is_player() && entity.body.pos.y > fall_limit {
+            if entity.is_actor() && entity.body.pos.y > fall_limit {
                 entity.health.current = 0.0;
             }
         }

@@ -172,7 +172,8 @@ requirements and typed state (Shout/Kick are planned additions).
   Values remain subject to the planned unified stat/damage rebalance.
 - Range: `34 px` in the facing direction, height `26 px` (scaled by skill tier as
   implemented).
-- No aura cost and no third-hit knockback.
+- No aura cost.
+- Every punch applies knockback and brief stun to hit enemies.
 - Each activation chooses a punch animation variant randomly in a deterministic
   way (from tick/entity context) so attack frames vary per punch while simulation
   remains deterministic.

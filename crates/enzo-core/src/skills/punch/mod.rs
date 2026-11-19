@@ -14,6 +14,8 @@ pub const MELEE_HEIGHT: f32 = 26.0;
 pub const PUNCH_ANIM_TIME: f32 = 0.18;
 pub const PUNCH_COOLDOWN: f32 = 0.30;
 pub const PUNCH_VARIANTS: u8 = 3;
+pub const PUNCH_KNOCKBACK_SPEED: f32 = 220.0;
+pub const PUNCH_KNOCKBACK_STUN: f32 = 0.18;
 
 pub const REQUIREMENTS: Requirements = Requirements::new(
     &[EntityType::Playable],
@@ -132,6 +134,10 @@ pub fn activate(
         if applied <= 0.0 {
             continue;
         }
+        if let Some(enemy) = target.enemy_mut() {
+            enemy.stun = PUNCH_KNOCKBACK_STUN;
+        }
+        target.body.vel.x = facing * PUNCH_KNOCKBACK_SPEED;
         events.push(GameEvent::SkillHit {
             attacker: act.entity_id,
             target: target_id,
