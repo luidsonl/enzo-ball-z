@@ -544,6 +544,7 @@ impl World {
                 aura: player_aura,
                 stats: &stats,
                 team,
+                tick: self.tick,
             };
 
             let result = match skill {

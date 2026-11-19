@@ -179,10 +179,9 @@ impl Stats {
         }
     }
 
-    /// `hit_index` is 0, 1, or 2 (first, second, third hit).
-    pub fn melee_damage(&self, hit_index: usize) -> f32 {
-        let base = if hit_index >= 2 { 2.0 } else { 1.0 };
-        base + self.strength
+    /// Damage dealt by a single melee punch.
+    pub fn melee_damage(&self) -> f32 {
+        1.0 + self.strength
     }
 }
 
@@ -252,7 +251,6 @@ mod tests {
         assert_eq!(stats.max_health, 11.0);
         assert_eq!(stats.max_aura, 14.0);
         assert_eq!(stats.mogging_damage, 8.0); // 2 + aura(4) + ego(2)
-        assert_eq!(stats.melee_damage(0), 4.0);
-        assert_eq!(stats.melee_damage(2), 5.0);
+        assert_eq!(stats.melee_damage(), 4.0);
     }
 }

@@ -143,13 +143,9 @@ pub fn damage_preview(
     match skill {
         SkillId::Melee => {
             let ego_damage_bonus = ego * 0.5 * (1.0 + 0.25 * steps);
-            (0..melee::visual::COMBO_STEPS as usize)
-                .map(|hit| {
-                    (stats.melee_damage(hit) * scale + ego_damage_bonus)
-                        .round()
-                        .max(1.0)
-                })
-                .collect()
+            vec![(stats.melee_damage() * scale + ego_damage_bonus)
+                .round()
+                .max(1.0)]
         }
         SkillId::Mogging => {
             let tier = skill.active_tier(context).unwrap_or(1);
@@ -251,6 +247,7 @@ pub struct SkillActivation<'a> {
     pub aura: f32,
     pub stats: &'a Stats,
     pub team: TeamId,
+    pub tick: u64,
 }
 
 /// Estado tipado de todas as skills. Sempre existe; só as equipadas respondem.

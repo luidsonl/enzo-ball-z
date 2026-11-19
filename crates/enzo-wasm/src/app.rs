@@ -739,8 +739,8 @@ impl GameSession {
                             _ => STEEL,
                         };
                         self.effects.damage(pos, damage, color);
-                        self.effects
-                            .sparks(pos, color, if combo >= 3 { 10 } else { 6 });
+                        self.effects.sparks(pos, color, 6);
+                        let _ = combo;
                     }
                     self.camera.add_shake(if matches!(skill, SkillId::Mogging) {
                         4.0

@@ -1,4 +1,4 @@
-//! Three-hit physical combo.
+//! Simple physical punch attack.
 
 use crate::entities::{AttributeSet, EntityId, EntityStore, EquipmentTags};
 use crate::events::GameEvent;
@@ -11,10 +11,9 @@ use super::{
 
 pub const MELEE_RANGE: f32 = 34.0;
 pub const MELEE_HEIGHT: f32 = 26.0;
-pub const MELEE_WINDOW: f32 = 0.5;
-pub const MELEE_ANIM_TIME: f32 = 0.18;
-pub const KNOCKBACK_SPEED: f32 = 220.0;
-pub const KNOCKBACK_STUN: f32 = 0.18;
+pub const PUNCH_ANIM_TIME: f32 = 0.18;
+pub const PUNCH_COOLDOWN: f32 = 0.30;
+pub const PUNCH_VARIANTS: u8 = 3;
 
 pub const REQUIREMENTS: Requirements = Requirements::new(
     &[EntityType::Playable],
@@ -33,7 +32,7 @@ pub static DEF: SkillDef = SkillDef {
     min_skill_level: 1,
     progression: &[1, 2, 3, 4, 5],
     aura_cost: 0.0,
-    cooldown: 0.0,
+    cooldown: PUNCH_COOLDOWN,
     timing: SkillTiming::PostPhysics,
     assets: SkillAssets {
         icon: "assets/skills/melee/icon.png",
@@ -46,23 +45,19 @@ pub static DEF: SkillDef = SkillDef {
 pub mod visual {
     pub const ICON: &str = "assets/skills/melee/icon.png";
     pub const IMPACT: &str = "assets/skills/melee/impact.png";
-    pub const COMBO_STEPS: u8 = 3;
-    pub const SWING_DURATION: f32 = super::MELEE_ANIM_TIME;
+    pub const PUNCH_VARIANTS: u8 = super::PUNCH_VARIANTS;
+    pub const SWING_DURATION: f32 = super::PUNCH_ANIM_TIME;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct State {
-    pub step: u8,
-    pub window: f32,
+    /// Animation variant/frame index (1..=PUNCH_VARIANTS), chosen randomly per punch.
+    pub variant: u8,
     pub anim_timer: f32,
 }
 
 impl State {
     pub fn tick(&mut self, dt: f32) {
-        self.window = (self.window - dt).max(0.0);
-        if self.window <= 0.0 {
-            self.step = 0;
-        }
         self.anim_timer = (self.anim_timer - dt).max(0.0);
     }
 }
@@ -90,15 +85,15 @@ pub fn activate(
     let scale = 1.0 + 0.10 * steps;
     let ego_damage_bonus = ego * 0.5 * (1.0 + 0.25 * steps);
 
-    let step = if state.window > 0.0 {
-        (state.step % 3) + 1
-    } else {
-        1
-    };
+    let variant = ((act.tick as u32)
+        .wrapping_mul(1664525)
+        .wrapping_add(act.entity_id.0)
+        .wrapping_mul(1013904223)
+        % PUNCH_VARIANTS as u32
+        + 1) as u8;
 
-    state.step = step;
-    state.window = MELEE_WINDOW;
-    state.anim_timer = MELEE_ANIM_TIME;
+    state.variant = variant;
+    state.anim_timer = PUNCH_ANIM_TIME;
 
     let facing = if act.facing >= 0 { 1.0 } else { -1.0 };
     let range = MELEE_RANGE * scale;
@@ -119,7 +114,9 @@ pub fn activate(
         )
     };
 
-    let damage = (act.stats.melee_damage((step - 1) as usize) * scale + ego_damage_bonus).round();
+    let damage = (act.stats.melee_damage() * scale + ego_damage_bonus)
+        .round()
+        .max(1.0);
     let targets: Vec<EntityId> = store
         .hostiles_in_rect(hitbox, act.team)
         .into_iter()
@@ -131,22 +128,16 @@ pub fn activate(
         let Some(target) = store.get_mut(target_id) else {
             continue;
         };
-        let applied = target.health.damage(damage.max(1.0));
+        let applied = target.health.damage(damage);
         if applied <= 0.0 {
             continue;
-        }
-        if let Some(enemy) = target.enemy_mut() {
-            enemy.stun = KNOCKBACK_STUN;
-        }
-        if step == 3 {
-            target.body.vel.x = facing * KNOCKBACK_SPEED;
         }
         events.push(GameEvent::SkillHit {
             attacker: act.entity_id,
             target: target_id,
             skill: SkillId::Melee,
             damage: applied,
-            combo: step,
+            combo: 1,
         });
     }
 

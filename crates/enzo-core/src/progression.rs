@@ -303,8 +303,7 @@ mod tests {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
         assert!(allocate_point(&mut entity, Attribute::Strength));
-        assert_eq!(entity.stats.melee_damage(0), 2.0);
-        assert_eq!(entity.stats.melee_damage(2), 3.0);
+        assert_eq!(entity.stats.melee_damage(), 2.0);
     }
 
     #[test]
