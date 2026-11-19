@@ -727,9 +727,9 @@ impl GameSession {
             match *event {
                 GameEvent::SkillHit {
                     target,
-                    damage,
+                    damage: _damage,
                     skill,
-                    combo,
+                    combo: _combo,
                     ..
                 } => {
                     if let Some(pos) = entity_center(&self.current, target) {
@@ -738,9 +738,7 @@ impl GameSession {
                             SkillId::Mogging | SkillId::NutellaShot => PURPLE,
                             _ => STEEL,
                         };
-                        self.effects.damage(pos, damage, color);
                         self.effects.sparks(pos, color, 6);
-                        let _ = combo;
                     }
                     self.camera.add_shake(if matches!(skill, SkillId::Mogging) {
                         4.0
@@ -758,8 +756,6 @@ impl GameSession {
                 }
                 GameEvent::SkillProjectileBlocked { owner, .. } => {
                     if let Some(pos) = entity_center(&self.current, owner) {
-                        self.effects
-                            .text(pos, self.i18n.t(Text::EffectBlocked), STEEL, 10.0);
                         self.effects.sparks(pos, STEEL, 5);
                     }
                     self.camera.add_shake(1.5);
@@ -770,14 +766,7 @@ impl GameSession {
                             SkillRejectReason::NoAura => {
                                 self.effects.no_aura(pos, self.i18n.t(Text::EffectNoAura));
                             }
-                            SkillRejectReason::Cooldown => {
-                                self.effects.text(
-                                    pos,
-                                    self.i18n.t(Text::SkillCooldown),
-                                    STEEL,
-                                    10.0,
-                                );
-                            }
+                            SkillRejectReason::Cooldown => {}
                             SkillRejectReason::Unavailable(_) => {
                                 self.effects
                                     .text(pos, self.i18n.t(Text::SkillLocked), STEEL, 10.0);
@@ -791,10 +780,13 @@ impl GameSession {
                 | GameEvent::LoadoutChanged { .. }
                 | GameEvent::BlockDamaged { .. }
                 | GameEvent::BlockDestroyed { .. } => {}
-                GameEvent::PlayerDamaged { player, damage, .. } => {
+                GameEvent::PlayerDamaged {
+                    player,
+                    damage: _damage,
+                    ..
+                } => {
                     if let Some(pos) = entity_center(&self.current, player) {
                         self.effects.hurt(pos);
-                        self.effects.damage(pos, damage, RED);
                     }
                     self.camera.add_shake(5.0);
                 }
@@ -830,8 +822,6 @@ impl GameSession {
                 }
                 GameEvent::Victory { player } => {
                     if let Some(pos) = entity_center(&self.current, player) {
-                        self.effects
-                            .text(pos, self.i18n.t(Text::EffectVictory), GOLD, 20.0);
                         self.effects.sparks(pos, GOLD, 24);
                     }
                     self.effects.victory_flash = 1.2;
