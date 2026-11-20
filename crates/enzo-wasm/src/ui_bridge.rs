@@ -331,12 +331,13 @@ pub extern "C" fn enzo_ui_action(code: u8, a: u8, b: u8, c: u8) {
     }
 }
 
-/// Apply current sandbox debug tool at screen coordinates (canvas pixels).
+/// Apply current sandbox debug tool at normalized canvas coordinates (0..1).
 #[no_mangle]
 pub extern "C" fn enzo_sandbox_apply(x: f32, y: f32) {
     push_ui_action(UiAction::SandboxApplyAt {
-        x: x as i32,
-        y: y as i32,
+        // Keep subpixel precision by scaling normalized coords.
+        x: (x.clamp(0.0, 1.0) * 1_000_000.0) as i32,
+        y: (y.clamp(0.0, 1.0) * 1_000_000.0) as i32,
     });
 }
 

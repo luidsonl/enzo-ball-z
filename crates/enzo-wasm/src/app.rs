@@ -736,9 +736,12 @@ impl GameSession {
     }
 
     fn screen_to_world(&self, screen_x: f32, screen_y: f32) -> Vec2 {
-        // Convert screen pixels to world coords using the same camera as rendering.
-        let cam = self.camera.camera();
-        cam.screen_to_world(vec2(screen_x, screen_y))
+        // `screen_x/y` are normalized canvas coordinates in [0, 1].
+        // Map them directly to the rendered world view rect for accurate placement.
+        let view = self.camera.effective_view_rect();
+        let nx = screen_x.clamp(0.0, 1.0);
+        let ny = screen_y.clamp(0.0, 1.0);
+        vec2(view.x + nx * view.w, view.y + ny * view.h)
     }
 
     fn handle_sandbox_action(&mut self, action: ui_bridge::UiAction) -> bool {
@@ -816,7 +819,10 @@ impl GameSession {
                 true
             }
             UiAction::SandboxApplyAt { x, y } => {
-                self.apply_sandbox_tool_at_screen(x as f32, y as f32);
+                // Normalized canvas coords (scaled by 1_000_000 in the bridge).
+                let nx = (x as f32 / 1_000_000.0).clamp(0.0, 1.0);
+                let ny = (y as f32 / 1_000_000.0).clamp(0.0, 1.0);
+                self.apply_sandbox_tool_at_screen(nx, ny);
                 true
             }
             _ => false,
@@ -836,21 +842,26 @@ impl GameSession {
                 }
             }
             2 => {
-                // Spawn selected enemy at world position.
+                // Spawn selected enemy centered on the cursor world position.
                 let kind = "slime";
-                let _ = self.world.sandbox_spawn_enemy(
-                    kind,
-                    enzo_core::math::Vec2::new(world_pos.x, world_pos.y),
+                let size = enzo_core::entities::SLIME_SIZE;
+                let spawn_pos = enzo_core::math::Vec2::new(
+                    world_pos.x - size.x * 0.5,
+                    world_pos.y - size.y * 0.5,
                 );
+                let _ = self.world.sandbox_spawn_enemy(kind, spawn_pos);
             }
             3 => {
                 if let Some(item) =
                     enzo_core::entities::ItemKind::from_code(self.sandbox_tool.selected_item)
                 {
-                    let _ = self.world.sandbox_spawn_item(
-                        item,
-                        enzo_core::math::Vec2::new(world_pos.x, world_pos.y),
+                    // Spawn item centered on the cursor world position.
+                    let size = enzo_core::entities::ITEM_SIZE;
+                    let spawn_pos = enzo_core::math::Vec2::new(
+                        world_pos.x - size.x * 0.5,
+                        world_pos.y - size.y * 0.5,
                     );
+                    let _ = self.world.sandbox_spawn_item(item, spawn_pos);
                 }
             }
             _ => {}

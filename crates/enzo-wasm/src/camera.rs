@@ -104,7 +104,8 @@ impl GameCamera {
         )
     }
 
-    pub fn camera(&self) -> Camera2D {
+    /// View rect as actually rendered this frame (including camera shake).
+    pub fn effective_view_rect(&self) -> Rect {
         let offset = if self.shake > 0.0 {
             vec2(
                 (self.shake_clock * 91.0).sin(),
@@ -114,12 +115,11 @@ impl GameCamera {
             Vec2::ZERO
         };
         let view = self.view_rect();
-        world_camera(Rect::new(
-            view.x + offset.x,
-            view.y + offset.y,
-            view.w,
-            view.h,
-        ))
+        Rect::new(view.x + offset.x, view.y + offset.y, view.w, view.h)
+    }
+
+    pub fn camera(&self) -> Camera2D {
+        world_camera(self.effective_view_rect())
     }
 
     fn target(&self, focus: Focus) -> Vec2 {

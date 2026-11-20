@@ -53,8 +53,10 @@ function canvasCoordsFromClient(clientX, clientY) {
   if (!canvas) return null;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;
-  const x = ((clientX - rect.left) / rect.width) * (canvas.width || rect.width);
-  const y = ((clientY - rect.top) / rect.height) * (canvas.height || rect.height);
+  // Normalized canvas coords (0..1) so Rust can map to the rendered world view
+  // independently of DPI/buffer/logical screen size differences.
+  const x = (clientX - rect.left) / rect.width;
+  const y = (clientY - rect.top) / rect.height;
   return { x, y };
 }
 
