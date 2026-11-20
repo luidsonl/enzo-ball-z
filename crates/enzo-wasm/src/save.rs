@@ -266,7 +266,10 @@ pub fn store_keybindings(bindings: &crate::input::KeyBindings) -> Result<(), Str
 }
 
 pub fn load_sandbox_unlocked() -> bool {
-    matches!(read_key(SANDBOX_UNLOCKED_KEY).as_deref(), Some("1") | Some("true") | Some("on"))
+    matches!(
+        read_key(SANDBOX_UNLOCKED_KEY).as_deref(),
+        Some("1") | Some("true") | Some("on")
+    )
 }
 
 pub fn store_sandbox_unlocked(unlocked: bool) -> Result<(), String> {

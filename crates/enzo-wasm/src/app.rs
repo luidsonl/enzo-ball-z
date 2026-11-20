@@ -56,6 +56,7 @@ enum Scene {
 enum Transition {
     None,
     Start { slot: usize, save: Option<SaveData> },
+    StartSandbox,
     OpenMenu,
     Resume,
 }
@@ -114,6 +115,13 @@ impl App {
                 Scene::Menu(menu) => {
                     // Keep canvas stable (no black flashing) while DOM menu is shown.
                     draw_menu_canvas_background(self.time);
+                    // Secret unlock via keyboard in menu.
+                    if is_key_pressed(KeyCode::Key6) || is_key_pressed(KeyCode::Kp6) {
+                        menu.handle_sandbox_unlock_digit(6);
+                    }
+                    if is_key_pressed(KeyCode::Key7) || is_key_pressed(KeyCode::Kp7) {
+                        menu.handle_sandbox_unlock_digit(7);
+                    }
                     if menu.current() == crate::menu::MenuScreen::Customize {
                         draw_character_preview(
                             &self.sprites,
@@ -124,6 +132,7 @@ impl App {
                     }
                     match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                         Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
+                        Some(MenuAction::StartSandbox) => Transition::StartSandbox,
                         Some(MenuAction::Resume) => Transition::None,
                         None => Transition::None,
                     }
@@ -169,6 +178,7 @@ impl App {
                     }
                     match menu.frame(self.pointer, &mut self.i18n, frame_dt) {
                         Some(MenuAction::Start { slot, save }) => Transition::Start { slot, save },
+                        Some(MenuAction::StartSandbox) => Transition::StartSandbox,
                         Some(MenuAction::Resume) => Transition::Resume,
                         None => Transition::None,
                     }
@@ -191,22 +201,38 @@ impl App {
                         None,
                         Some(&menu.bindings),
                     ),
-                    Scene::Game(session) => ui_controller::publish(
-                        "game",
-                        Some(&session.current),
-                        None,
-                        self.i18n,
-                        session.game_toast_text(),
-                        Some(&session.input.bindings),
-                    ),
-                    Scene::MenuOverGame { menu, game } => ui_controller::publish(
-                        "menu_over_game",
-                        Some(&game.current),
-                        Some(menu),
-                        self.i18n,
-                        game.game_toast_text(),
-                        Some(&game.input.bindings),
-                    ),
+                    Scene::Game(session) => {
+                        let sandbox = if session.is_sandbox {
+                            Some(session.sandbox_ui_state())
+                        } else {
+                            None
+                        };
+                        ui_controller::publish_with_sandbox(
+                            "game",
+                            Some(&session.current),
+                            None,
+                            self.i18n,
+                            session.game_toast_text(),
+                            Some(&session.input.bindings),
+                            sandbox,
+                        );
+                    }
+                    Scene::MenuOverGame { menu, game } => {
+                        let sandbox = if game.is_sandbox {
+                            Some(game.sandbox_ui_state())
+                        } else {
+                            None
+                        };
+                        ui_controller::publish_with_sandbox(
+                            "menu_over_game",
+                            Some(&game.current),
+                            Some(menu),
+                            self.i18n,
+                            game.game_toast_text(),
+                            Some(&game.input.bindings),
+                            sandbox,
+                        );
+                    }
                 }
             }
 
@@ -236,6 +262,26 @@ impl App {
                             menu.notify(format!("{}: {err}", self.i18n.t(Text::LevelLoadFailed)));
                         }
                     }
+                }
+            }
+            Transition::StartSandbox => {
+                match GameSession::new_sandbox(
+                    self.sprites.assets.clone(),
+                    self.i18n,
+                    self.bindings.clone(),
+                ) {
+                    Ok(session) => {
+                        self.scene = Scene::Game(Box::new(session));
+                    }
+                    Err(err) => match &mut self.scene {
+                        Scene::Menu(menu) => {
+                            menu.notify(format!("{}: {err}", self.i18n.t(Text::LevelLoadFailed)));
+                        }
+                        Scene::MenuOverGame { menu, .. } => {
+                            menu.notify(format!("{}: {err}", self.i18n.t(Text::LevelLoadFailed)));
+                        }
+                        Scene::Game(_) => {}
+                    },
                 }
             }
             Transition::OpenMenu => {
@@ -357,6 +403,9 @@ impl App {
                             MenuAction::Start { slot, save } => {
                                 transition = Transition::Start { slot, save };
                             }
+                            MenuAction::StartSandbox => {
+                                transition = Transition::StartSandbox;
+                            }
                             MenuAction::Resume => {}
                         }
                     }
@@ -374,6 +423,7 @@ impl App {
                         transition = Transition::OpenMenu;
                     }
                     UiAction::HudOpenSkills => session.hud.open(crate::hud::WindowId::Skills),
+                    action if session.handle_sandbox_action(action) => {}
                     UiAction::LoadoutAssign { slot, skill } => {
                         if let (Some(slot), Some(skill)) = (
                             enzo_core::input::ActionSlot::from_index(slot as usize),
@@ -437,6 +487,7 @@ impl App {
                         game.pending_restart = true;
                         transition = Transition::Resume;
                     }
+                    action if game.handle_sandbox_action(action) => {}
                     UiAction::HudOpenSkills => game.hud.open(crate::hud::WindowId::Skills),
                     UiAction::LoadoutAssign { slot, skill } => {
                         if let (Some(slot), Some(skill)) = (
@@ -499,6 +550,7 @@ impl App {
                                 MenuAction::Start { slot, save } => {
                                     transition = Transition::Start { slot, save };
                                 }
+                                MenuAction::StartSandbox => transition = Transition::StartSandbox,
                                 MenuAction::Resume => transition = Transition::Resume,
                             }
                         }
@@ -515,6 +567,27 @@ impl App {
         }
 
         self.apply_transition(transition);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct SandboxToolState {
+    tab: u8,        // 0 character, 1 blocks, 2 enemies, 3 items
+    block_mode: u8, // 0 place, 1 remove
+    selected_block: u8,
+    selected_enemy: u8,
+    selected_item: u8,
+}
+
+impl Default for SandboxToolState {
+    fn default() -> Self {
+        Self {
+            tab: 0,
+            block_mode: 0,
+            selected_block: enzo_core::map::BlockId::Block as u8,
+            selected_enemy: 0,
+            selected_item: enzo_core::entities::ItemKind::Sword.code(),
+        }
     }
 }
 
@@ -540,6 +613,9 @@ struct GameSession {
     pending_confirm: bool,
     pending_restart: bool,
     paused: bool,
+    is_sandbox: bool,
+    sandbox_tool: SandboxToolState,
+    assets: crate::assets::AssetStore,
 }
 
 impl GameSession {
@@ -561,7 +637,32 @@ impl GameSession {
             let _ = world.set_visual_profile(0, dp);
         }
 
-        let tiles = TileRenderer::new(world.level(), assets);
+        Self::from_world(slot, world, assets, i18n, bindings, false)
+    }
+
+    fn new_sandbox(
+        assets: crate::assets::AssetStore,
+        i18n: I18n,
+        bindings: crate::input::KeyBindings,
+    ) -> Result<Self, LevelError> {
+        let mut world = World::new_sandbox(enzo_core::levels::SANDBOX_LEVEL)?;
+        // Start with draft character customization in sandbox too.
+        let dc = save::load_draft_character();
+        let dp = save::load_draft_visual_profile(dc);
+        let _ = world.set_playable_character(0, dc);
+        let _ = world.set_visual_profile(0, dp);
+        Self::from_world(0, world, assets, i18n, bindings, true)
+    }
+
+    fn from_world(
+        slot: usize,
+        world: World,
+        assets: crate::assets::AssetStore,
+        i18n: I18n,
+        bindings: crate::input::KeyBindings,
+        is_sandbox: bool,
+    ) -> Result<Self, LevelError> {
+        let tiles = TileRenderer::new(world.level(), assets.clone());
         let background = Background::from_metadata(&world.level().metadata.background);
         let current = world.snapshot();
         let mut camera = GameCamera::new();
@@ -589,7 +690,142 @@ impl GameSession {
             pending_confirm: false,
             pending_restart: false,
             paused: false,
+            is_sandbox,
+            sandbox_tool: SandboxToolState::default(),
+            assets,
         })
+    }
+
+    fn sandbox_ui_state(&self) -> ui_controller::UiSandboxState {
+        let mut state = ui_controller::default_sandbox_ui_state();
+        state.tab = self.sandbox_tool.tab;
+        state.block_mode = self.sandbox_tool.block_mode;
+        state.selected_block = self.sandbox_tool.selected_block;
+        state.selected_enemy = self.sandbox_tool.selected_enemy;
+        state.selected_item = self.sandbox_tool.selected_item;
+        state
+    }
+
+    fn screen_to_world(&self, screen_x: f32, screen_y: f32) -> Vec2 {
+        // Convert screen pixels to world coords using the same camera as rendering.
+        let cam = self.camera.camera();
+        cam.screen_to_world(vec2(screen_x, screen_y))
+    }
+
+    fn handle_sandbox_action(&mut self, action: ui_bridge::UiAction) -> bool {
+        if !self.is_sandbox {
+            return false;
+        }
+        use ui_bridge::UiAction;
+        match action {
+            UiAction::SandboxToggleSigma => {
+                let current = self
+                    .world
+                    .store()
+                    .player(0)
+                    .and_then(|e| e.player().map(|p| p.sigma_mode))
+                    .unwrap_or(false);
+                let _ = self.world.sandbox_set_sigma_mode(0, !current);
+                true
+            }
+            UiAction::SandboxGrantLevels { levels } => {
+                let _ = self
+                    .world
+                    .sandbox_debug_grant_levels(0, levels.max(1) as u32);
+                true
+            }
+            UiAction::SandboxSetLevel { level } => {
+                let _ = self.world.sandbox_debug_set_level(0, level.max(1) as u32);
+                true
+            }
+            UiAction::SandboxResetAttrs => {
+                let _ = self.world.sandbox_debug_reset_attributes(0);
+                true
+            }
+            UiAction::SandboxDie => {
+                let _ = self.world.sandbox_debug_die(0);
+                true
+            }
+            UiAction::SandboxReset => {
+                let _ = self.world.sandbox_reset();
+                // Reset tool selection to defaults but keep current tab.
+                self.sandbox_tool.selected_block = enzo_core::map::BlockId::Block as u8;
+                self.sandbox_tool.block_mode = 0;
+                self.tiles = TileRenderer::new(self.world.level(), self.assets.clone());
+                self.background =
+                    Background::from_metadata(&self.world.level().metadata.background);
+                self.previous = self.world.snapshot();
+                self.current = self.previous.clone();
+                self.effects.clear();
+                self.camera.reset();
+                true
+            }
+            UiAction::SandboxSetTab { tab } => {
+                self.sandbox_tool.tab = tab.min(3);
+                true
+            }
+            UiAction::SandboxSetBlockTool { block_mode, block } => {
+                self.sandbox_tool.block_mode = if block_mode == 1 { 1 } else { 0 };
+                if let Some(b) = block_id_from_code(block) {
+                    if b != enzo_core::map::BlockId::Empty {
+                        self.sandbox_tool.selected_block = b as u8;
+                    }
+                }
+                self.sandbox_tool.tab = 1;
+                true
+            }
+            UiAction::SandboxSetEnemy { kind } => {
+                self.sandbox_tool.selected_enemy = kind;
+                self.sandbox_tool.tab = 2;
+                true
+            }
+            UiAction::SandboxSetItem { item } => {
+                if enzo_core::entities::ItemKind::from_code(item).is_some() {
+                    self.sandbox_tool.selected_item = item;
+                }
+                self.sandbox_tool.tab = 3;
+                true
+            }
+            UiAction::SandboxApplyAt { x, y } => {
+                self.apply_sandbox_tool_at_screen(x as f32, y as f32);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn apply_sandbox_tool_at_screen(&mut self, screen_x: f32, screen_y: f32) {
+        let world_pos = self.screen_to_world(screen_x, screen_y);
+        match self.sandbox_tool.tab {
+            1 => {
+                let tx = (world_pos.x / enzo_core::map::TILE_SIZE).floor() as i32;
+                let ty = (world_pos.y / enzo_core::map::TILE_SIZE).floor() as i32;
+                if self.sandbox_tool.block_mode == 1 {
+                    let _ = self.world.sandbox_remove_block(tx, ty);
+                } else if let Some(block) = block_id_from_code(self.sandbox_tool.selected_block) {
+                    let _ = self.world.sandbox_set_block(tx, ty, block);
+                }
+            }
+            2 => {
+                // Spawn selected enemy at world position.
+                let kind = "slime";
+                let _ = self.world.sandbox_spawn_enemy(
+                    kind,
+                    enzo_core::math::Vec2::new(world_pos.x, world_pos.y),
+                );
+            }
+            3 => {
+                if let Some(item) =
+                    enzo_core::entities::ItemKind::from_code(self.sandbox_tool.selected_item)
+                {
+                    let _ = self.world.sandbox_spawn_item(
+                        item,
+                        enzo_core::math::Vec2::new(world_pos.x, world_pos.y),
+                    );
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Avança e desenha um frame. Retorna `true` quando o jogador pediu para
@@ -852,6 +1088,10 @@ impl GameSession {
     }
 
     fn persist(&mut self, reason: Text) {
+        if self.is_sandbox {
+            // Sandbox/debug sessions are isolated and must not write campaign saves.
+            return;
+        }
         let Some(data) = self.world.save_data() else {
             return;
         };
@@ -972,6 +1212,22 @@ fn draw_character_preview(
             let _ = sprites.draw_enzo_rig("idle", time, foot, false, tint, profile, false, 0.0, 0);
         }
     }
+}
+
+fn block_id_from_code(code: u8) -> Option<enzo_core::map::BlockId> {
+    use enzo_core::map::BlockId;
+    Some(match code {
+        x if x == BlockId::Empty as u8 => BlockId::Empty,
+        x if x == BlockId::Ground as u8 => BlockId::Ground,
+        x if x == BlockId::Block as u8 => BlockId::Block,
+        x if x == BlockId::Platform as u8 => BlockId::Platform,
+        x if x == BlockId::Crate as u8 => BlockId::Crate,
+        x if x == BlockId::FlagBottom as u8 => BlockId::FlagBottom,
+        x if x == BlockId::FlagTop as u8 => BlockId::FlagTop,
+        x if x == BlockId::BreakableStone as u8 => BlockId::BreakableStone,
+        x if x == BlockId::InvisibleBlock as u8 => BlockId::InvisibleBlock,
+        _ => return None,
+    })
 }
 
 /// Quantos ticks de simulação cabem no tempo acumulado, respeitando o teto por

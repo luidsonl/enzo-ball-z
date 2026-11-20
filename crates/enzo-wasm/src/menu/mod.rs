@@ -489,6 +489,9 @@ mod tests {
             draft_character: Default::default(),
             draft_visual_profile: Default::default(),
             bindings: crate::input::KeyBindings::default(),
+            sandbox_unlocked: false,
+            sandbox_unlock_step: 0,
+            sandbox_unlock_timer: 0.0,
         }
     }
 
@@ -525,5 +528,19 @@ mod tests {
         assert!(pt.contains("Nível"));
         assert!(en.contains("Level"));
         assert!(pt.contains("750"));
+    }
+
+    #[test]
+    fn sandbox_unlock_sequence_requires_six_then_seven_in_window() {
+        let mut menu = menu();
+        assert!(!menu.handle_sandbox_unlock_digit(7));
+        assert!(!menu.sandbox_unlocked);
+        assert!(!menu.handle_sandbox_unlock_digit(6));
+        assert!(!menu.sandbox_unlocked);
+        menu.sandbox_unlock_timer = 1.0;
+        assert!(menu.handle_sandbox_unlock_digit(7));
+        assert!(menu.sandbox_unlocked);
+        assert!(!menu.handle_sandbox_unlock_digit(6));
+        assert!(menu.sandbox_unlocked);
     }
 }

@@ -82,6 +82,40 @@ pub enum UiAction {
         field: u8,
         value: u8,
     },
+    // Sandbox/debug
+    MenuOpenSandbox,
+    SandboxUnlockDigit {
+        digit: u8,
+    },
+    SandboxToggleSigma,
+    SandboxGrantLevels {
+        levels: u8,
+    },
+    SandboxSetLevel {
+        level: u8,
+    },
+    SandboxResetAttrs,
+    SandboxDie,
+    SandboxReset,
+    SandboxSetTab {
+        tab: u8,
+    },
+    /// block_mode: 0=place, 1=remove
+    SandboxSetBlockTool {
+        block_mode: u8,
+        block: u8,
+    },
+    SandboxSetEnemy {
+        kind: u8,
+    },
+    SandboxSetItem {
+        item: u8,
+    },
+    /// Apply current sandbox tool at screen position (canvas pixels).
+    SandboxApplyAt {
+        x: i32,
+        y: i32,
+    },
 }
 
 impl UiAction {
@@ -123,6 +157,21 @@ impl UiAction {
             20 => UiAction::UnequipSlot { slot: a },
             21 => UiAction::SetPlayableCharacter { character: a },
             22 => UiAction::SetVisualProfileField { field: a, value: b },
+            29 => UiAction::MenuOpenSandbox,
+            30 => UiAction::SandboxUnlockDigit { digit: a },
+            31 => UiAction::SandboxToggleSigma,
+            32 => UiAction::SandboxGrantLevels { levels: a.max(1) },
+            33 => UiAction::SandboxSetLevel { level: a.max(1) },
+            34 => UiAction::SandboxResetAttrs,
+            35 => UiAction::SandboxDie,
+            36 => UiAction::SandboxReset,
+            37 => UiAction::SandboxSetTab { tab: a },
+            38 => UiAction::SandboxSetBlockTool {
+                block_mode: a,
+                block: b,
+            },
+            39 => UiAction::SandboxSetEnemy { kind: a },
+            40 => UiAction::SandboxSetItem { item: a },
             _ => return None,
         })
     }
@@ -272,11 +321,23 @@ pub extern "C" fn enzo_set_visual_profile_field(field: u8, value: u8) {
 /// 23=open customize, 24=open controls, 25=reset controls to defaults,
 /// 26=set control key(a=input action code,b=supported key index,c=1 replace/0 add), 27=clear action keys(a=input action code),
 /// 28=set interface scale auto(a=1/0)
+/// 29=open sandbox, 30=sandbox unlock digit(a), 31=toggle sigma, 32=grant levels(a),
+/// 33=set level(a), 34=reset attrs, 35=die, 36=reset sandbox, 37=set tab(a),
+/// 38=set block tool(a=mode 0 place/1 remove,b=block code), 39=set enemy(a=kind), 40=set item(a=item code)
 #[no_mangle]
 pub extern "C" fn enzo_ui_action(code: u8, a: u8, b: u8, c: u8) {
     if let Some(action) = UiAction::from_ffi(code, a, b, c) {
         push_ui_action(action);
     }
+}
+
+/// Apply current sandbox debug tool at screen coordinates (canvas pixels).
+#[no_mangle]
+pub extern "C" fn enzo_sandbox_apply(x: f32, y: f32) {
+    push_ui_action(UiAction::SandboxApplyAt {
+        x: x as i32,
+        y: y as i32,
+    });
 }
 
 /// Sets the effective interface scale at runtime without persisting a user preference.
@@ -363,6 +424,21 @@ mod tests {
             Some(UiAction::MenuStart {
                 slot: 2,
                 new_game: true
+            })
+        );
+        assert_eq!(
+            UiAction::from_ffi(29, 0, 0, 0),
+            Some(UiAction::MenuOpenSandbox)
+        );
+        assert_eq!(
+            UiAction::from_ffi(30, 6, 0, 0),
+            Some(UiAction::SandboxUnlockDigit { digit: 6 })
+        );
+        assert_eq!(
+            UiAction::from_ffi(38, 0, 2, 0),
+            Some(UiAction::SandboxSetBlockTool {
+                block_mode: 0,
+                block: 2
             })
         );
         assert_eq!(UiAction::from_ffi(255, 0, 0, 0), None);

@@ -52,6 +52,18 @@ export const UiAction = Object.freeze({
   ControlsSetKey: 26,
   ControlsClearAction: 27,
   SetInterfaceScaleAuto: 28,
+  MenuOpenSandbox: 29,
+  SandboxUnlockDigit: 30,
+  SandboxToggleSigma: 31,
+  SandboxGrantLevels: 32,
+  SandboxSetLevel: 33,
+  SandboxResetAttrs: 34,
+  SandboxDie: 35,
+  SandboxReset: 36,
+  SandboxSetTab: 37,
+  SandboxSetBlockTool: 38,
+  SandboxSetEnemy: 39,
+  SandboxSetItem: 40,
 });
 
 const pendingUi = [];
@@ -103,7 +115,7 @@ export function actionUp(code) {
 }
 
 export function uiAction(code, a = 0, b = 0, c = 0) {
-  if (code === UiAction.MenuResume || code === UiAction.MenuStart || code === UiAction.HudRestart) {
+  if (code === UiAction.MenuResume || code === UiAction.MenuStart || code === UiAction.HudRestart || code === UiAction.MenuOpenSandbox) {
     focusGameCanvas();
   }
   if (exportsReady() && typeof globalThis.wasm_exports.enzo_ui_action === "function") {
@@ -111,6 +123,12 @@ export function uiAction(code, a = 0, b = 0, c = 0) {
     return;
   }
   if (pendingUi.length < 64) pendingUi.push({ kind: "ui", code, a, b, c });
+}
+
+export function sandboxApply(x, y) {
+  if (exportsReady() && typeof globalThis.wasm_exports.enzo_sandbox_apply === "function") {
+    globalThis.wasm_exports.enzo_sandbox_apply(x, y);
+  }
 }
 
 export function loadoutAssign(slot, skill) {

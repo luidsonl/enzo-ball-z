@@ -833,7 +833,10 @@ impl World {
         let (character, profile, sigma_mode) = self
             .store
             .player(0)
-            .and_then(|e| e.player().map(|p| (p.character, p.visual_profile, p.sigma_mode)))
+            .and_then(|e| {
+                e.player()
+                    .map(|p| (p.character, p.visual_profile, p.sigma_mode))
+            })
             .unwrap_or((PlayableCharacter::Enzo, VisualProfile::default(), false));
 
         self.store = EntityStore::new();

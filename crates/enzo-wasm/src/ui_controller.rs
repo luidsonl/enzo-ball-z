@@ -87,10 +87,28 @@ pub struct UiLabels {
     pub skill_no_damage: String,
     pub skill_aura_cost: String,
     pub skill_cooldown: String,
+    // Sandbox/debug
+    pub sandbox: String,
+    pub sandbox_debug: String,
+    pub tab_character: String,
+    pub tab_blocks: String,
+    pub tab_enemies: String,
+    pub tab_items: String,
+    pub sigma_mode: String,
+    pub level_up_debug: String,
+    pub grant_levels: String,
+    pub set_level: String,
+    pub reset_attrs: String,
+    pub die: String,
+    pub reset_sandbox: String,
+    pub place: String,
+    pub remove: String,
+    pub spawn: String,
 }
 
 impl UiLabels {
     pub fn from_i18n(i18n: I18n) -> Self {
+        let en = i18n.language().code() == "en";
         Self {
             play: i18n.t(Text::Play).to_owned(),
             resume: i18n.t(Text::Resume).to_owned(),
@@ -119,7 +137,7 @@ impl UiLabels {
             restart: i18n.t(Text::RestartNow).to_owned(),
             level_up: i18n.t(Text::LevelUpTitle).to_owned(),
             victory: i18n.t(Text::VictoryTitle).to_owned(),
-            game_over: if i18n.language().code() == "en" {
+            game_over: if en {
                 "Game Over".to_owned()
             } else {
                 "Sobrou nada pro beta".to_owned()
@@ -134,98 +152,98 @@ impl UiLabels {
             skills_title: i18n.t(Text::SkillsTitle).to_owned(),
             inventory_empty: i18n.t(Text::InventoryEmpty).to_owned(),
             no_item: i18n.t(Text::NoItem).to_owned(),
-            assign: if i18n.language().code() == "en" {
+            assign: if en {
                 "Assign".to_owned()
             } else {
                 "Alocar".to_owned()
             },
-            clear: if i18n.language().code() == "en" {
+            clear: if en {
                 "Clear".to_owned()
             } else {
                 "Limpar".to_owned()
             },
-            equipped: if i18n.language().code() == "en" {
+            equipped: if en {
                 "Equipped".to_owned()
             } else {
                 "Equipado".to_owned()
             },
             locked: i18n.t(Text::SkillLocked).to_owned(),
-            close: if i18n.language().code() == "en" {
+            close: if en {
                 "Close".to_owned()
             } else {
                 "Fechar".to_owned()
             },
-            customize: if i18n.language().code() == "en" {
+            customize: if en {
                 "Customize".to_owned()
             } else {
                 "Personalizar".to_owned()
             },
-            character_editor: if i18n.language().code() == "en" {
+            character_editor: if en {
                 "Character Editor".to_owned()
             } else {
                 "Editor de Personagem".to_owned()
             },
-            character: if i18n.language().code() == "en" {
+            character: if en {
                 "Character".to_owned()
             } else {
                 "Personagem".to_owned()
             },
-            skin_tone: if i18n.language().code() == "en" {
+            skin_tone: if en {
                 "Skin tone".to_owned()
             } else {
                 "Tom de pele".to_owned()
             },
-            hair_style: if i18n.language().code() == "en" {
+            hair_style: if en {
                 "Hair style".to_owned()
             } else {
                 "Estilo de cabelo".to_owned()
             },
-            hair_color: if i18n.language().code() == "en" {
+            hair_color: if en {
                 "Hair color".to_owned()
             } else {
                 "Cor do cabelo".to_owned()
             },
-            face: if i18n.language().code() == "en" {
+            face: if en {
                 "Face".to_owned()
             } else {
                 "Rosto".to_owned()
             },
-            outfit_top: if i18n.language().code() == "en" {
+            outfit_top: if en {
                 "Shirt color".to_owned()
             } else {
                 "Cor da camiseta".to_owned()
             },
-            outfit_bottom: if i18n.language().code() == "en" {
+            outfit_bottom: if en {
                 "Pants color".to_owned()
             } else {
                 "Cor da calça".to_owned()
             },
-            outfit_top_detail1: if i18n.language().code() == "en" {
+            outfit_top_detail1: if en {
                 "Outfit detail 1".to_owned()
             } else {
                 "Detalhe da roupa 1".to_owned()
             },
-            outfit_top_detail2: if i18n.language().code() == "en" {
+            outfit_top_detail2: if en {
                 "Outfit detail 2".to_owned()
             } else {
                 "Detalhe da roupa 2".to_owned()
             },
-            shoes: if i18n.language().code() == "en" {
+            shoes: if en {
                 "Details color".to_owned()
             } else {
                 "Cor dos detalhes".to_owned()
             },
-            main_clothing_color: if i18n.language().code() == "en" {
+            main_clothing_color: if en {
                 "Clothing colors".to_owned()
             } else {
                 "Cores das roupas".to_owned()
             },
-            equip: if i18n.language().code() == "en" {
+            equip: if en {
                 "Equip".to_owned()
             } else {
                 "Equipar".to_owned()
             },
-            unequip: if i18n.language().code() == "en" {
+            unequip: if en {
                 "Unequip".to_owned()
             } else {
                 "Desequipar".to_owned()
@@ -237,6 +255,78 @@ impl UiLabels {
             skill_no_damage: i18n.t(Text::SkillNoDamage).to_owned(),
             skill_aura_cost: i18n.t(Text::SkillAuraCost).to_owned(),
             skill_cooldown: i18n.t(Text::SkillCooldown).to_owned(),
+            sandbox: "Sandbox".to_owned(),
+            sandbox_debug: "Sandbox / Debug".to_owned(),
+            tab_character: if en {
+                "Character".to_owned()
+            } else {
+                "Personagem".to_owned()
+            },
+            tab_blocks: if en {
+                "Blocks".to_owned()
+            } else {
+                "Blocos".to_owned()
+            },
+            tab_enemies: if en {
+                "Enemies".to_owned()
+            } else {
+                "Inimigos".to_owned()
+            },
+            tab_items: if en {
+                "Items".to_owned()
+            } else {
+                "Itens".to_owned()
+            },
+            sigma_mode: if en {
+                "Sigma mode".to_owned()
+            } else {
+                "Modo sigma".to_owned()
+            },
+            level_up_debug: if en {
+                "Level up".to_owned()
+            } else {
+                "Subir nível".to_owned()
+            },
+            grant_levels: if en {
+                "Grant +5 levels".to_owned()
+            } else {
+                "Dar +5 níveis".to_owned()
+            },
+            set_level: if en {
+                "Set level".to_owned()
+            } else {
+                "Definir nível".to_owned()
+            },
+            reset_attrs: if en {
+                "Reset attributes".to_owned()
+            } else {
+                "Resetar atributos".to_owned()
+            },
+            die: if en {
+                "Die".to_owned()
+            } else {
+                "Morrer".to_owned()
+            },
+            reset_sandbox: if en {
+                "Reset sandbox".to_owned()
+            } else {
+                "Resetar sandbox".to_owned()
+            },
+            place: if en {
+                "Place".to_owned()
+            } else {
+                "Colocar".to_owned()
+            },
+            remove: if en {
+                "Remove".to_owned()
+            } else {
+                "Remover".to_owned()
+            },
+            spawn: if en {
+                "Spawn".to_owned()
+            } else {
+                "Spawnar".to_owned()
+            },
         }
     }
 }
@@ -277,6 +367,7 @@ pub struct UiMenuState {
     pub pending_delete: Option<u8>,
     pub slots: Vec<UiSlotSummary>,
     pub toast: Option<String>,
+    pub sandbox_unlocked: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -370,6 +461,7 @@ pub struct UiPlayerState {
     pub catalog: Vec<UiCatalogEntry>,
     pub equipment_slots: Vec<UiEquipmentSlot>,
     pub inventory: Vec<UiInventoryItem>,
+    pub sigma_mode: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -388,6 +480,38 @@ pub struct UiSupportedKey {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct UiSandboxBlockOption {
+    pub code: u8,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSandboxEnemyOption {
+    pub code: u8,
+    pub kind: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSandboxItemOption {
+    pub code: u8,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UiSandboxState {
+    pub active: bool,
+    pub tab: u8,        // 0=character,1=blocks,2=enemies,3=items
+    pub block_mode: u8, // 0=place,1=remove
+    pub selected_block: u8,
+    pub selected_enemy: u8,
+    pub selected_item: u8,
+    pub blocks: Vec<UiSandboxBlockOption>,
+    pub enemies: Vec<UiSandboxEnemyOption>,
+    pub items: Vec<UiSandboxItemOption>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct UiState {
     pub scene: String,
     pub phase: Option<String>,
@@ -398,6 +522,7 @@ pub struct UiState {
     pub labels: UiLabels,
     pub controls: Vec<UiControlBinding>,
     pub supported_keys: Vec<UiSupportedKey>,
+    pub sandbox: Option<UiSandboxState>,
 }
 
 // --- State building ---
@@ -441,6 +566,7 @@ fn menu_state(menu: &Menu) -> UiMenuState {
         pending_delete: menu.pending_delete_slot().map(|s| s as u8),
         slots,
         toast: menu.toast_text().map(|s: &str| s.to_owned()),
+        sandbox_unlocked: menu.sandbox_unlocked,
     }
 }
 
@@ -500,6 +626,7 @@ fn draft_player_state(
         catalog: Vec::new(),
         equipment_slots: Vec::new(),
         inventory: Vec::new(),
+        sigma_mode: false,
     }
 }
 
@@ -604,6 +731,7 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
         catalog,
         equipment_slots,
         inventory,
+        sigma_mode: p.sigma_mode,
     })
 }
 
@@ -614,6 +742,7 @@ pub fn build_state(
     i18n: I18n,
     game_toast: Option<&str>,
     bindings: Option<&KeyBindings>,
+    sandbox: Option<UiSandboxState>,
 ) -> UiState {
     let (phase, mut player) = if let Some(snapshot) = snapshot {
         (
@@ -657,6 +786,7 @@ pub fn build_state(
                 label: (*label).to_owned(),
             })
             .collect(),
+        sandbox,
     }
 }
 
@@ -668,9 +798,67 @@ pub fn publish(
     game_toast: Option<&str>,
     bindings: Option<&KeyBindings>,
 ) {
-    let state = build_state(scene, snapshot, menu, i18n, game_toast, bindings);
+    publish_with_sandbox(scene, snapshot, menu, i18n, game_toast, bindings, None);
+}
+
+pub fn publish_with_sandbox(
+    scene: &str,
+    snapshot: Option<&WorldSnapshot>,
+    menu: Option<&Menu>,
+    i18n: I18n,
+    game_toast: Option<&str>,
+    bindings: Option<&KeyBindings>,
+    sandbox: Option<UiSandboxState>,
+) {
+    let state = build_state(scene, snapshot, menu, i18n, game_toast, bindings, sandbox);
     if let Ok(json) = serde_json::to_string(&state) {
         crate::ui_bridge::set_ui_state_json(json);
+    }
+}
+
+fn sandbox_block_options() -> Vec<UiSandboxBlockOption> {
+    use enzo_core::map::BlockId;
+    let ids = [
+        BlockId::Ground,
+        BlockId::Block,
+        BlockId::Platform,
+        BlockId::Crate,
+        BlockId::BreakableStone,
+        BlockId::InvisibleBlock,
+        BlockId::FlagBottom,
+        BlockId::FlagTop,
+    ];
+    ids.into_iter()
+        .map(|id| UiSandboxBlockOption {
+            code: id as u8,
+            name: enzo_core::map::Tile::new(id).def().name.to_owned(),
+        })
+        .collect()
+}
+
+pub fn default_sandbox_ui_state() -> UiSandboxState {
+    let enemies = vec![UiSandboxEnemyOption {
+        code: 0,
+        kind: "slime".to_owned(),
+        name: "Slime".to_owned(),
+    }];
+    let items = enzo_core::entities::ItemKind::ALL
+        .iter()
+        .map(|k| UiSandboxItemOption {
+            code: k.code(),
+            name: format!("{:?}", k),
+        })
+        .collect();
+    UiSandboxState {
+        active: true,
+        tab: 0,
+        block_mode: 0,
+        selected_block: enzo_core::map::BlockId::Block as u8,
+        selected_enemy: 0,
+        selected_item: enzo_core::entities::ItemKind::Sword.code(),
+        blocks: sandbox_block_options(),
+        enemies,
+        items,
     }
 }
 
@@ -801,7 +989,7 @@ fn key_label(key: KeyCode) -> String {
 
 // --- Action handling (semantic, no game rules in DOM) ---
 
-/// Apply menu-only UI actions. Returns `true` if the action was handled as a menu action.
+/// Apply menu-only UI actions. Returns menu-level action if produced.
 pub fn apply_menu_action(
     menu: &mut Menu,
     action: UiAction,
@@ -820,6 +1008,8 @@ pub fn apply_menu_action(
         | UiAction::MenuOpenOptions
         | UiAction::MenuOpenCustomize
         | UiAction::MenuOpenControls
+        | UiAction::MenuOpenSandbox
+        | UiAction::SandboxUnlockDigit { .. }
         | UiAction::ControlsResetDefaults
         | UiAction::ControlsSetKey { .. }
         | UiAction::ControlsClearAction { .. }

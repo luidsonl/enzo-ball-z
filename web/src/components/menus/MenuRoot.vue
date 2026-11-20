@@ -22,6 +22,7 @@ const isMainScreen = computed(() => {
   const s = menu.value?.screen || "main";
   return s === "main" || !["saves", "options", "customize", "controls"].includes(s);
 });
+const sandboxUnlocked = computed(() => !!menu.value?.sandbox_unlocked);
 
 const capturing = ref(false);
 const capturingActionCode = ref(null);
@@ -115,9 +116,20 @@ function onCaptureKey(ev) {
   stopCapture();
 }
 
+function onMenuUnlockKey(ev) {
+  if (!show.value || capturing.value) return;
+  if (ev.key === "6" || ev.code === "Digit6" || ev.code === "Numpad6") {
+    act(UiAction.SandboxUnlockDigit, 6);
+  } else if (ev.key === "7" || ev.code === "Digit7" || ev.code === "Numpad7") {
+    act(UiAction.SandboxUnlockDigit, 7);
+  }
+}
+
 window.addEventListener("keydown", onCaptureKey, true);
+window.addEventListener("keydown", onMenuUnlockKey);
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onCaptureKey, true);
+  window.removeEventListener("keydown", onMenuUnlockKey);
 });
 
 watch(show, (v) => {
@@ -194,12 +206,19 @@ function isSelectedColor(fieldKey, value) {
           <button type="button" class="dom-btn primary" @click.prevent.stop="act(UiAction.MenuOpenSaves)">
             {{ labels.play }}
           </button>
+          <button v-if="sandboxUnlocked" type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuOpenSandbox)">
+            {{ labels.sandbox || 'Sandbox' }}
+          </button>
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuOpenCustomize)">
             {{ labels.character_editor || labels.customize || 'Character Editor' }}
           </button>
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuOpenOptions)">
             {{ labels.options }}
           </button>
+          <div v-if="!sandboxUnlocked" class="dom-sandbox-unlock" style="margin-top:10px; display:flex; gap:8px; justify-content:center; opacity:0.55;">
+            <button type="button" class="dom-btn small secondary" style="min-width:44px" @click.prevent.stop="act(UiAction.SandboxUnlockDigit, 6)">6</button>
+            <button type="button" class="dom-btn small secondary" style="min-width:44px" @click.prevent.stop="act(UiAction.SandboxUnlockDigit, 7)">7</button>
+          </div>
         </template>
 
         <template v-else-if="menu.screen === 'saves'">

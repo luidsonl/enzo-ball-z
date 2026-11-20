@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { UiAction, closeMenuAndFocusGame, equipItem, focusGameCanvas, loadoutAssign, loadoutClear, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
+import { UiAction, closeMenuAndFocusGame, equipItem, focusGameCanvas, loadoutAssign, loadoutClear, sandboxApply, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
 import { mobileControlsVisible } from "../../lib/mobile.js";
 
 const props = defineProps({
@@ -18,6 +18,8 @@ const showHud = computed(() => state.value?.scene === "game");
 const player = computed(() => state.value?.player ?? null);
 const labels = computed(() => state.value?.labels ?? {});
 const phase = computed(() => state.value?.phase || "Playing");
+const sandbox = computed(() => state.value?.sandbox ?? null);
+const isSandbox = computed(() => !!sandbox.value?.active);
 
 watch(showHud, (v) => { if (!v) openPanel.value = null; });
 
@@ -46,6 +48,33 @@ function fullscreenLabel() {
   return active ? "Exit" : "Fullscreen";
 }
 
+function canvasCoordsFromClient(clientX, clientY) {
+  const canvas = document.getElementById("glcanvas");
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const x = ((clientX - rect.left) / rect.width) * (canvas.width || rect.width);
+  const y = ((clientY - rect.top) / rect.height) * (canvas.height || rect.height);
+  return { x, y };
+}
+
+function sandboxPlacementEnabled() {
+  if (!isSandbox.value || openPanel.value !== "debug") return false;
+  const tab = sandbox.value?.tab ?? 0;
+  return tab === 1 || tab === 2 || tab === 3;
+}
+
+function onSandboxCanvasClick(e) {
+  if (!sandboxPlacementEnabled()) return;
+  const target = e.target;
+  // Apply only when clicking the game canvas area (not DOM UI panels/buttons).
+  if (!(target && (target.id === "glcanvas" || target.tagName === "CANVAS"))) return;
+  const coords = canvasCoordsFromClient(e.clientX, e.clientY);
+  if (!coords) return;
+  sandboxApply(coords.x, coords.y);
+  e.preventDefault();
+}
+
 function onHudKeyDown(e) {
   if (e.key !== "Escape" || !openPanel.value) return;
   e.preventDefault();
@@ -62,11 +91,13 @@ onMounted(() => {
   document.addEventListener("fullscreenchange", syncFullscreen);
   document.addEventListener("webkitfullscreenchange", syncFullscreen);
   window.addEventListener("keydown", onHudKeyDown, true);
+  window.addEventListener("pointerdown", onSandboxCanvasClick, true);
 });
 onBeforeUnmount(() => {
   document.removeEventListener("fullscreenchange", syncFullscreen);
   document.removeEventListener("webkitfullscreenchange", syncFullscreen);
   window.removeEventListener("keydown", onHudKeyDown, true);
+  window.removeEventListener("pointerdown", onSandboxCanvasClick, true);
 });
 
 function pct(current, max) {
@@ -95,12 +126,18 @@ function closePanelOnOverlay(e) {
 }
 
 const needsDistribution = computed(() => !!(player.value?.pending_level_up || (player.value?.points || 0) > 0));
-const tabs = computed(() => [
-  ["status", labels.value.status || "Status", needsDistribution.value],
-  ["equipment", labels.value.equipment || "Equipment", false],
-  ["skills", labels.value.skills || "Skills", false],
-  ["items", labels.value.inventory || "Items", false],
-]);
+const tabs = computed(() => {
+  const base = [
+    ["status", labels.value.status || "Status", needsDistribution.value],
+    ["equipment", labels.value.equipment || "Equipment", false],
+    ["skills", labels.value.skills || "Skills", false],
+    ["items", labels.value.inventory || "Items", false],
+  ];
+  if (isSandbox.value) {
+    base.push(["debug", labels.value.sandbox_debug || labels.value.sandbox || "Debug", false]);
+  }
+  return base;
+});
 
 const SKIN_COLORS = ["#f6d7b0", "#efc89a", "#ddb07a", "#c89262", "#a8744c", "#86583a", "#f0e0c8", "#f2b8a8"];
 // Keep in sync with runtime tints in crates/enzo-wasm/src/rig.rs
@@ -168,6 +205,17 @@ const attrDefs = computed(() => {
 });
 
 const catalogSkills = computed(() => player.value?.catalog || []);
+
+const sandboxTab = computed(() => sandbox.value?.tab ?? 0);
+const sandboxBlocks = computed(() => sandbox.value?.blocks || []);
+const sandboxEnemies = computed(() => sandbox.value?.enemies || []);
+const sandboxItems = computed(() => sandbox.value?.items || []);
+function setSandboxTab(tab) { act(UiAction.SandboxSetTab, tab); }
+function sandboxSelectBlock(blockCode, mode) {
+  act(UiAction.SandboxSetBlockTool, mode, blockCode);
+}
+function sandboxSetEnemy(code) { act(UiAction.SandboxSetEnemy, code); }
+function sandboxSetItem(code) { act(UiAction.SandboxSetItem, code); }
 
 function openSkillDetails(entry) {
   openSkillCalc.value = null;
@@ -321,7 +369,11 @@ function translateSkillCalc(text, lang = uiLang()) {
       <div class="dom-hud-top">
         <div class="dom-hud-bars">
           <div class="dom-hud-bar-row">
-            <span class="dom-hud-bar-label">HP {{ Math.ceil(player.health) }}/{{ Math.ceil(player.max_health) }}</span>
+            <span class="dom-hud-bar-label">
+              HP {{ Math.ceil(player.health) }}/{{ Math.ceil(player.max_health) }}
+              <span v-if="player.sigma_mode" style="margin-left:8px; color:#ffd966; font-weight:700">{{ labels.sigma_mode || 'Sigma' }}</span>
+              <span v-if="isSandbox" style="margin-left:8px; color:#8fd3ff; font-weight:700">{{ labels.sandbox || 'Sandbox' }}</span>
+            </span>
             <div class="dom-hud-track hp"><div class="dom-hud-fill" :style="{ width: pct(player.health, player.max_health) + '%' }" /></div>
           </div>
           <div class="dom-hud-bar-row">
@@ -648,6 +700,100 @@ function translateSkillCalc(text, lang = uiLang()) {
                   </div>
                 </div>
               </div>
+            </div>
+          </template>
+
+          <template v-else-if="openPanel === 'debug' && isSandbox">
+            <div class="dom-game-panel-header">
+              <h3 class="dom-title">{{ labels.sandbox_debug || labels.sandbox || 'Sandbox / Debug' }}</h3>
+              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
+            </div>
+            <div class="dom-game-panel-body">
+              <div class="dom-slot-picker" style="margin-bottom:10px; flex-wrap:wrap">
+                <button type="button" class="dom-btn small dom-slot-pick-btn" :class="{ selected: sandboxTab === 0 }" @click.prevent.stop="setSandboxTab(0)">{{ labels.tab_character || 'Character' }}</button>
+                <button type="button" class="dom-btn small dom-slot-pick-btn" :class="{ selected: sandboxTab === 1 }" @click.prevent.stop="setSandboxTab(1)">{{ labels.tab_blocks || 'Blocks' }}</button>
+                <button type="button" class="dom-btn small dom-slot-pick-btn" :class="{ selected: sandboxTab === 2 }" @click.prevent.stop="setSandboxTab(2)">{{ labels.tab_enemies || 'Enemies' }}</button>
+                <button type="button" class="dom-btn small dom-slot-pick-btn" :class="{ selected: sandboxTab === 3 }" @click.prevent.stop="setSandboxTab(3)">{{ labels.tab_items || 'Items' }}</button>
+              </div>
+
+              <template v-if="sandboxTab === 0">
+                <div class="dom-status-grid">
+                  <div class="dom-status-row"><span class="dom-status-key">{{ labels.level || 'Level' }}</span><span class="dom-status-val">{{ player.level }}</span></div>
+                  <div class="dom-status-row"><span class="dom-status-key">{{ labels.points || 'Points' }}</span><span class="dom-status-val">{{ player.points }}</span></div>
+                  <div class="dom-status-row"><span class="dom-status-key">{{ labels.sigma_mode || 'Sigma mode' }}</span><span class="dom-status-val">{{ player.sigma_mode ? (labels.on || 'On') : (labels.off || 'Off') }}</span></div>
+                </div>
+                <div class="dom-option-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button type="button" class="dom-btn small" :class="{ primary: player.sigma_mode }" @click.prevent.stop="act(UiAction.SandboxToggleSigma)">{{ labels.sigma_mode || 'Sigma mode' }}</button>
+                  <button type="button" class="dom-btn small primary" @click.prevent.stop="act(UiAction.SandboxGrantLevels, 1)">{{ labels.level_up_debug || 'Level up' }} +1</button>
+                  <button type="button" class="dom-btn small primary" @click.prevent.stop="act(UiAction.SandboxGrantLevels, 5)">+5</button>
+                  <button type="button" class="dom-btn small secondary" @click.prevent.stop="act(UiAction.SandboxSetLevel, 1)">Lv 1</button>
+                  <button type="button" class="dom-btn small secondary" @click.prevent.stop="act(UiAction.SandboxSetLevel, 10)">Lv 10</button>
+                </div>
+                <div class="dom-option-row" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button type="button" class="dom-btn small secondary" @click.prevent.stop="act(UiAction.SandboxResetAttrs)">{{ labels.reset_attrs || 'Reset attributes' }}</button>
+                  <button type="button" class="dom-btn small danger" @click.prevent.stop="act(UiAction.SandboxDie)">{{ labels.die || 'Die' }}</button>
+                  <button type="button" class="dom-btn small danger" @click.prevent.stop="act(UiAction.SandboxReset)">{{ labels.reset_sandbox || 'Reset sandbox' }}</button>
+                </div>
+                <p class="muted" style="margin-top:10px">{{ uiLang() === 'pt' ? 'Morrer no sandbox (sem Sigma) reduz 1 nível e redistribui os pontos de atributo.' : 'Dying in sandbox (without Sigma) loses 1 level and redistributes attribute points.' }}</p>
+              </template>
+
+              <template v-else-if="sandboxTab === 1">
+                <div class="dom-option-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                  <button type="button" class="dom-btn small" :class="{ primary: (sandbox.block_mode ?? 0) === 0 }" @click.prevent.stop="sandboxSelectBlock(sandbox.selected_block ?? 2, 0)">{{ labels.place || 'Place' }}</button>
+                  <button type="button" class="dom-btn small" :class="{ primary: (sandbox.block_mode ?? 0) === 1 }" @click.prevent.stop="sandboxSelectBlock(sandbox.selected_block ?? 2, 1)">{{ labels.remove || 'Remove' }}</button>
+                </div>
+                <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um bloco e clique no mapa para aplicar.' : 'Select a block and click the map to apply.' }}</p>
+                <div class="dom-skill-list">
+                  <button
+                    v-for="b in sandboxBlocks"
+                    :key="b.code"
+                    type="button"
+                    class="dom-btn small dom-skill-row"
+                    :class="{ selected: sandbox.selected_block === b.code }"
+                    style="justify-content:space-between"
+                    @click.prevent.stop="sandboxSelectBlock(b.code, sandbox.block_mode ?? 0)"
+                  >
+                    <span>{{ b.name }}</span>
+                    <span class="muted">#{{ b.code }}</span>
+                  </button>
+                </div>
+              </template>
+
+              <template v-else-if="sandboxTab === 2">
+                <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um inimigo e clique no mapa para spawnar.' : 'Select an enemy and click the map to spawn it.' }}</p>
+                <div class="dom-skill-list">
+                  <button
+                    v-for="e in sandboxEnemies"
+                    :key="e.code"
+                    type="button"
+                    class="dom-btn small dom-skill-row"
+                    :class="{ selected: sandbox.selected_enemy === e.code }"
+                    style="justify-content:space-between"
+                    @click.prevent.stop="sandboxSetEnemy(e.code)"
+                  >
+                    <span>{{ e.name }}</span>
+                    <span class="muted">{{ e.kind }}</span>
+                  </button>
+                </div>
+              </template>
+
+              <template v-else-if="sandboxTab === 3">
+                <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um item e clique no mapa para spawnar.' : 'Select an item and click the map to spawn it.' }}</p>
+                <div class="dom-skill-list">
+                  <button
+                    v-for="it in sandboxItems"
+                    :key="it.code"
+                    type="button"
+                    class="dom-btn small dom-skill-row"
+                    :class="{ selected: sandbox.selected_item === it.code }"
+                    style="justify-content:space-between"
+                    @click.prevent.stop="sandboxSetItem(it.code)"
+                  >
+                    <span>{{ it.name }}</span>
+                    <span class="muted">#{{ it.code }}</span>
+                  </button>
+                </div>
+              </template>
             </div>
           </template>
         </div>
