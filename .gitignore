@@ -15,3 +15,6 @@
 
 # pixel-forge local build cache
 /tools/pixel-forge/.build-cache.json
+
+# Local quad-storage data
+/crates/enzo-wasm/local.data
