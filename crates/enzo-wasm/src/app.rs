@@ -265,10 +265,24 @@ impl App {
                 }
             }
             Transition::StartSandbox => {
+                let appearance = match &self.scene {
+                    Scene::MenuOverGame { game, .. } => game
+                        .world
+                        .store()
+                        .player(0)
+                        .and_then(|e| e.player().map(|p| (p.character, p.visual_profile))),
+                    Scene::Game(game) => game
+                        .world
+                        .store()
+                        .player(0)
+                        .and_then(|e| e.player().map(|p| (p.character, p.visual_profile))),
+                    Scene::Menu(_) => None,
+                };
                 match GameSession::new_sandbox(
                     self.sprites.assets.clone(),
                     self.i18n,
                     self.bindings.clone(),
+                    appearance,
                 ) {
                     Ok(session) => {
                         self.scene = Scene::Game(Box::new(session));
@@ -652,11 +666,18 @@ impl GameSession {
         assets: crate::assets::AssetStore,
         i18n: I18n,
         bindings: crate::input::KeyBindings,
+        appearance: Option<(
+            enzo_core::entities::PlayableCharacter,
+            enzo_core::entities::VisualProfile,
+        )>,
     ) -> Result<Self, LevelError> {
         let mut world = World::new_sandbox(enzo_core::levels::SANDBOX_LEVEL)?;
-        // Start with draft character customization in sandbox too.
-        let dc = save::load_draft_character();
-        let dp = save::load_draft_visual_profile(dc);
+        // Keep character appearance consistent with the current game context when available.
+        let (dc, dp) = appearance.unwrap_or_else(|| {
+            let dc = save::load_draft_character();
+            let dp = save::load_draft_visual_profile(dc);
+            (dc, dp)
+        });
         let _ = world.set_playable_character(0, dc);
         let _ = world.set_visual_profile(0, dp);
         Self::from_world(0, world, assets, i18n, bindings, true)
