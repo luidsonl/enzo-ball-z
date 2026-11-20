@@ -215,6 +215,10 @@ function isSelectedColor(fieldKey, value) {
           <button type="button" class="dom-btn secondary" @click.prevent.stop="act(UiAction.MenuOpenOptions)">
             {{ labels.options }}
           </button>
+          <div v-if="!sandboxUnlocked" class="dom-sandbox-unlock" style="margin-top:10px; display:flex; gap:8px; justify-content:center; opacity:0.5;">
+            <button type="button" class="dom-btn small secondary" style="min-width:44px" @click.prevent.stop="act(UiAction.SandboxUnlockDigit, 6)">6</button>
+            <button type="button" class="dom-btn small secondary" style="min-width:44px" @click.prevent.stop="act(UiAction.SandboxUnlockDigit, 7)">7</button>
+          </div>
         </template>
 
         <template v-else-if="menu.screen === 'saves'">
