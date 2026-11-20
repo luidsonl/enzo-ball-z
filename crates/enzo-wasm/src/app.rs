@@ -752,7 +752,7 @@ impl GameSession {
                     .world
                     .store()
                     .player(0)
-                    .and_then(|e| e.player().map(|p| p.sigma_mode))
+                    .and_then(|e| e.player().map(|p| p.sigma.is_active()))
                     .unwrap_or(false);
                 let _ = self.world.sandbox_set_sigma_mode(0, !current);
                 true
@@ -1078,6 +1078,19 @@ impl GameSession {
                     }
                     self.effects.aura_flash = 0.7;
                     self.camera.add_shake(2.0);
+                }
+                GameEvent::LevelDown { player, level } => {
+                    if let Some(pos) = entity_center(&self.current, player) {
+                        self.effects.text(
+                            pos,
+                            format!("-{} {level}", self.i18n.t(Text::EffectLevel)),
+                            RED,
+                            14.0,
+                        );
+                        self.effects.sparks(pos, RED, 10);
+                    }
+                    self.camera.add_shake(2.0);
+                    self.persist(Text::SaveReasonProgress);
                 }
                 GameEvent::PlayerDied { player } => {
                     if let Some(pos) = entity_center(&self.current, player) {

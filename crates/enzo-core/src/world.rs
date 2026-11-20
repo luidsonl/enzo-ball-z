@@ -312,12 +312,7 @@ impl World {
 
         if let Some(attribute) = command.allocate {
             if let Some(entity) = self.store.get_mut(entity_id) {
-                if progression::allocate_point(entity, attribute) {
-                    events.push(GameEvent::AttributeAllocated {
-                        player: entity_id,
-                        attribute,
-                    });
-                }
+                let _ = progression::allocate_point(entity, attribute, events);
             }
         }
 
@@ -352,12 +347,7 @@ impl World {
 
         if let Some(attribute) = command.allocate {
             if let Some(entity) = self.store.get_mut(entity_id) {
-                if progression::allocate_point(entity, attribute) {
-                    events.push(GameEvent::AttributeAllocated {
-                        player: entity_id,
-                        attribute,
-                    });
-                }
+                let _ = progression::allocate_point(entity, attribute, events);
             }
         }
 
@@ -421,15 +411,8 @@ impl World {
             entity.locomotion = locomotion;
 
             if entity.is_actor() && entity.body.pos.y > fall_limit {
-                let sigma = entity.player().is_some_and(|p| p.sigma_mode);
-                if sigma {
-                    // Keep sandbox/debug invulnerable players in-bounds.
-                    entity.body.pos.y = (fall_limit - entity.body.size.y).max(0.0);
-                    entity.body.vel.y = 0.0;
-                    entity.body.on_ground = false;
-                } else {
-                    entity.health.current = 0.0;
-                }
+                // Falling below the map is lethal even in Sigma state.
+                entity.health.current = 0.0;
             }
         }
 
@@ -456,6 +439,22 @@ impl World {
         for entity in self.store.iter_mut() {
             entity.skills.tick(DT);
             entity.locomotion.tick(DT);
+        }
+
+        // Sigma state: aura recovers to 100% in 3 seconds while active.
+        for entity in self.store.players_mut() {
+            if !entity.health.is_alive() {
+                continue;
+            }
+            let max_aura = entity.stats.max_aura;
+            let Some(player) = entity.player_mut() else {
+                continue;
+            };
+            if !player.sigma.is_active() {
+                continue;
+            }
+            let recover = max_aura / 3.0 * DT;
+            player.aura = (player.aura + recover).min(max_aura);
         }
 
         // 10. Progressão
@@ -490,11 +489,12 @@ impl World {
             .map(|entity| entity.id)
             .collect();
         if !dead_players.is_empty() {
-            for player in dead_players {
-                events.push(GameEvent::PlayerDied { player });
+            for player in &dead_players {
+                events.push(GameEvent::PlayerDied { player: *player });
+                self.apply_death_progression(*player, events);
             }
             if self.sandbox_mode {
-                self.sandbox_handle_player_deaths();
+                self.sandbox_handle_player_deaths(events);
                 return;
             }
             self.phase = GamePhase::Dead;
@@ -678,8 +678,8 @@ impl World {
             let max_aura = entity.stats.max_aura;
             if let Some(player) = entity.player_mut() {
                 player.aura = max_aura;
-                player.pending_level_up = false;
                 player.respawn = spawn;
+                player.pending_level_up = player.points > 0;
             }
             entity.locomotion = Locomotion::player();
             entity.skills.reset();
@@ -707,43 +707,65 @@ impl World {
         events.push(GameEvent::PhaseRestarted { player: 0 });
     }
 
-    fn sandbox_handle_player_deaths(&mut self) {
+    fn apply_death_progression(&mut self, eid: EntityId, events: &mut Vec<GameEvent>) {
+        let Some(entity) = self.store.get_mut(eid) else {
+            return;
+        };
+        if entity.player().is_none() {
+            return;
+        }
+        let mut rng =
+            crate::rng::Rng::new(self.tick ^ (eid.0 as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+        let _ = progression::apply_death_level_loss(entity, &mut rng, events);
+    }
+
+    fn sandbox_handle_player_deaths(&mut self, _events: &mut Vec<GameEvent>) {
+        let player_entity_ids: Vec<EntityId> = self.store.players().map(|e| e.id).collect();
+        for eid in player_entity_ids {
+            let dead_or_should_handle = self
+                .store
+                .get(eid)
+                .is_some_and(|e| e.player().is_some() && !e.health.is_alive());
+            if !dead_or_should_handle {
+                continue;
+            }
+            // Progression penalty is applied on death detection; sandbox respawns immediately.
+            self.sandbox_respawn_player(eid);
+        }
+        self.phase = GamePhase::Playing;
+        self.phase_timer = 0.0;
+    }
+
+    fn sandbox_respawn_player(&mut self, eid: EntityId) {
         let spawn = self
             .level
             .spawn_points(ENZO_SIZE)
             .first()
             .copied()
             .unwrap_or(Vec2::ZERO);
-        let player_entity_ids: Vec<EntityId> = self.store.players().map(|e| e.id).collect();
-        for eid in player_entity_ids {
-            let Some(entity) = self.store.get_mut(eid) else {
-                continue;
-            };
-            if entity.player().is_some_and(|p| p.sigma_mode) {
-                // Keep sigma; just restore vitals/position.
-            } else {
-                let _ = progression::sandbox_apply_death_level_loss(entity);
-            }
-            entity.body.pos = spawn;
-            entity.body.vel = Vec2::ZERO;
-            entity.body.on_ground = false;
-            entity.health.iframes = 0.0;
-            let max_aura = entity.stats.max_aura;
-            let max_health = entity.stats.max_health;
-            entity.health.current = max_health.max(1.0);
-            if let Some(player) = entity.player_mut() {
-                player.aura = max_aura;
-                player.respawn = spawn;
-                player.pending_level_up = player.points > 0;
-            }
-            entity.locomotion = Locomotion::player();
-            entity.skills.reset();
-            if let Some(controller) = entity.controller.player_controller_mut() {
-                *controller = Default::default();
-            }
+        let Some(entity) = self.store.get_mut(eid) else {
+            return;
+        };
+        if entity.player().is_none() {
+            return;
         }
-        self.phase = GamePhase::Playing;
-        self.phase_timer = 0.0;
+        entity.body.pos = spawn;
+        entity.body.vel = Vec2::ZERO;
+        entity.body.on_ground = false;
+        entity.health.iframes = 0.0;
+        let max_aura = entity.stats.max_aura;
+        let max_health = entity.stats.max_health;
+        entity.health.current = max_health.max(1.0);
+        if let Some(player) = entity.player_mut() {
+            player.aura = max_aura;
+            player.respawn = spawn;
+            player.pending_level_up = player.points > 0;
+        }
+        entity.locomotion = Locomotion::player();
+        entity.skills.reset();
+        if let Some(controller) = entity.controller.player_controller_mut() {
+            *controller = Default::default();
+        }
     }
 
     // --- Sandbox/debug APIs (authoritative core mutations) ---
@@ -756,17 +778,14 @@ impl World {
             return false;
         };
         let max_health = entity.stats.max_health;
-        let max_aura = entity.stats.max_aura;
         {
             let Some(player) = entity.player_mut() else {
                 return false;
             };
-            player.sigma_mode = enabled;
-            if enabled {
-                player.aura = player.aura.max(max_aura);
-            }
+            player.sigma.set_active(enabled);
         }
         if enabled {
+            // Keep player healthy when entering Sigma state; aura recovers over time while active.
             entity.health.current = entity.health.current.max(max_health);
         }
         true
@@ -806,13 +825,16 @@ impl World {
         if !self.sandbox_mode {
             return false;
         }
-        let Some(entity) = self.store.player_mut(player_id) else {
-            return false;
+        let eid = match self.store.player_entity_id(player_id) {
+            Some(id) => id,
+            None => return false,
         };
-        if entity.player().is_some_and(|p| p.sigma_mode) {
-            return false;
-        }
-        entity.health.current = 0.0;
+        // Debug "Die" is allowed even while Sigma state is active.
+        let mut events = Vec::new();
+        self.apply_death_progression(eid, &mut events);
+        self.sandbox_respawn_player(eid);
+        self.phase = GamePhase::Playing;
+        self.phase_timer = 0.0;
         true
     }
 
@@ -828,16 +850,17 @@ impl World {
             .copied()
             .unwrap_or(Vec2::ZERO);
 
-        // Preserve character/profile customization and sigma mode? QA reset should be clean but useful.
-        // Reset to default sandbox player state while keeping selected character/profile.
-        let (character, profile, sigma_mode) = self
+        // Preserve character/profile customization and Sigma state. Reset to default
+        // sandbox player state while keeping selected character/profile and state.
+        let (character, profile, sigma_state) = self
             .store
             .player(0)
-            .and_then(|e| {
-                e.player()
-                    .map(|p| (p.character, p.visual_profile, p.sigma_mode))
-            })
-            .unwrap_or((PlayableCharacter::Enzo, VisualProfile::default(), false));
+            .and_then(|e| e.player().map(|p| (p.character, p.visual_profile, p.sigma)))
+            .unwrap_or((
+                PlayableCharacter::Enzo,
+                VisualProfile::default(),
+                crate::entities::SigmaState::Off,
+            ));
 
         self.store = EntityStore::new();
         let mut spec = EntitySpec::player(0, spawn);
@@ -848,7 +871,7 @@ impl World {
             if let Some(player) = entity.player_mut() {
                 player.character = character;
                 player.visual_profile = profile;
-                player.sigma_mode = sigma_mode;
+                player.sigma = sigma_state;
                 player.respawn = spawn;
             }
         }
@@ -1152,9 +1175,10 @@ mod tests {
     }
 
     #[test]
-    fn sandbox_sigma_prevents_fall_death() {
+    fn sandbox_sigma_can_die_by_falling() {
         let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
         assert!(world.sandbox_set_sigma_mode(0, true));
+        assert!(world.sandbox_debug_set_level(0, 3));
         let below = world.level().height_px() + FALL_DEATH_MARGIN + 32.0;
         if let Some(player) = world.store_mut().player_mut(0) {
             player.body.pos.y = below;
@@ -1164,28 +1188,45 @@ mod tests {
             world.step(crate::input::TickInput::default());
         }
         let player = world.store().player(0).unwrap();
-        assert!(player.health.is_alive());
-        assert!(player.player().unwrap().sigma_mode);
+        let pdata = player.player().unwrap();
+        assert!(player.health.is_alive()); // respawned in sandbox
+        assert!(pdata.sigma.is_active());
+        assert_eq!(pdata.level, 2);
         assert_ne!(world.phase(), GamePhase::Dead);
     }
 
     #[test]
-    fn sandbox_death_loses_level_and_redistributes() {
+    fn sandbox_death_reduces_unspent_first_and_takes_deficit_from_applied() {
         let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
-        assert!(world.sandbox_debug_set_level(0, 3));
+        assert!(world.sandbox_debug_set_level(0, 3)); // 10 points
         if let Some(entity) = world.store_mut().player_mut(0) {
-            progression::allocate_point(entity, crate::input::Attribute::Speed);
+            // 7 applied, 3 unspent.
+            let mut events = Vec::new();
+            for attr in [
+                crate::input::Attribute::Speed,
+                crate::input::Attribute::Speed,
+                crate::input::Attribute::Strength,
+                crate::input::Attribute::Strength,
+                crate::input::Attribute::Health,
+                crate::input::Attribute::Health,
+                crate::input::Attribute::Aura,
+            ] {
+                progression::allocate_point(entity, attr, &mut events);
+            }
         }
         assert!(world.sandbox_debug_die(0));
-        for _ in 0..5 {
-            world.step(crate::input::TickInput::default());
-        }
         let player = world.store().player(0).unwrap();
         let pdata = player.player().unwrap();
         assert_eq!(pdata.level, 2);
-        assert_eq!(pdata.points, 5);
+        // 5 points lost: 3 unspent consumed, 2 removed from applied status.
+        assert_eq!(pdata.points, 0);
         assert_eq!(pdata.xp, 0.0);
-        assert_eq!(player.attributes, crate::entities::Attributes::default());
+        let total = player.attributes.speed
+            + player.attributes.strength
+            + player.attributes.health
+            + player.attributes.aura
+            + player.attributes.ego;
+        assert_eq!(total, 5);
         assert!(player.health.is_alive());
         assert_ne!(world.phase(), GamePhase::Dead);
     }

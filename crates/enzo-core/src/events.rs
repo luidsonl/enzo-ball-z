@@ -71,6 +71,10 @@ pub enum GameEvent {
         player: EntityId,
         level: u32,
     },
+    LevelDown {
+        player: EntityId,
+        level: u32,
+    },
     PlayerDied {
         player: EntityId,
     },

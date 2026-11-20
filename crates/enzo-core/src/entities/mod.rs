@@ -16,7 +16,7 @@ pub mod spec;
 
 pub use actors::enemy::{EnemyData, EnemySpecies};
 pub use actors::enzo::ENZO_SIZE;
-pub use actors::player::{PlayableCharacter, PlayerData, PlayerId, VisualProfile};
+pub use actors::player::{PlayableCharacter, PlayerData, PlayerId, SigmaState, VisualProfile};
 pub use actors::slime::{SLIME_CONTACT_DAMAGE, SLIME_SIZE, SLIME_XP_REWARD};
 pub use base::animation::{ActionPose, AnimationState, LocomotionPose, SixSevenHand};
 pub use base::attributes::{AttributeId, AttributeSet, Attributes, Stats};

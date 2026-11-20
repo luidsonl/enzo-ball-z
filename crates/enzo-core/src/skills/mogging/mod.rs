@@ -220,6 +220,15 @@ pub fn update_projectiles(
             .collect();
 
         for target_id in targets {
+            let immune = store
+                .get(target_id)
+                .is_some_and(|target| target.player().is_some_and(|p| p.sigma.is_active()));
+            if immune {
+                if let Some(data) = store.get_mut(id).and_then(|entity| entity.projectile_mut()) {
+                    data.hits.push(target_id);
+                }
+                continue;
+            }
             let applied = store
                 .get_mut(target_id)
                 .map(|target| target.health.damage(damage))

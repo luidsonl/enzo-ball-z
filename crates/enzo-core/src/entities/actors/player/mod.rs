@@ -151,6 +151,26 @@ impl VisualProfile {
     }
 }
 
+/// Sigma powerup/invulnerability state (sandbox/debug). Behaves like a star powerup:
+/// immune to damage and damages enemies on contact while active.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SigmaState {
+    #[default]
+    Off,
+    Active,
+}
+
+impl SigmaState {
+    pub fn is_active(self) -> bool {
+        matches!(self, Self::Active)
+    }
+
+    pub fn set_active(&mut self, active: bool) {
+        *self = if active { Self::Active } else { Self::Off };
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlayerData {
@@ -168,9 +188,9 @@ pub struct PlayerData {
     /// Collected items not yet equipped. The HUD reads this list from snapshots;
     /// the client must not mutate it directly.
     pub inventory: Vec<ItemKind>,
-    /// Sandbox/debug invulnerability mode (not persisted in campaign saves).
+    /// Sandbox/debug Sigma powerup state (not persisted in campaign saves).
     #[cfg_attr(feature = "serde", serde(default))]
-    pub sigma_mode: bool,
+    pub sigma: SigmaState,
 }
 
 impl PlayerData {
@@ -192,8 +212,12 @@ impl PlayerData {
             pending_level_up: false,
             respawn,
             inventory: Vec::new(),
-            sigma_mode: false,
+            sigma: SigmaState::Off,
         }
+    }
+
+    pub fn sigma_active(&self) -> bool {
+        self.sigma.is_active()
     }
 
     pub fn add_item(&mut self, kind: ItemKind) {

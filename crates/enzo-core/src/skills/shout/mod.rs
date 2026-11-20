@@ -101,6 +101,9 @@ pub fn activate(
         let Some(target) = store.get_mut(target_id) else {
             continue;
         };
+        if target.player().is_some_and(|p| p.sigma.is_active()) {
+            continue;
+        }
         let dir = if target.center().x >= act.rect.center().x {
             1.0
         } else {

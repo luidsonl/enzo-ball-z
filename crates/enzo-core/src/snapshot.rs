@@ -375,7 +375,7 @@ impl PlayerSnapshot {
             combo_window: 0.0,
             melee_step: entity.skills.punch.variant,
             melee_timer: entity.skills.punch.anim_timer,
-            sigma_mode: player.sigma_mode,
+            sigma_mode: player.sigma.is_active(),
         }
     }
 }

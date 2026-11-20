@@ -1,4 +1,7 @@
 //! Progressão: XP, nível, pontos, atributos e save.
+//!
+//! Modular progression operations keep point balance consistent:
+//! `applied_points + unspent_points == total_points_for_level(level)`.
 
 use crate::entities::{
     Attributes, Entity, EntityId, EntityStore, PlayableCharacter, Stats, VisualProfile,
@@ -9,11 +12,36 @@ use crate::skills::Loadout;
 
 pub const SAVE_VERSION: u16 = 2;
 pub const SAVE_VERSION_V1: u16 = 1;
+pub const POINTS_PER_LEVEL: u32 = 5;
 
 /// XP necessário para sair do nível atual.
 pub fn xp_to_next(level: u32) -> f32 {
     let level = level.max(1) as f32;
     50.0 * level * level + 100.0 * level
+}
+
+/// Returns total unspent+spent attribute points for a given level.
+pub fn total_points_for_level(level: u32) -> u32 {
+    level.saturating_sub(1).saturating_mul(POINTS_PER_LEVEL)
+}
+
+/// Sum of applied (spent) attribute points.
+pub fn applied_points(attrs: Attributes) -> u32 {
+    attrs
+        .speed
+        .saturating_add(attrs.strength)
+        .saturating_add(attrs.health)
+        .saturating_add(attrs.aura)
+        .saturating_add(attrs.ego)
+}
+
+/// Consistent point balance for a player entity.
+pub fn point_balance(entity: &Entity) -> Option<(u32, u32, u32)> {
+    let player = entity.player()?;
+    let applied = applied_points(entity.attributes);
+    let unspent = player.points;
+    let expected = total_points_for_level(player.level);
+    Some((applied, unspent, expected))
 }
 
 /// Adiciona XP ao jogador e processa todos os level-ups alcançados.
@@ -36,7 +64,7 @@ pub fn grant_xp(entity: &mut Entity, amount: f32, events: &mut Vec<GameEvent>) {
         while player.xp >= xp_to_next(player.level) {
             player.xp -= xp_to_next(player.level);
             player.level += 1;
-            player.points += 5;
+            player.points = player.points.saturating_add(POINTS_PER_LEVEL);
             player.pending_level_up = true;
             player.aura = max_aura;
             leveled = true;
@@ -89,8 +117,12 @@ pub fn process_kills(store: &mut EntityStore, events: &mut Vec<GameEvent>) {
     }
 }
 
-/// Gasta um ponto no atributo escolhido e recalcula os stats derivados.
-pub fn allocate_point(entity: &mut Entity, attribute: Attribute) -> bool {
+/// Spends one unspent point into an attribute (point assignment event).
+pub fn allocate_point(
+    entity: &mut Entity,
+    attribute: Attribute,
+    events: &mut Vec<GameEvent>,
+) -> bool {
     let old_max_health = entity.stats.max_health;
     let old_max_aura = entity.stats.max_aura;
 
@@ -119,6 +151,11 @@ pub fn allocate_point(entity: &mut Entity, attribute: Attribute) -> bool {
             player.pending_level_up = false;
         }
     }
+
+    events.push(GameEvent::AttributeAllocated {
+        player: entity.id,
+        attribute,
+    });
     true
 }
 
@@ -127,11 +164,6 @@ pub fn confirm_level_up(entity: &mut Entity) {
     if let Some(player) = entity.player_mut() {
         player.pending_level_up = false;
     }
-}
-
-/// Returns total unspent+spent attribute points for a given level (5 per level above 1).
-pub fn total_points_for_level(level: u32) -> u32 {
-    level.saturating_sub(1).saturating_mul(5)
 }
 
 /// Sandbox/debug: sets level and resets XP/attributes/points for a clean redistribute state.
@@ -145,7 +177,7 @@ pub fn debug_set_level(entity: &mut Entity, level: u32) -> bool {
     player.xp = 0.0;
     player.points = total_points_for_level(level);
     player.pending_level_up = player.points > 0;
-    player.aura = 0.0; // will be clamped/restored below
+    player.aura = 0.0;
 
     entity.attributes = crate::entities::Attributes::default();
     let stats = Stats::player(entity.attributes);
@@ -158,7 +190,7 @@ pub fn debug_set_level(entity: &mut Entity, level: u32) -> bool {
     true
 }
 
-/// Sandbox/debug: grants levels (adds 5 points per level gained) without resetting attributes.
+/// Sandbox/debug: grants levels (adds points per level gained) without resetting attributes.
 pub fn debug_grant_levels(entity: &mut Entity, levels: u32) -> bool {
     if levels == 0 {
         return entity.player().is_some();
@@ -167,10 +199,11 @@ pub fn debug_grant_levels(entity: &mut Entity, levels: u32) -> bool {
         return false;
     };
     player.level = player.level.saturating_add(levels);
-    player.points = player.points.saturating_add(levels.saturating_mul(5));
+    player.points = player
+        .points
+        .saturating_add(levels.saturating_mul(POINTS_PER_LEVEL));
     player.pending_level_up = player.points > 0;
     player.xp = 0.0;
-    // Preserve current attributes; stats unchanged except health/aura caps remain valid.
     let stats = entity.stats;
     if let Some(player) = entity.player_mut() {
         player.aura = player.aura.min(stats.max_aura);
@@ -179,15 +212,130 @@ pub fn debug_grant_levels(entity: &mut Entity, levels: u32) -> bool {
     true
 }
 
-/// Sandbox/debug death rule: lose one level (min 1) and redistribute all attribute points.
-/// Returns false if entity is not a player.
-pub fn sandbox_apply_death_level_loss(entity: &mut Entity) -> bool {
+/// Death/respawn progression penalty (level down event): lose one level (min 1) and 5 points from balance.
+/// Unspent points are reduced by 5 first. If there are not enough unspent points, the
+/// remaining deficit is removed randomly (deterministically) from applied status points.
+/// Applied status points can be reduced down to 0.
+/// Emits `LevelDown` when the level changes.
+pub fn apply_death_level_loss(
+    entity: &mut Entity,
+    rng: &mut crate::rng::Rng,
+    events: &mut Vec<GameEvent>,
+) -> bool {
     if entity.player().is_none() {
         return false;
     }
-    let current_level = entity.player().map(|p| p.level).unwrap_or(1);
-    let next_level = current_level.saturating_sub(1).max(1);
-    debug_set_level(entity, next_level)
+
+    let (old_level, old_unspent) = entity
+        .player()
+        .map(|p| (p.level.max(1), p.points))
+        .unwrap_or((1, 0));
+    let new_level = old_level.saturating_sub(1).max(1);
+    let points_lost = if old_level > new_level {
+        POINTS_PER_LEVEL
+    } else {
+        0
+    };
+
+    let unspent_after = old_unspent.saturating_sub(points_lost);
+    let deficit_from_applied = points_lost.saturating_sub(old_unspent);
+
+    if let Some(player) = entity.player_mut() {
+        player.level = new_level;
+        player.xp = 0.0;
+        player.points = unspent_after;
+        player.pending_level_up = player.points > 0;
+    }
+
+    let mut remaining = deficit_from_applied;
+    while remaining > 0 {
+        let Some(attr) = pick_attribute_to_decrement(entity.attributes, rng) else {
+            break;
+        };
+        decrement_attribute(&mut entity.attributes, attr);
+        remaining -= 1;
+    }
+
+    // Keep applied + unspent within the new level's total balance when possible.
+    let new_total = total_points_for_level(new_level);
+    let mut applied_after = applied_points(entity.attributes);
+    let mut unspent_final = unspent_after;
+    if applied_after.saturating_add(unspent_final) > new_total {
+        let mut extra = applied_after.saturating_add(unspent_final) - new_total;
+        while extra > 0 {
+            let Some(attr) = pick_attribute_to_decrement(entity.attributes, rng) else {
+                break;
+            };
+            decrement_attribute(&mut entity.attributes, attr);
+            applied_after = applied_points(entity.attributes);
+            if applied_after.saturating_add(unspent_final) <= new_total {
+                break;
+            }
+            extra = extra.saturating_sub(1);
+        }
+        let max_unspent = new_total.saturating_sub(applied_points(entity.attributes));
+        unspent_final = unspent_final.min(max_unspent);
+        if let Some(player) = entity.player_mut() {
+            player.points = unspent_final;
+            player.pending_level_up = player.points > 0;
+        }
+    }
+
+    let stats = Stats::player(entity.attributes);
+    entity.stats = stats;
+    entity.health.current = entity.health.current.min(stats.max_health).max(0.0);
+    if let Some(player) = entity.player_mut() {
+        player.aura = player.aura.min(stats.max_aura);
+    }
+
+    if old_level != new_level {
+        events.push(GameEvent::LevelDown {
+            player: entity.id,
+            level: new_level,
+        });
+    }
+    true
+}
+
+/// Picks an applied status attribute to remove one point from (can go down to 0).
+fn pick_attribute_to_decrement(attrs: Attributes, rng: &mut crate::rng::Rng) -> Option<Attribute> {
+    let available = removable_attributes(attrs, 0);
+    if available.is_empty() {
+        return None;
+    }
+    let idx = (rng.next_u64() as usize) % available.len();
+    Some(available[idx])
+}
+
+/// Attributes that can lose one applied point while staying at/above `min_after`.
+fn removable_attributes(attrs: Attributes, min_after: u32) -> Vec<Attribute> {
+    let mut out = Vec::with_capacity(5);
+    if attrs.speed > min_after {
+        out.push(Attribute::Speed);
+    }
+    if attrs.strength > min_after {
+        out.push(Attribute::Strength);
+    }
+    if attrs.health > min_after {
+        out.push(Attribute::Health);
+    }
+    if attrs.aura > min_after {
+        out.push(Attribute::Aura);
+    }
+    if attrs.ego > min_after {
+        out.push(Attribute::Ego);
+    }
+    out
+}
+
+fn decrement_attribute(attrs: &mut Attributes, attr: Attribute) {
+    match attr {
+        Attribute::Speed => attrs.speed = attrs.speed.saturating_sub(1),
+        Attribute::Strength => attrs.strength = attrs.strength.saturating_sub(1),
+        Attribute::Health => attrs.health = attrs.health.saturating_sub(1),
+        Attribute::Aura => attrs.aura = attrs.aura.saturating_sub(1),
+        Attribute::Ego => attrs.ego = attrs.ego.saturating_sub(1),
+    }
 }
 
 /// Sandbox/debug: reset allocated attributes and return all level points to unspent.
@@ -339,13 +487,21 @@ mod tests {
     }
 
     #[test]
-    fn allocating_speed_raises_walk_speed() {
+    fn allocating_speed_raises_walk_speed_and_emits_event() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
-        assert!(allocate_point(&mut entity, Attribute::Speed));
+        let mut events = Vec::new();
+        assert!(allocate_point(&mut entity, Attribute::Speed, &mut events));
         assert_eq!(entity.stats.walk_speed, 230.0);
         assert_eq!(entity.player().unwrap().points, 0);
-        assert!(!allocate_point(&mut entity, Attribute::Speed));
+        assert!(!allocate_point(&mut entity, Attribute::Speed, &mut events));
+        assert!(events.iter().any(|e| matches!(
+            e,
+            GameEvent::AttributeAllocated {
+                attribute: Attribute::Speed,
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -353,7 +509,8 @@ mod tests {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
         entity.health.current = 5.0;
-        assert!(allocate_point(&mut entity, Attribute::Health));
+        let mut events = Vec::new();
+        assert!(allocate_point(&mut entity, Attribute::Health, &mut events));
         assert_eq!(entity.stats.max_health, 11.0);
         assert_eq!(entity.health.current, 6.0);
     }
@@ -362,7 +519,8 @@ mod tests {
     fn allocating_aura_raises_max_aura() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
-        assert!(allocate_point(&mut entity, Attribute::Aura));
+        let mut events = Vec::new();
+        assert!(allocate_point(&mut entity, Attribute::Aura, &mut events));
         assert_eq!(entity.stats.max_aura, 11.0);
         assert_eq!(entity.stats.mogging_damage, 2.0);
     }
@@ -371,7 +529,8 @@ mod tests {
     fn allocating_ego_raises_mogging_damage() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
-        assert!(allocate_point(&mut entity, Attribute::Ego));
+        let mut events = Vec::new();
+        assert!(allocate_point(&mut entity, Attribute::Ego, &mut events));
         assert_eq!(entity.stats.mogging_damage, 3.0);
     }
 
@@ -379,7 +538,12 @@ mod tests {
     fn allocating_strength_raises_melee_damage() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
-        assert!(allocate_point(&mut entity, Attribute::Strength));
+        let mut events = Vec::new();
+        assert!(allocate_point(
+            &mut entity,
+            Attribute::Strength,
+            &mut events
+        ));
         assert_eq!(entity.stats.melee_damage(), 2.0);
     }
 
@@ -497,34 +661,186 @@ mod tests {
     }
 
     #[test]
-    fn sandbox_death_level_loss_redistributes_and_clamps_to_level_one() {
+    fn sandbox_death_level_loss_reduces_unspent_points_first() {
+        // Lose 1 level and 5 points from balance. Unspent points are reduced by 5.
         let mut entity = player();
-        assert!(debug_set_level(&mut entity, 3));
-        assert!(allocate_point(&mut entity, Attribute::Speed));
-        assert!(sandbox_apply_death_level_loss(&mut entity));
+        assert!(debug_set_level(&mut entity, 5)); // 20 total
+        let mut events = Vec::new();
+        assert_eq!(entity.player().unwrap().points, 20);
+        assert!(apply_death_level_loss(
+            &mut entity,
+            &mut crate::rng::Rng::new(1),
+            &mut events
+        ));
         let p = entity.player().unwrap();
-        assert_eq!(p.level, 2);
-        assert_eq!(p.points, 5);
+        assert_eq!(p.level, 4);
+        assert_eq!(p.points, 15);
         assert_eq!(p.xp, 0.0);
-        assert_eq!(entity.attributes, Attributes::default());
+        assert_eq!(applied_points(entity.attributes), 0);
+        assert_eq!(point_balance(&entity), Some((0, 15, 15)));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, GameEvent::LevelDown { level: 4, .. })));
 
-        assert!(sandbox_apply_death_level_loss(&mut entity));
-        assert!(sandbox_apply_death_level_loss(&mut entity));
+        // If not enough unspent points, remaining deficit is taken from applied status points.
+        let mut entity = player();
+        assert!(debug_set_level(&mut entity, 5)); // 20 total
+        let mut events = Vec::new();
+        for attr in [
+            Attribute::Speed,
+            Attribute::Speed,
+            Attribute::Strength,
+            Attribute::Strength,
+            Attribute::Strength,
+            Attribute::Health,
+            Attribute::Health,
+            Attribute::Aura,
+            Attribute::Aura,
+            Attribute::Ego,
+        ] {
+            assert!(allocate_point(&mut entity, attr, &mut events));
+        }
+        // 10 applied, 10 unspent
+        assert_eq!(entity.player().unwrap().points, 10);
+        assert_eq!(applied_points(entity.attributes), 10);
+        assert!(apply_death_level_loss(
+            &mut entity,
+            &mut crate::rng::Rng::new(2),
+            &mut events
+        ));
+        let p = entity.player().unwrap();
+        assert_eq!(p.level, 4);
+        assert_eq!(p.points, 5); // 10 - 5
+        assert_eq!(applied_points(entity.attributes), 10); // no deficit from applied
+        assert_eq!(point_balance(&entity), Some((10, 5, 15)));
+
+        // No unspent points: all 5 taken from applied status points (can go down to 0).
+        let mut entity = player();
+        assert!(debug_set_level(&mut entity, 5)); // 20 total
+        let mut events = Vec::new();
+        for attr in [
+            Attribute::Speed,
+            Attribute::Strength,
+            Attribute::Health,
+            Attribute::Aura,
+            Attribute::Ego,
+        ] {
+            assert!(allocate_point(&mut entity, attr, &mut events));
+        }
+        assert_eq!(entity.player().unwrap().points, 15);
+        assert_eq!(applied_points(entity.attributes), 5);
+        // Spend remaining unspent to have 0 unspent and 20 applied? easier: set up directly
+        let mut entity = player();
+        assert!(debug_set_level(&mut entity, 2)); // 5 total
+        let mut events = Vec::new();
+        for attr in [
+            Attribute::Speed,
+            Attribute::Strength,
+            Attribute::Health,
+            Attribute::Aura,
+            Attribute::Ego,
+        ] {
+            assert!(allocate_point(&mut entity, attr, &mut events));
+        }
+        assert_eq!(entity.player().unwrap().points, 0);
+        assert_eq!(applied_points(entity.attributes), 5);
+        assert!(apply_death_level_loss(
+            &mut entity,
+            &mut crate::rng::Rng::new(3),
+            &mut events
+        ));
         let p = entity.player().unwrap();
         assert_eq!(p.level, 1);
         assert_eq!(p.points, 0);
-        assert_eq!(entity.attributes, Attributes::default());
+        assert_eq!(applied_points(entity.attributes), 0);
+        assert_eq!(point_balance(&entity), Some((0, 0, 0)));
+
+        // Partial unspent: reduce unspent and take remainder from applied.
+        let mut entity = player();
+        assert!(debug_set_level(&mut entity, 3)); // 10 total
+        let mut events = Vec::new();
+        for attr in [
+            Attribute::Speed,
+            Attribute::Strength,
+            Attribute::Health,
+            Attribute::Aura,
+            Attribute::Ego,
+            Attribute::Speed,
+            Attribute::Strength,
+            Attribute::Health,
+        ] {
+            assert!(allocate_point(&mut entity, attr, &mut events));
+        }
+        // 8 applied, 2 unspent
+        assert_eq!(entity.player().unwrap().points, 2);
+        assert_eq!(applied_points(entity.attributes), 8);
+        assert!(apply_death_level_loss(
+            &mut entity,
+            &mut crate::rng::Rng::new(4),
+            &mut events
+        ));
+        let p = entity.player().unwrap();
+        assert_eq!(p.level, 2);
+        assert_eq!(p.points, 0); // 2 unspent consumed, 3 deficit from applied
+        assert_eq!(applied_points(entity.attributes), 5);
+        assert_eq!(point_balance(&entity), Some((5, 0, 5)));
+    }
+
+    #[test]
+    fn sandbox_death_level_loss_is_deterministic_for_same_rng_seed() {
+        let mut a = player();
+        let mut b = player();
+        assert!(debug_set_level(&mut a, 5));
+        assert!(debug_set_level(&mut b, 5));
+        let mut events = Vec::new();
+        for attr in [
+            Attribute::Speed,
+            Attribute::Speed,
+            Attribute::Strength,
+            Attribute::Strength,
+            Attribute::Health,
+            Attribute::Health,
+            Attribute::Aura,
+            Attribute::Aura,
+            Attribute::Ego,
+            Attribute::Ego,
+        ] {
+            assert!(allocate_point(&mut a, attr, &mut events));
+            assert!(allocate_point(&mut b, attr, &mut events));
+        }
+        let mut events_a = Vec::new();
+        let mut events_b = Vec::new();
+        assert!(apply_death_level_loss(
+            &mut a,
+            &mut crate::rng::Rng::new(123),
+            &mut events_a
+        ));
+        assert!(apply_death_level_loss(
+            &mut b,
+            &mut crate::rng::Rng::new(123),
+            &mut events_b
+        ));
+        assert_eq!(a.player().unwrap().level, b.player().unwrap().level);
+        assert_eq!(a.attributes, b.attributes);
+        assert_eq!(a.player().unwrap().points, b.player().unwrap().points);
+        assert_eq!(point_balance(&a), point_balance(&b));
     }
 
     #[test]
     fn debug_grant_levels_adds_points_without_resetting_attributes() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
-        assert!(allocate_point(&mut entity, Attribute::Strength));
+        let mut events = Vec::new();
+        assert!(allocate_point(
+            &mut entity,
+            Attribute::Strength,
+            &mut events
+        ));
         assert!(debug_grant_levels(&mut entity, 2));
         let p = entity.player().unwrap();
         assert_eq!(p.level, 3);
         assert_eq!(p.points, 10);
         assert_eq!(entity.attributes.strength, 1);
+        assert_eq!(point_balance(&entity), Some((1, 10, 10)));
     }
 }
