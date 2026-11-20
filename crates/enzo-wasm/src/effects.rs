@@ -105,15 +105,6 @@ impl Effects {
         self.text(pos, format!("-{amount:.0}"), color, 11.0);
     }
 
-    pub fn xp(&mut self, pos: Vec2, amount: f32) {
-        self.text(
-            pos,
-            format!("+{amount:.0} XP"),
-            Color::from_rgba(246, 196, 69, 255),
-            10.0,
-        );
-    }
-
     pub fn sparks(&mut self, pos: Vec2, color: Color, count: usize) {
         self.emit(&particles::emitters::sparks(color, count), pos);
     }

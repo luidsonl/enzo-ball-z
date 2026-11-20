@@ -5,8 +5,15 @@ use macroquad::prelude::*;
 
 use crate::sprites::{self, Sprites};
 
-pub fn frame(stun: f32, time: f32) -> usize {
+pub fn frame(entity: &EntitySnapshot, time: f32) -> usize {
     use sprites::slime as f;
+    if entity.health <= 0.0 {
+        return match ((time * 8.0).floor() as usize) % 2 {
+            0 => f::DYING_A,
+            _ => f::DYING_B,
+        };
+    }
+    let stun = entity.enemy.as_ref().map(|e| e.stun).unwrap_or(0.0);
     if stun > 0.0 {
         return f::HURT;
     }
@@ -18,13 +25,17 @@ pub fn frame(stun: f32, time: f32) -> usize {
 }
 
 pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
-    let Some(data) = entity.enemy.as_ref() else {
+    let Some(_data) = entity.enemy.as_ref() else {
         return;
     };
     let size = vec2(entity.size.x, entity.size.y);
     let center = pos + size * 0.5;
-    let frame = frame(data.stun, time);
-    let tint = if data.stun > 0.0 {
+    let frame = frame(entity, time);
+    let is_dead = entity.health <= 0.0;
+    let stun = entity.enemy.as_ref().map(|e| e.stun).unwrap_or(0.0);
+    let tint = if is_dead {
+        Color::from_rgba(235, 235, 245, 220)
+    } else if stun > 0.0 {
         Color::from_rgba(255, 210, 210, 255)
     } else {
         WHITE
@@ -44,7 +55,9 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
         entity.facing < 0,
         tint,
     );
-    draw_health(entity, pos);
+    if !is_dead {
+        draw_health(entity, pos);
+    }
 }
 
 fn draw_health(entity: &EntitySnapshot, pos: Vec2) {
@@ -76,10 +89,49 @@ fn draw_health(entity: &EntitySnapshot, pos: Vec2) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use enzo_core::entities::{AnimationState, VisualProfile};
+    use enzo_core::math::Vec2;
+    use enzo_core::snapshot::{EnemySnapshot, EntitySnapshot, SnapshotKind};
+
+    fn slime_entity(health: f32, stun: f32) -> EntitySnapshot {
+        EntitySnapshot {
+            id: enzo_core::entities::EntityId(1),
+            kind: SnapshotKind::Enemy,
+            pos: Vec2::ZERO,
+            vel: Vec2::ZERO,
+            size: Vec2::new(26.0, 26.0),
+            facing: 1,
+            on_ground: true,
+            dashing: false,
+            running: false,
+            team: 1,
+            health,
+            max_health: 3.0,
+            iframes: 0.0,
+            animation: AnimationState::default(),
+            visual_character: None,
+            visual_profile: VisualProfile::default(),
+            player: None,
+            enemy: Some(EnemySnapshot {
+                species: enzo_core::entities::EnemySpecies::Slime,
+                patrol_dir: 1,
+                stun,
+            }),
+            projectile: None,
+            item: None,
+        }
+    }
 
     #[test]
-    fn slime_uses_hurt_frame_when_stunned() {
-        assert_eq!(frame(0.0, 0.0), sprites::slime::WALK_A);
-        assert_eq!(frame(0.2, 0.0), sprites::slime::HURT);
+    fn slime_uses_hurt_and_dying_frames() {
+        let alive = slime_entity(3.0, 0.0);
+        assert_eq!(frame(&alive, 0.0), sprites::slime::WALK_A);
+
+        let stunned = slime_entity(3.0, 0.2);
+        assert_eq!(frame(&stunned, 0.0), sprites::slime::HURT);
+
+        let dying = slime_entity(0.0, 0.0);
+        assert_eq!(frame(&dying, 0.0), sprites::slime::DYING_A);
+        assert_eq!(frame(&dying, 0.125), sprites::slime::DYING_B);
     }
 }

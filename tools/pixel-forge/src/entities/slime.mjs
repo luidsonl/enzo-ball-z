@@ -19,8 +19,36 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 export function drawSlime(c, ox, frame) {
   const hurt = frame === 'hurt';
-  const body = hurt ? '#ff9aa8' : '#66d17a';
-  const dark = hurt ? '#d85a6a' : '#3f9e57';
+  const dying = frame === 'dying_a' || frame === 'dying_b';
+  const body = hurt ? '#ff9aa8' : dying ? '#78c985' : '#66d17a';
+  const dark = hurt ? '#d85a6a' : dying ? '#4f8f5d' : '#3f9e57';
+
+  if (dying) {
+    const squashed = frame === 'dying_b';
+    const h = squashed ? 8 : 11;
+    const w = squashed ? 24 : 22;
+    const x = ox + (32 - w) / 2;
+    const y = 30 - h;
+    c.rect(x, y, w, h, body);
+    c.rect(x, y + h - 3, w, 3, dark);
+    c.rect(x + 3, y + 1, w - 6, 2, '#ffffff33');
+    // X eyes while dying
+    c.rect(x + w * 0.22, y + h * 0.3, 2, 2, P.outline);
+    c.rect(x + w * 0.22 + 2, y + h * 0.3 + 2, 2, 2, P.outline);
+    c.rect(x + w * 0.22 + 4, y + h * 0.3, 2, 2, P.outline);
+    c.rect(x + w * 0.22 + 2, y + h * 0.3 - 2, 2, 2, P.outline);
+
+    c.rect(x + w * 0.58, y + h * 0.3, 2, 2, P.outline);
+    c.rect(x + w * 0.58 + 2, y + h * 0.3 + 2, 2, 2, P.outline);
+    c.rect(x + w * 0.58 + 4, y + h * 0.3, 2, 2, P.outline);
+    c.rect(x + w * 0.58 + 2, y + h * 0.3 - 2, 2, 2, P.outline);
+
+    if (squashed) {
+      c.rect(x - 1, 29, w + 2, 2, '#5f6a6280');
+    }
+    return;
+  }
+
   const h = frame === 'stretch' ? 12 : frame === 'walk_b' ? 14 : 15;
   const w = frame === 'stretch' ? 22 : 18;
   const x = ox + (32 - w) / 2;
@@ -61,6 +89,8 @@ export function buildSlimeAssets(opts = {}) {
     { name: 'walk_b', draw: (c, x) => drawSlime(c, x, 'walk_b') },
     { name: 'stretch', draw: (c, x) => drawSlime(c, x, 'stretch') },
     { name: 'hurt', draw: (c, x) => drawSlime(c, x, 'hurt') },
+    { name: 'dying_a', draw: (c, x) => drawSlime(c, x, 'dying_a') },
+    { name: 'dying_b', draw: (c, x) => drawSlime(c, x, 'dying_b') },
   ];
   const slimeSheet = new Canvas(32 * slimeFrames.length, 32);
   slimeFrames.forEach((f, i) => f.draw(slimeSheet, i * 32));
@@ -69,7 +99,7 @@ export function buildSlimeAssets(opts = {}) {
   const slimeAtlas = {
     image: 'sheet.png', cell: { w: 32, h: 32 },
     frames: Object.fromEntries(slimeFrames.map((f, i) => [f.name, { x: i * 32, y: 0, w: 32, h: 32 }])),
-    clips: { walk: ['walk_a', 'walk_b'], stretch: ['stretch'], hurt: ['hurt'] },
+    clips: { walk: ['walk_a', 'walk_b'], stretch: ['stretch'], hurt: ['hurt'], dying: ['dying_a', 'dying_b'] },
   };
   writeJsonIfChanged(join(slimeDir, 'atlas.json'), slimeAtlas, stats);
   writeJsonIfChanged(join(slimeDir, 'manifest.json'), {

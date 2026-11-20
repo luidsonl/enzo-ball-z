@@ -26,6 +26,9 @@ pub struct EnemyData {
     /// Marca que o XP da morte já foi concedido. Torna `process_kills`
     /// idempotente mesmo antes do despawn.
     pub xp_awarded: bool,
+    /// Remaining time for the dying/despawn animation after health reaches zero.
+    /// While > 0, the entity stays in the world for rendering but is inactive.
+    pub death_timer: f32,
 }
 
 #[cfg(test)]
@@ -40,9 +43,11 @@ mod tests {
             contact_damage: 5.0,
             stun: 0.0,
             xp_awarded: false,
+            death_timer: 0.0,
         };
         assert_eq!(data.species, EnemySpecies::Slime);
         assert_eq!(data.xp_reward, 10.0);
         assert!(!data.xp_awarded);
+        assert_eq!(data.death_timer, 0.0);
     }
 }

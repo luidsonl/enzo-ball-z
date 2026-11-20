@@ -25,11 +25,29 @@ use std::collections::HashMap;
 use super::block::BlockId;
 use super::blocks;
 
+/// Background configuration metadata for a stage/level.
+/// Decoupled from the stage number so stages can reference any background.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct BackgroundMetadata {
+    /// Background kind/id (e.g. "hills_day"). Empty means default.
+    pub kind: String,
+}
+
+impl BackgroundMetadata {
+    pub fn new(kind: impl Into<String>) -> Self {
+        Self { kind: kind.into() }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.kind.trim().is_empty()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MapMetadata {
     pub name: String,
     pub world: String,
-    pub background: String,
+    pub background: BackgroundMetadata,
     pub stage: u32,
 }
 
@@ -38,7 +56,7 @@ impl Default for MapMetadata {
         Self {
             name: String::new(),
             world: String::new(),
-            background: String::new(),
+            background: BackgroundMetadata::default(),
             stage: 1,
         }
     }
@@ -216,7 +234,7 @@ pub fn parse_map_text(source: &str) -> ParsedMapText {
                     match k.as_str() {
                         "name" | "title" => metadata.name = v,
                         "world" => metadata.world = v,
-                        "background" | "bg" => metadata.background = v,
+                        "background" | "bg" => metadata.background = BackgroundMetadata::new(v),
                         "stage" | "level" => metadata.stage = v.parse().unwrap_or(1),
                         _ => {}
                     }

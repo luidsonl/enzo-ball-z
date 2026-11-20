@@ -27,6 +27,9 @@ pub use crate::state::GamePhase;
 /// Tempo entre a morte e o respawn automático.
 pub const RESPAWN_DELAY: f32 = 1.2;
 
+/// Duração da animação/estado de morte de inimigos antes do despawn.
+pub const ENEMY_DEATH_DELAY: f32 = 0.4;
+
 /// Distância abaixo do mapa em que a queda vira morte.
 pub const FALL_DEATH_MARGIN: f32 = 64.0;
 
@@ -434,13 +437,24 @@ impl World {
         progression::process_kills(&mut self.store, events);
 
         // 11. Limpeza
-        let dead: Vec<EntityId> = self
-            .store
-            .enemies()
-            .filter(|entity| !entity.health.is_alive())
-            .map(|entity| entity.id)
-            .collect();
-        for id in dead {
+        let mut dead_to_despawn = Vec::new();
+        for entity in self.store.enemies_mut() {
+            if entity.health.is_alive() {
+                continue;
+            }
+            let Some(enemy) = entity.enemy_mut() else {
+                continue;
+            };
+            if enemy.death_timer <= 0.0 {
+                enemy.death_timer = ENEMY_DEATH_DELAY;
+            } else {
+                enemy.death_timer = (enemy.death_timer - DT).max(0.0);
+            }
+            if enemy.death_timer <= 0.0 {
+                dead_to_despawn.push(entity.id);
+            }
+        }
+        for id in dead_to_despawn {
             self.store.despawn(id);
         }
 

@@ -28,11 +28,14 @@ pub mod visual {
         ("walk", &[0, 1], 0.18),
         ("stretch", &[2], 0.10),
         ("hurt", &[3], 0.12),
+        ("dying", &[4, 5], 0.12),
     ];
     pub const WALK_A: usize = 0;
     pub const WALK_B: usize = 1;
     pub const STRETCH: usize = 2;
     pub const HURT: usize = 3;
+    pub const DYING_A: usize = 4;
+    pub const DYING_B: usize = 5;
 }
 
 impl Stats {
@@ -59,6 +62,7 @@ impl EntitySpec {
                 contact_damage: SLIME_CONTACT_DAMAGE,
                 stun: 0.0,
                 xp_awarded: false,
+                death_timer: 0.0,
             }),
             controller: Controller::from_ai(Ai::slime()),
             team: TeamId::ENEMIES,

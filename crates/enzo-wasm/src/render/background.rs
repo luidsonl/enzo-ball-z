@@ -1,5 +1,9 @@
 //! Fundo em screen space: gradiente, sol, nuvens e montanhas com parallax.
+//!
+//! O fundo é desacoplado do estágio: a configuração vem dos metadados do nível
+//! (`level.metadata.background`), permitindo que cada estágio referencie qualquer fundo.
 
+use enzo_core::map::BackgroundMetadata;
 use macroquad::prelude::*;
 
 use crate::camera::GameCamera;
@@ -12,18 +16,28 @@ const CLOUDS: &[(f32, f32, f32, f32)] = &[
     (0.92, 0.18, 0.13, 1.0),
 ];
 
-/// Fundo em screen space: gradiente, sol, nuvens e montanhas com parallax.
+/// Fundo em screen space, configurado pelos metadados da fase.
 pub struct Background {
     gradient: Texture2D,
+    kind: String,
 }
 
 impl Background {
     pub fn new() -> Self {
+        Self::from_metadata(&BackgroundMetadata::default())
+    }
+
+    pub fn from_metadata(metadata: &BackgroundMetadata) -> Self {
+        let kind = if metadata.is_empty() {
+            "hills_day".to_owned()
+        } else {
+            metadata.kind.clone()
+        };
+
         // O gradiente é constante: gera uma tira 1x64 uma vez e estica na tela.
         // Desenhar 48 retângulos por frame custava 48 fill-rates de tela cheia.
         const ROWS: u16 = 64;
-        let top = rgba(34, 46, 86, 255);
-        let bottom = rgba(132, 176, 198, 255);
+        let (top, bottom) = gradient_colors(&kind);
         let mut bytes = Vec::with_capacity(ROWS as usize * 4);
         for index in 0..ROWS {
             let t = index as f32 / (ROWS - 1) as f32;
@@ -37,7 +51,11 @@ impl Background {
         }
         let gradient = Texture2D::from_rgba8(1, ROWS, &bytes);
         gradient.set_filter(FilterMode::Linear);
-        Self { gradient }
+        Self { gradient, kind }
+    }
+
+    pub fn kind(&self) -> &str {
+        &self.kind
     }
 }
 
@@ -48,11 +66,20 @@ impl Default for Background {
 }
 
 pub fn draw_background(background: &Background, camera: &GameCamera, time: f32) {
+    match background.kind.as_str() {
+        // Current/default scene. Additional background kinds can be added here
+        // without coupling them to stage numbers.
+        "hills" | "hills_day" | "" => draw_hills_day(&background.gradient, camera, time),
+        _ => draw_hills_day(&background.gradient, camera, time),
+    }
+}
+
+fn draw_hills_day(gradient: &Texture2D, camera: &GameCamera, time: f32) {
     let width = screen_width();
     let height = screen_height();
 
     draw_texture_ex(
-        &background.gradient,
+        gradient,
         0.0,
         0.0,
         WHITE,
@@ -113,6 +140,13 @@ pub fn draw_background(background: &Background, camera: &GameCamera, time: f32) 
         height * 0.16,
         rgba(180, 206, 214, 36),
     );
+}
+
+fn gradient_colors(kind: &str) -> (Color, Color) {
+    match kind {
+        "hills" | "hills_day" | "" => (rgba(34, 46, 86, 255), rgba(132, 176, 198, 255)),
+        _ => (rgba(34, 46, 86, 255), rgba(132, 176, 198, 255)),
+    }
 }
 
 fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color {

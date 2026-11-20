@@ -714,7 +714,7 @@ F = marker:flag
         let level = Level::parse(src).unwrap();
         assert_eq!(level.metadata.name, "Test Stage");
         assert_eq!(level.metadata.world, "grasslands");
-        assert_eq!(level.metadata.background, "hills");
+        assert_eq!(level.metadata.background.kind, "hills");
         assert_eq!(level.metadata.stage, 2);
         assert_eq!(level.spawn_tiles, vec![(1, 1)]);
         assert_eq!(level.enemy_spawns.len(), 1);

@@ -13,4 +13,4 @@ pub use background::{draw_background, Background};
 pub use world::{draw_world, RenderContext};
 
 // Compat: reexports usados por testes/código legado.
-pub use entities::slime::frame as slime_frame;
+// slime frame selection now requires entity snapshot state (dying/stun) and is exposed via entities::slime.

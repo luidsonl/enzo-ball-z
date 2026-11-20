@@ -562,6 +562,7 @@ impl GameSession {
         }
 
         let tiles = TileRenderer::new(world.level(), assets);
+        let background = Background::from_metadata(&world.level().metadata.background);
         let current = world.snapshot();
         let mut camera = GameCamera::new();
         camera.resize(vec2(screen_width(), screen_height()));
@@ -571,7 +572,7 @@ impl GameSession {
             slot,
             world,
             tiles,
-            background: Background::new(),
+            background,
             camera,
             effects: Effects::new(),
             input: InputState::with_bindings(bindings),
@@ -794,9 +795,8 @@ impl GameSession {
                     }
                     self.camera.add_shake(5.0);
                 }
-                GameEvent::EnemyKilled { enemy, xp } => {
+                GameEvent::EnemyKilled { enemy, .. } => {
                     if let Some(pos) = entity_center(&self.current, enemy) {
-                        self.effects.xp(pos, xp);
                         self.effects.sparks(pos, GOLD, 14);
                     }
                     self.camera.add_shake(1.5);

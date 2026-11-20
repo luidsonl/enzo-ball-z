@@ -39,6 +39,8 @@ pub mod slime {
     pub const WALK_B: usize = 1;
     pub const STRETCH: usize = 2;
     pub const HURT: usize = 3;
+    pub const DYING_A: usize = 4;
+    pub const DYING_B: usize = 5;
 }
 
 pub mod tile {
