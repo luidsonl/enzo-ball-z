@@ -290,11 +290,19 @@ mod tests {
     }
 
     #[test]
-    fn allocating_aura_raises_max_and_mogging_damage() {
+    fn allocating_aura_raises_max_aura() {
         let mut entity = player();
         entity.player_mut().unwrap().points = 1;
         assert!(allocate_point(&mut entity, Attribute::Aura));
         assert_eq!(entity.stats.max_aura, 11.0);
+        assert_eq!(entity.stats.mogging_damage, 2.0);
+    }
+
+    #[test]
+    fn allocating_ego_raises_mogging_damage() {
+        let mut entity = player();
+        entity.player_mut().unwrap().points = 1;
+        assert!(allocate_point(&mut entity, Attribute::Ego));
         assert_eq!(entity.stats.mogging_damage, 3.0);
     }
 

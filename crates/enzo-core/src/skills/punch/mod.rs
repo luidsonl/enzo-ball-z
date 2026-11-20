@@ -74,18 +74,14 @@ pub fn activate(
         return SkillResult::Idle;
     }
 
-    let (steps, ego) = store
+    let steps = store
         .get(act.entity_id)
         .map(|entity| {
             let ctx = entity.skill_context();
-            (
-                SkillId::Melee.tier_steps(ctx).max(0) as f32,
-                entity.attributes.ego as f32,
-            )
+            SkillId::Melee.tier_steps(ctx).max(0) as f32
         })
-        .unwrap_or((0.0, 0.0));
+        .unwrap_or(0.0);
     let scale = 1.0 + 0.10 * steps;
-    let ego_damage_bonus = ego * 0.5 * (1.0 + 0.25 * steps);
 
     let variant = ((act.tick as u32)
         .wrapping_mul(1664525)
@@ -116,9 +112,7 @@ pub fn activate(
         )
     };
 
-    let damage = (act.stats.melee_damage() * scale + ego_damage_bonus)
-        .round()
-        .max(1.0);
+    let damage = (act.stats.melee_damage() * scale).round().max(1.0);
     let targets: Vec<EntityId> = store
         .hostiles_in_rect(hitbox, act.team)
         .into_iter()

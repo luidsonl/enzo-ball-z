@@ -25,7 +25,7 @@ pub const REQUIREMENTS: Requirements = Requirements::new(
 
 pub static DEF: SkillDef = SkillDef {
     id: SkillId::Shout,
-    category: SkillCategory::Utility,
+    category: SkillCategory::Attack,
     source: SkillSource::Innate,
     activation: Activation::Press,
     requirements: REQUIREMENTS,

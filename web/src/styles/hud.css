@@ -308,3 +308,49 @@
   align-items: center;
   gap: 10px;
 }
+
+/* Skill detail calculation (!) sections */
+.dom-status-val--with-calc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dom-calc-btn {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 210, 90, 0.7);
+  background: rgba(255, 210, 90, 0.12);
+  color: #ffd772;
+  font: 700 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.dom-calc-btn:hover,
+.dom-calc-btn.active {
+  background: rgba(255, 210, 90, 0.22);
+  border-color: rgba(255, 210, 90, 0.95);
+  color: #fff3bf;
+}
+.dom-calc-box {
+  margin: -2px 0 2px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 210, 90, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 210, 90, 0.06);
+}
+.dom-calc-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd772;
+  margin-bottom: 6px;
+}
+.dom-calc-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #e8ecff;
+}

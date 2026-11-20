@@ -175,7 +175,7 @@ impl Stats {
             max_health: 10.0 + attributes.health as f32,
             max_aura: 10.0 + attributes.aura as f32,
             // Ego (intelligence) increases aura attack power.
-            mogging_damage: 2.0 + attributes.aura as f32 + attributes.ego as f32,
+            mogging_damage: 2.0 + attributes.ego as f32,
         }
     }
 
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(stats.strength, 3.0);
         assert_eq!(stats.max_health, 11.0);
         assert_eq!(stats.max_aura, 14.0);
-        assert_eq!(stats.mogging_damage, 8.0); // 2 + aura(4) + ego(2)
+        assert_eq!(stats.mogging_damage, 4.0); // 2 + ego(2)
         assert_eq!(stats.melee_damage(), 4.0);
     }
 }

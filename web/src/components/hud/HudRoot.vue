@@ -11,6 +11,7 @@ const openPanel = ref(null); // status | equipment | skills | items | customize 
 const selectedSkillSlot = ref(0);
 const fullscreen = ref(false);
 const detailSkill = ref(null); // catalog entry shown in skills detail window
+const openSkillCalc = ref(null); // "damage" | "range" | "knockback" | null
 
 const state = computed(() => props.state);
 const showHud = computed(() => state.value?.scene === "game");
@@ -50,7 +51,7 @@ function onHudKeyDown(e) {
   e.preventDefault();
   e.stopPropagation();
   if (detailSkill.value) {
-    detailSkill.value = null;
+    closeSkillDetails();
     return;
   }
   closePanel();
@@ -75,6 +76,7 @@ function pct(current, max) {
 function act(code, a = 0, b = 0, c = 0) { uiAction(code, a, b, c); }
 function closePanel() {
   closeMenuAndFocusGame(() => {
+    openSkillCalc.value = null;
     detailSkill.value = null;
     openPanel.value = null;
   });
@@ -83,6 +85,7 @@ function togglePanel(panel) {
   if (openPanel.value === panel) {
     closePanel();
   } else {
+    openSkillCalc.value = null;
     detailSkill.value = null;
     openPanel.value = panel;
   }
@@ -167,10 +170,15 @@ const attrDefs = computed(() => {
 const catalogSkills = computed(() => player.value?.catalog || []);
 
 function openSkillDetails(entry) {
+  openSkillCalc.value = null;
   detailSkill.value = entry;
 }
 function closeSkillDetails() {
+  openSkillCalc.value = null;
   detailSkill.value = null;
+}
+function toggleSkillCalc(key) {
+  openSkillCalc.value = openSkillCalc.value === key ? null : key;
 }
 function formatDamagePreview(entry) {
   const values = entry?.damage_preview || [];
@@ -212,6 +220,98 @@ function skillMeta(entry) {
 }
 function slotSkillName(slotState) {
   return slotState?.skill_name || (slotState?.skill != null ? `S${slotState.skill}` : "—");
+}
+
+function uiLang() {
+  const lang = state.value?.settings?.language || "pt-BR";
+  return String(lang).toLowerCase().startsWith("en") ? "en" : "pt";
+}
+
+function l(key, en, pt) {
+  if (labels.value && labels.value[key]) return labels.value[key];
+  return uiLang() === "pt" ? pt : en;
+}
+
+function calcUiLabel() { return l("skill_calc", "Calculation", "Cálculo"); }
+function rangeUiLabel() { return l("range", "Range", "Alcance"); }
+function knockbackUiLabel() { return l("knockback", "Knockback", "Repulsão"); }
+function seeCalcUiLabel() { return l("see_calc", "See calc", "Ver cálculo"); }
+
+function translateSkillCalc(text, lang = uiLang()) {
+  if (!text || lang !== "pt") return text || "";
+  const trLine = (line) => {
+    let m;
+    if (line === "Damage (physical)") return "Dano (físico)";
+    if (line === "Damage") return "Dano";
+    if (line === "Range") return "Alcance";
+    if (line === "Knockback") return "Repulsão";
+
+    if (line === "- Requires: Nutella Gun (equipment)") return "- Requer: Arma de Nutella (equipamento)";
+    if (line === "- Upward lift: yes") return "- Elevação para cima: sim";
+    if (line === "- Total: fixed knockback") return "- Total: repulsão fixa";
+    if (line === "- Total: none") return "- Total: nenhum";
+
+    m = line.match(/^- Strength: (.+) pts -> base (.+)$/);
+    if (m) return `- Força: ${m[1]} pts -> base ${m[2]}`;
+
+    m = line.match(/^- Ego: (.+) pts -> base (.+)$/);
+    if (m) return `- Ego: ${m[1]} pts -> base ${m[2]}`;
+
+    m = line.match(/^- Ego: (.+) pts -> \+(.+)$/);
+    if (m) return `- Ego: ${m[1]} pts -> +${m[2]}`;
+
+    m = line.match(/^- Skill level: eff\. (.+) \(tier (.+), includes item bonuses\) -> \+(.+)$/);
+    if (m) return `- Nível da habilidade: efetivo ${m[1]} (nível ${m[2]}, inclui bônus de itens) -> +${m[3]}`;
+
+    m = line.match(/^- Skill tier (.+) \(skill level (.+), includes item bonuses\): \+(.+) from Ego$/);
+    if (m) return `- Nível da habilidade ${m[1]} (nível de habilidade ${m[2]}, inclui bônus de itens): +${m[3]} de Ego`;
+
+    m = line.match(/^- Skill tier (.+) \(skill level (.+), includes item bonuses\)$/);
+    if (m) return `- Nível da habilidade ${m[1]} (nível de habilidade ${m[2]}, inclui bônus de itens)`;
+
+    m = line.match(/^- Skill tier (.+) \(skill level (.+), includes item bonuses\): sets projectile travel$/);
+    if (m) return `- Nível da habilidade ${m[1]} (nível de habilidade ${m[2]}, inclui bônus de itens): define o alcance do projétil`;
+
+    m = line.match(/^- Base: ~(.+) px$/);
+    if (m) return `- Base: ~${m[1]} px`;
+
+    m = line.match(/^- Base: (.+) px$/);
+    if (m) return `- Base: ${m[1]} px`;
+
+    m = line.match(/^- Base push: (.+) px\/s$/);
+    if (m) return `- Empurrão base: ${m[1]} px/s`;
+
+    m = line.match(/^- Base: (.+)$/);
+    if (m) return `- Base: ${m[1]}`;
+
+    m = line.match(/^- Push on hit: (.+) px\/s$/);
+    if (m) return `- Empurrão ao acertar: ${m[1]} px/s`;
+
+    m = line.match(/^- Stun: (.+) s$/);
+    if (m) return `- Atordoamento: ${m[1]} s`;
+
+    m = line.match(/^- Total: (.+) per hit \((.+) projectile\(s\)\)$/);
+    if (m) return `- Total: ${m[1]} por acerto (${m[2]} projétil(is))`;
+
+    m = line.match(/^- Total: ~(.+) px \(speed (.+) px\/s, lifetime (.+) s\)$/);
+    if (m) return `- Total: ~${m[1]} px (velocidade ${m[2]} px/s, duração ${m[3]} s)`;
+
+    m = line.match(/^- Total: (.+) px\/s push \+ upward lift$/);
+    if (m) return `- Total: empurrão de ${m[1]} px/s + elevação para cima`;
+
+    m = line.match(/^- Total: ~(.+) px$/);
+    if (m) return `- Total: ~${m[1]} px`;
+
+    m = line.match(/^- Total: (.+) px$/);
+    if (m) return `- Total: ${m[1]} px`;
+
+    m = line.match(/^- Total: (.+)$/);
+    if (m) return `- Total: ${m[1]}`;
+
+    return line;
+  };
+
+  return String(text).split("\n").map(trLine).join("\n");
 }
 </script>
 
@@ -484,7 +584,62 @@ function slotSkillName(slotState) {
                   <div class="dom-status-grid">
                     <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_level || 'Level' }}</span><span class="dom-status-val">{{ detailSkill.effective_level ?? 0 }}</span></div>
                     <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_tier || 'Active tier' }}</span><span class="dom-status-val">{{ detailSkill.active_tier != null ? detailSkill.active_tier : '—' }}</span></div>
-                    <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_damage || 'Damage' }}</span><span class="dom-status-val">{{ formatDamagePreview(detailSkill) }}</span></div>
+
+                    <div class="dom-status-row dom-status-row--calc">
+                      <span class="dom-status-key">{{ labels.skill_damage || 'Damage' }}</span>
+                      <span class="dom-status-val dom-status-val--with-calc">
+                        <span>{{ formatDamagePreview(detailSkill) }}</span>
+                        <button
+                          v-if="detailSkill.damage_calc"
+                          type="button"
+                          class="dom-calc-btn"
+                          :class="{ active: openSkillCalc === 'damage' }"
+                          :title="calcUiLabel()"
+                          @click.prevent.stop="toggleSkillCalc('damage')"
+                        >!</button>
+                      </span>
+                    </div>
+                    <div v-if="openSkillCalc === 'damage' && detailSkill.damage_calc" class="dom-calc-box">
+                      <div class="dom-calc-title">{{ calcUiLabel() }} · {{ labels.skill_damage || (uiLang() === 'pt' ? 'Dano' : 'Damage') }}</div>
+                      <pre class="dom-calc-text">{{ translateSkillCalc(detailSkill.damage_calc) }}</pre>
+                    </div>
+
+                    <div v-if="detailSkill.range_calc" class="dom-status-row dom-status-row--calc">
+                      <span class="dom-status-key">{{ rangeUiLabel() }}</span>
+                      <span class="dom-status-val dom-status-val--with-calc">
+                        <span>{{ seeCalcUiLabel() }}</span>
+                        <button
+                          type="button"
+                          class="dom-calc-btn"
+                          :class="{ active: openSkillCalc === 'range' }"
+                          :title="calcUiLabel()"
+                          @click.prevent.stop="toggleSkillCalc('range')"
+                        >!</button>
+                      </span>
+                    </div>
+                    <div v-if="detailSkill.range_calc && openSkillCalc === 'range'" class="dom-calc-box">
+                      <div class="dom-calc-title">{{ calcUiLabel() }} · {{ rangeUiLabel() }}</div>
+                      <pre class="dom-calc-text">{{ translateSkillCalc(detailSkill.range_calc) }}</pre>
+                    </div>
+
+                    <div v-if="detailSkill.knockback_calc" class="dom-status-row dom-status-row--calc">
+                      <span class="dom-status-key">{{ knockbackUiLabel() }}</span>
+                      <span class="dom-status-val dom-status-val--with-calc">
+                        <span>{{ seeCalcUiLabel() }}</span>
+                        <button
+                          type="button"
+                          class="dom-calc-btn"
+                          :class="{ active: openSkillCalc === 'knockback' }"
+                          :title="calcUiLabel()"
+                          @click.prevent.stop="toggleSkillCalc('knockback')"
+                        >!</button>
+                      </span>
+                    </div>
+                    <div v-if="detailSkill.knockback_calc && openSkillCalc === 'knockback'" class="dom-calc-box">
+                      <div class="dom-calc-title">{{ calcUiLabel() }} · {{ knockbackUiLabel() }}</div>
+                      <pre class="dom-calc-text">{{ translateSkillCalc(detailSkill.knockback_calc) }}</pre>
+                    </div>
+
                     <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_aura_cost || 'Aura cost' }}</span><span class="dom-status-val">{{ formatAuraCost(detailSkill.aura_cost) }}</span></div>
                     <div class="dom-status-row"><span class="dom-status-key">{{ labels.skill_cooldown || 'Cooldown' }}</span><span class="dom-status-val">{{ formatCooldown(detailSkill.cooldown_max) }}</span></div>
                     <div v-if="detailSkill.category" class="dom-status-row"><span class="dom-status-key">Type</span><span class="dom-status-val">{{ detailSkill.category }}</span></div>

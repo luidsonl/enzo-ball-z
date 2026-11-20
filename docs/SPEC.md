@@ -158,8 +158,8 @@ requirements and typed state (Shout/Kick are planned additions).
 - While the combo is active, Enzo's speed drops to `45%`.
 - Aura does not regenerate by itself. Only SixSeven restores it.
 - Aura is spent by skills that consume it (e.g., Mogging). Aura functions as
-  **mana**; **Ego** is the intelligence/status attribute used for aura attack
-  power scaling (see progression rebalancing plan).
+  **mana**; **Ego** is the intelligence/status attribute that powers aura
+  attacks (Mogging) and Shout.
 
 ## 8. Combat
 
@@ -167,8 +167,8 @@ requirements and typed state (Shout/Kick are planned additions).
 
 - Simple single-hit punch (no combo chain/window/finisher).
 - Cooldown: `0.30 s` (core `punch::DEF.cooldown`).
-- Damage: `1 + Strength` base, scaled by melee skill tier/ego bonuses as
-  implemented (`stats.melee_damage()` with skill scaling in `skills::melee`).
+- Damage (physical): depends on **Strength** and melee skill tier/level
+  (`1 + Strength` base, scaled by skill tier/level).
   Values remain subject to the planned unified stat/damage rebalance.
 - Range: `34 px` in the facing direction, height `26 px` (scaled by skill tier as
   implemented).
@@ -183,7 +183,7 @@ requirements and typed state (Shout/Kick are planned additions).
 
 - Instant horizontal projectile in the facing direction.
 - Cost: `25` aura (current; **planned rebalance** on the new scale).
-- Damage: `20` + `2 × Aura points` + `2 × Ego points` (aura attack power)
+- Damage (aura attack): depends on **Ego** and Mogging skill tier/level.
   (current formula/values; **planned rebalance**).
 - Speed: `620 px/s`; lifetime: `1.4 s`.
 - Pierces enemies (each enemy takes damage once per projectile).
@@ -195,17 +195,16 @@ requirements and typed state (Shout/Kick are planned additions).
 - **Planned:** activating Mogging should also trigger the character's punch
   animation (separate from the simplified melee punch skill behavior).
 
-### 8.3 Shout and Kick skills (planned)
+### 8.3 Shout and Kick skills
 
-- **Shout (`Shout`)**: slot skill with a defined attack/effect **range**
-  (distance-limited). Activating it plays the character shout animation and
-  emits particles/effects (in addition to the character animation). Aura cost,
-  cooldown, damage/effect, and exact range are to be defined/balanced in
-  implementation.
+- **Shout (`Shout`)**: slot skill (attack) with an area effect/range.
+  Activating it plays the character shout animation and emits a wave/effects.
+  Damage and range depend on **Ego** and skill tier/level; it also applies
+  knockback. Aura cost, cooldown, and exact tuning may evolve.
 - **Kick (`Kick`)**: slot skill with a defined attack **range** (distance-limited
-  melee/strike). Activating it plays the character kick animation. Damage,
-  cooldown, aura cost (if any), and exact range are to be defined/balanced in
-  implementation.
+  melee/strike, planned). Activating it plays the character kick animation.
+  Damage, cooldown, aura cost (if any), and exact range are to be defined/balanced
+  in implementation.
 - Both skills require dedicated icons and modular skill assets.
 
 ### 8.4 Placeholder skills
@@ -244,16 +243,17 @@ Systems must not assemble entities by hand or duplicate attributes.
 - Starting attributes: `0` points each.
 - Status attributes include **Speed, Strength, Health, Aura, and Ego**.
   - **Aura** functions as mana/resource for aura-based skills.
-  - **Ego** is the intelligence attribute and contributes to aura attack power.
+  - **Ego** is the intelligence attribute and powers aura attacks (Mogging) and
+    Shout.
 - Effect per point (current):
 
 | Attribute | Effect per point |
 | --- | --- |
 | Speed | `+10 px/s` walk and `+6 px/s` run |
-| Strength | `+1` damage to each punch (melee) hit |
+| Strength | `+1` physical damage to each punch (melee) hit |
 | Health | `+10` max health (and heals `+10`) |
-| Aura | `+10` max aura and `+2` aura attack damage |
-| Ego | `+2` aura attack power (intelligence equivalent) |
+| Aura | `+10` max aura (mana) |
+| Ego | Increases Mogging and Shout damage/power (and Shout range scaling) |
 
 - **Planned stat/damage rebalancing (unified scale):** equalize attribute point
   effects with damage and aura/health values. Base/player/enemy health and aura

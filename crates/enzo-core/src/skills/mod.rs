@@ -142,10 +142,7 @@ pub fn damage_preview(
     let ego = attributes.ego as f32;
     match skill {
         SkillId::Melee => {
-            let ego_damage_bonus = ego * 0.5 * (1.0 + 0.25 * steps);
-            vec![(stats.melee_damage() * scale + ego_damage_bonus)
-                .round()
-                .max(1.0)]
+            vec![(stats.melee_damage() * scale).round().max(1.0)]
         }
         SkillId::Mogging => {
             let tier = skill.active_tier(context).unwrap_or(1);
@@ -166,6 +163,266 @@ pub fn damage_preview(
             vec![damage]
         }
         _ => Vec::new(),
+    }
+}
+
+/// Calculation breakdowns for skill UI/details (formulas and interfering factors).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SkillCalcInfo {
+    pub damage: Option<String>,
+    pub range: Option<String>,
+    pub knockback: Option<String>,
+}
+
+fn fmt_num(v: f32) -> String {
+    if (v - v.round()).abs() < 0.001 {
+        format!("{:.0}", v.round())
+    } else {
+        format!("{:.2}", v)
+    }
+}
+
+/// Returns calculation breakdowns (damage/range/knockback) for UI details.
+/// Simple factor breakdown (no formulas). Factors with zero contribution are omitted.
+pub fn calc_info(
+    skill: SkillId,
+    context: SkillContext,
+    stats: &crate::entities::Stats,
+    attributes: &crate::entities::Attributes,
+) -> SkillCalcInfo {
+    let effective_level = skill.effective_level(context);
+    let tier = skill.active_tier(context);
+    let steps = skill.tier_steps(context).max(0);
+    let steps_f = steps as f32;
+    let scale = 1.0 + 0.10 * steps_f;
+    let ego = attributes.ego as f32;
+    let strength = attributes.strength;
+
+    let tier_text = tier
+        .map(|t| t.to_string())
+        .unwrap_or_else(|| "-".to_owned());
+    let is_zero = |v: f32| v.abs() < 0.001;
+
+    match skill {
+        SkillId::Melee => {
+            let base_melee = stats.melee_damage();
+            let scaled_base = base_melee * scale;
+            let scaling_bonus = scaled_base - base_melee;
+            let total = scaled_base.round().max(1.0);
+            let base_range = punch::MELEE_RANGE;
+            let range = base_range * scale;
+            let range_bonus = range - base_range;
+
+            let mut damage_lines = vec![
+                "Damage (physical)".to_owned(),
+                format!("- Strength: {strength} pts -> base {}", fmt_num(base_melee)),
+            ];
+            if !is_zero(scaling_bonus) {
+                damage_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +{}",
+                    fmt_num(scaling_bonus)
+                ));
+            }
+            damage_lines.push(format!("- Total: {}", fmt_num(total)));
+
+            let mut range_lines = vec![
+                "Range".to_owned(),
+                format!("- Base: {} px", fmt_num(base_range)),
+            ];
+            if !is_zero(range_bonus) {
+                range_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +{} px",
+                    fmt_num(range_bonus)
+                ));
+            }
+            range_lines.push(format!("- Total: {} px", fmt_num(range)));
+
+            SkillCalcInfo {
+                damage: Some(damage_lines.join("\n")),
+                range: Some(range_lines.join("\n")),
+                knockback: Some(format!(
+                    "Knockback\n- Push on hit: {} px/s\n- Upward lift: yes\n- Stun: {} s\n- Total: fixed knockback",
+                    fmt_num(punch::PUNCH_KNOCKBACK_SPEED),
+                    fmt_num(punch::PUNCH_KNOCKBACK_STUN)
+                )),
+            }
+        }
+        SkillId::Mogging => {
+            let active_tier = tier.unwrap_or(1);
+            let params = mogging::tier_params(active_tier);
+            let base_damage = stats.mogging_damage; // Ego-based aura attack power
+            let ego_tier_bonus = ego * params.damage_bonus_ego;
+            let total = (base_damage + ego_tier_bonus).max(0.0);
+            let approx_range = params.speed * params.lifetime;
+
+            let mut damage_lines = vec![
+                "Damage".to_owned(),
+                format!(
+                    "- Ego: {} pts -> base {}",
+                    fmt_num(ego),
+                    fmt_num(base_damage)
+                ),
+            ];
+            if !is_zero(ego_tier_bonus) {
+                damage_lines.push(format!(
+                    "- Skill tier {active_tier} (skill level {effective_level}, includes item bonuses): +{} from Ego",
+                    fmt_num(ego_tier_bonus)
+                ));
+            } else {
+                damage_lines.push(format!(
+                    "- Skill tier {active_tier} (skill level {effective_level}, includes item bonuses)"
+                ));
+            }
+            damage_lines.push(format!(
+                "- Total: {} per hit ({} projectile(s))",
+                fmt_num(total),
+                params.projectiles
+            ));
+
+            let range_lines = [
+                "Range".to_owned(),
+                format!(
+                    "- Skill tier {active_tier} (skill level {effective_level}, includes item bonuses): sets projectile travel"
+                ),
+                format!(
+                    "- Total: ~{} px (speed {} px/s, lifetime {} s)",
+                    fmt_num(approx_range),
+                    fmt_num(params.speed),
+                    fmt_num(params.lifetime)
+                ),
+            ];
+
+            SkillCalcInfo {
+                damage: Some(damage_lines.join("\n")),
+                range: Some(range_lines.join("\n")),
+                knockback: Some("Knockback\n- Total: none".to_owned()),
+            }
+        }
+        SkillId::NutellaShot => {
+            let base_damage = nutella_shot::DAMAGE;
+            let scaled_base = base_damage * scale;
+            let scaling_bonus = scaled_base - base_damage;
+            let ego_bonus = ego * 0.5 * (1.0 + 0.25 * steps_f);
+            let total = (scaled_base + ego_bonus).round().max(1.0);
+            let speed = nutella_shot::SPEED * scale;
+            let lifetime = nutella_shot::LIFETIME * scale;
+            let approx_range = speed * lifetime;
+            let base_range = nutella_shot::SPEED * nutella_shot::LIFETIME;
+            let range_bonus = approx_range - base_range;
+
+            let mut damage_lines = vec![
+                "Damage".to_owned(),
+                format!("- Base: {}", fmt_num(base_damage)),
+            ];
+            if !is_zero(scaling_bonus) {
+                damage_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +{}",
+                    fmt_num(scaling_bonus)
+                ));
+            }
+            if !is_zero(ego_bonus) {
+                damage_lines.push(format!(
+                    "- Ego: {} pts -> +{}",
+                    fmt_num(ego),
+                    fmt_num(ego_bonus)
+                ));
+            }
+            damage_lines.push("- Requires: Nutella Gun (equipment)".to_owned());
+            damage_lines.push(format!("- Total: {}", fmt_num(total)));
+
+            let mut range_lines = vec![
+                "Range".to_owned(),
+                format!("- Base: ~{} px", fmt_num(base_range)),
+            ];
+            if !is_zero(range_bonus) {
+                range_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +~{} px",
+                    fmt_num(range_bonus)
+                ));
+            }
+            range_lines.push("- Requires: Nutella Gun (equipment)".to_owned());
+            range_lines.push(format!("- Total: ~{} px", fmt_num(approx_range)));
+
+            SkillCalcInfo {
+                damage: Some(damage_lines.join("\n")),
+                range: Some(range_lines.join("\n")),
+                knockback: Some("Knockback\n- Total: none".to_owned()),
+            }
+        }
+        SkillId::Shout => {
+            let base_damage = shout::DAMAGE;
+            let scaled_base = base_damage * scale;
+            let damage_scaling_bonus = scaled_base - base_damage;
+            let ego_bonus = ego * 0.5 * (1.0 + 0.25 * steps_f);
+            let total = (scaled_base + ego_bonus).round().max(1.0);
+
+            let base_range = shout::RANGE;
+            let scaled_range = base_range * scale;
+            let range_scaling_bonus = scaled_range - base_range;
+            let range_ego_bonus = ego * 2.0 * scale;
+            let range = scaled_range + range_ego_bonus;
+
+            let base_kb = shout::KNOCKBACK;
+            let kb = base_kb * scale;
+            let kb_bonus = kb - base_kb;
+
+            let mut damage_lines = vec![
+                "Damage".to_owned(),
+                format!("- Base: {}", fmt_num(base_damage)),
+            ];
+            if !is_zero(damage_scaling_bonus) {
+                damage_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +{}",
+                    fmt_num(damage_scaling_bonus)
+                ));
+            }
+            if !is_zero(ego_bonus) {
+                damage_lines.push(format!(
+                    "- Ego: {} pts -> +{}",
+                    fmt_num(ego),
+                    fmt_num(ego_bonus)
+                ));
+            }
+            damage_lines.push(format!("- Total: {}", fmt_num(total)));
+
+            let mut range_lines = vec![
+                "Range".to_owned(),
+                format!("- Base: {} px", fmt_num(base_range)),
+            ];
+            if !is_zero(range_scaling_bonus) {
+                range_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +{} px",
+                    fmt_num(range_scaling_bonus)
+                ));
+            }
+            if !is_zero(range_ego_bonus) {
+                range_lines.push(format!(
+                    "- Ego: {} pts -> +{} px",
+                    fmt_num(ego),
+                    fmt_num(range_ego_bonus)
+                ));
+            }
+            range_lines.push(format!("- Total: {} px", fmt_num(range)));
+
+            let mut knockback_lines = vec![
+                "Knockback".to_owned(),
+                format!("- Base push: {} px/s", fmt_num(base_kb)),
+            ];
+            if !is_zero(kb_bonus) {
+                knockback_lines.push(format!(
+                    "- Skill level: eff. {effective_level} (tier {tier_text}, includes item bonuses) -> +{} px/s",
+                    fmt_num(kb_bonus)
+                ));
+            }
+            knockback_lines.push(format!("- Total: {} px/s push + upward lift", fmt_num(kb)));
+
+            SkillCalcInfo {
+                damage: Some(damage_lines.join("\n")),
+                range: Some(range_lines.join("\n")),
+                knockback: Some(knockback_lines.join("\n")),
+            }
+        }
+        _ => SkillCalcInfo::default(),
     }
 }
 

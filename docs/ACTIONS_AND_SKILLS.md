@@ -515,7 +515,7 @@ Module rules:
 | Melee (`Melee`) | Attack | Press | playable, level 1 | 0 | 0.30 s | Post-physics | Implemented (core, simple punch) |
 | Mogging (`Mogging`) | Attack | Press | playable, level 1 | 25 | 0.35 s | Post-physics | Implemented (core) |
 | Nutella Shot (`NutellaShot`) | Attack | Press | playable, level 1, `NUTELLA_GUN` | 0 | 0.25 s | Post-physics | Placeholder (core) |
-| Shout (`Shout`) | Utility | Press | playable, level 1 | TBD (aura) | TBD | Post-physics | Planned/Placeholder |
+| Shout (`Shout`) | Attack | Press | playable, level 1 | 4 (aura) | 2.0s (base, tier-scaled) | Post-physics | Implemented (area damage + knockback) |
 | Kick (`Kick`) | Attack | Press | playable, level 1 (TBD) | TBD | TBD | Post-physics | Planned |
 
 Notes:

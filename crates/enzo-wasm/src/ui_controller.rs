@@ -308,6 +308,9 @@ pub struct UiCatalogEntry {
     pub effective_level: u8,
     pub active_tier: Option<u8>,
     pub damage_preview: Vec<f32>,
+    pub damage_calc: Option<String>,
+    pub range_calc: Option<String>,
+    pub knockback_calc: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -537,6 +540,9 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
             effective_level: entry.effective_level,
             active_tier: entry.active_tier,
             damage_preview: entry.damage_preview.clone(),
+            damage_calc: entry.damage_calc.clone(),
+            range_calc: entry.range_calc.clone(),
+            knockback_calc: entry.knockback_calc.clone(),
         })
         .collect();
 

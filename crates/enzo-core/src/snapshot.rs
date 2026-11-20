@@ -83,6 +83,12 @@ pub struct SkillCatalogEntry {
     pub active_tier: Option<u8>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub damage_preview: Vec<f32>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub damage_calc: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub range_calc: Option<String>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub knockback_calc: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -319,6 +325,8 @@ impl PlayerSnapshot {
                     &entity.stats,
                     &entity.attributes,
                 );
+                let calc =
+                    crate::skills::calc_info(skill, context, &entity.stats, &entity.attributes);
                 SkillCatalogEntry {
                     skill,
                     available: lock.is_none(),
@@ -329,6 +337,9 @@ impl PlayerSnapshot {
                     effective_level,
                     active_tier,
                     damage_preview,
+                    damage_calc: calc.damage,
+                    range_calc: calc.range,
+                    knockback_calc: calc.knockback,
                 }
             })
             .collect();
