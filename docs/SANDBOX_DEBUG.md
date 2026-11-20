@@ -138,9 +138,9 @@ Provides controls for progression and survival testing:
 - **Level up (free):** increment level and/or grant progression resources for
   testing (e.g. grant points/XP/levels) without normal combat/farming.
 - **Level down / adjust level:** optional but recommended for QA; must obey
-  minimum level and redistribution rules.
+  minimum level and point-budget rules.
 - **Sigma mode toggle:** enables/disables invulnerability (see §5.2).
-- **Die action:** triggers the sandbox death/debug rule (see §5.3).
+- **Die action:** triggers death progression penalty and sandbox respawn handling (see §5.3), even when Sigma is active.
 - **Reset actions:** at minimum reset sandbox character/progression state;
   optionally separate "reset attributes/redistribute" action.
 - **Status display:** current level, XP, points, attributes, and sigma mode
@@ -181,7 +181,8 @@ Provides item spawn tools:
 - Progression edits must keep state consistent:
   - `level >= 1`.
   - `xp` within valid bounds for the resulting level (or normalized by rule).
-  - `points` reflects unspent points after edits/redistribution.
+  - total points (`spent attributes + unspent points`) remain consistent with the
+    level budget (or are explicitly adjusted by the debug rule).
   - attributes and derived stats (`Stats`) are recomputed consistently.
   - health/aura are clamped to valid maxima; behavior on max changes must be
     deterministic and documented (e.g. heal to max on level gain, clamp on
@@ -189,48 +190,57 @@ Provides item spawn tools:
 - Loadout validity must be preserved (sanitize/revalidate against requirements
   when progression/attributes/equipment change).
 
-### 5.2 Sigma mode (invulnerability)
+### 5.2 Sigma state (star-powerup-like, sandbox/debug)
 
-- **Sigma mode** is a sandbox/debug toggle that makes the player invulnerable.
-- While enabled, the player must not die or lose health from normal gameplay
-  damage sources in sandbox, including at minimum:
-  - enemy contact damage,
-  - projectile/skill damage received from hostile sources (as applicable),
-  - falling below the map / fall-death handling.
-- Sigma mode must be enforced by core simulation rules, not by UI-only checks.
-- Visual/HUD feedback should clearly indicate when sigma mode is active.
+- **Sigma** is a sandbox/debug toggleable player state (refactored as a core
+  state, similar to a star powerup) that makes the player immune to damage and
+  empowers contact.
+- While active, the player:
+  - does **not** take damage from normal damage sources (enemy contact damage,
+    hostile projectile/skill damage as applicable),
+  - **damages enemies on contact/touch** (star-powerup-like behavior),
+  - **recovers aura to 100% over 3 seconds** (continuous regeneration while
+    active).
+- Sigma state does **not** prevent all death: the player **can still die by
+  falling below the map**, and the explicit sandbox debug **Die** action can
+  trigger sandbox death even while Sigma is active. These deaths apply sandbox
+  death progression consequences.
+- Sigma state must be enforced by core simulation rules, not by UI-only checks.
+- Visual/HUD feedback should clearly indicate when Sigma is active.
 - Default state on sandbox start: **off** (unless a future explicit preset says
   otherwise).
 
-### 5.3 Death, level loss, and redistribution ("all stages")
+### 5.3 Death, level loss, and point-balance loss
 
-This rule is required for sandbox QA behavior.
+This progression penalty applies to **normal gameplay deaths** and to sandbox
+deaths/debug actions (core-authoritative).
 
-- **Trigger:** when the sandbox player dies (including via explicit "Die" debug
-  action) and sigma mode is not preventing death, apply sandbox death
-  progression handling instead of (or in addition to) normal campaign death flow
-  as defined for sandbox.
+- **Trigger (normal gameplay):** when the player dies from normal gameplay
+  causes, apply the death progression penalty and follow the normal
+  death/respawn flow.
+- **Trigger (sandbox):** sandbox deaths apply the same progression penalty.
+  The explicit sandbox debug **Die** action also applies it (even when Sigma is
+  active) and performs sandbox respawn handling per sandbox session rules.
 - **Level loss:** reduce player level by `1`, with a minimum of level `1`.
-- **Redistribution:** allocated attribute/status points are redistributed by
-  resetting allocated attributes to their base state and returning the
-  appropriate total unspent points for the resulting level/progression state, so
-  the user can reassign them.
+- **Point-balance loss:** losing one level removes **5 points from the total
+  balance** (level up grants +1 level and +5 balance). **Unspent points are
+  reduced by 5 first**. If there are not enough unspent points, the remaining
+  deficit is removed **randomly** and **deterministically** (core RNG/seeded by
+  simulation state) from **applied** status points (applied status can go down
+  to 0). Point balance remains consistent
+  (`applied + unspent == total points for level`).
 - **XP normalization:** XP is reset/normalized to a valid value for the
-  resulting level (recommended: `0` for the new current level) to avoid invalid
-  progression states.
-- **Derived state:** recompute stats, clamp/restore HP and aura to valid values,
-  and revalidate any progression-dependent availability (e.g. skill/loadout
-  requirements) deterministically.
-- **"In all stages" interpretation:** progression is canonical/global for the
-  active character/profile context (not stored per stage). Therefore the
-  level/attribute redistribution state applies everywhere that same progression
-  state is used. In sandbox's isolated context, this means the sandbox profile's
-  progression remains consistent across sandbox resets/reloads only as explicitly
-  specified by session/reset policy.
+  resulting level (recommended: `0` for the new current level).
+- **Derived state:** recompute stats, clamp HP and aura to valid maxima, and
+  revalidate progression-dependent availability deterministically.
+- **Progression scope:** progression is canonical for the active
+  character/profile context. Campaign saves/profiles and sandbox-isolated
+  sessions follow their respective persistence/isolation rules (§3.3), but the
+  death penalty rule is the same.
 
-> Implementation note: if campaign and sandbox share no progression state by
-> default (recommended), sandbox death redistribution must not alter campaign
-> save slots.
+> Implementation note: campaign and sandbox progression contexts remain isolated
+> by default (§3.3); sandbox mutations must not alter campaign save slots unless
+> an explicit, clearly labeled action is added in the future.
 
 ## 6. World editing rules
 
@@ -302,11 +312,14 @@ This rule is required for sandbox QA behavior.
 
 ### 9.1 Core tests (required targets)
 
-- Sandbox progression helpers: grant/set/level-down/redistribute keep valid,
+- Sandbox progression helpers: grant/set/level-down and debug resets keep valid,
   deterministic state.
 - Sigma mode prevents configured damage/fall-death outcomes.
-- Death in sandbox applies level loss + redistribution rule correctly and clamps
-  to minimum level.
+- Death applies consistent level/point-balance loss (level -1, -5 total balance):
+  unspent points are reduced first and any remaining deficit is removed randomly
+  (deterministically) from applied status points (down to 0), in sandbox and
+  normal gameplay. Sandbox debug **Die** and sandbox-specific respawn/isolation
+  rules still apply as specified.
 - Block place/remove mutates map correctly and preserves collision/query
   consistency.
 - Enemy/item spawn APIs create valid entities at valid positions and reject

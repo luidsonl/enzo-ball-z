@@ -282,7 +282,7 @@ Systems must not assemble entities by hand or duplicate attributes.
 - Falling out of the map counts as death.
 - Touching the flag at the end of the level → `Victory` phase, save written, and
   overlay shown.
-- `R` restarts the level while keeping progression.
+- `R` restarts the level. Death applies a progression penalty (see §13/§16).
 
 ## 12. Save
 
@@ -359,7 +359,7 @@ generated/wired consistently with skill definitions.
 7. Slimes patrol, deal contact damage, and grant XP on death.
 8. Level-up grants a point, pauses, and allows distribution into the four
    attributes.
-9. Death respawns while keeping progression; touching the flag wins.
+9. Death applies progression penalty (level -1, -5 point balance: unspent reduced first, deficit removed randomly from applied status points down to 0), then respawns; touching the flag wins.
 10. Reloading the page restores the loaded slot's progression (including loadout
     in v2 saves).
 11. `cargo test -p enzo-core` covers core scenarios and passes.
@@ -400,9 +400,12 @@ Items below are not fully implemented unless stated above:
    gameplay integration.
 7. **Sandbox/debug mode (QA):** secret `67` menu unlock (runtime-only, re-enter
    after reload/SPA close), isolated sandbox session with a unique flat map,
-   4-tab debug panel (Character/Blocks/Enemies/Items), sigma mode
-   (invulnerability), free leveling and sandbox death/redistribution rules, and
-   runtime world editing tools (see [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)).
+   4-tab debug panel (Character/Blocks/Enemies/Items), Sigma state
+   (star-powerup-like: damage immunity, harms enemies on contact, aura recovers
+   to 100% in 3s; falling and debug Die can still cause death), free leveling
+   and sandbox death rules (level -1, -5 point balance: unspent reduced first,
+   deficit removed randomly from applied status points down to 0), and runtime
+   world editing tools (see [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)).
 
 See [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md) for detailed contracts,
 phases, and acceptance criteria. See [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md) for

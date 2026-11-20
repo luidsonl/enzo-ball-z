@@ -574,8 +574,11 @@ Remaining/planned integration work:
 - **Sandbox/debug mode (planned, QA):** secret menu unlock (`67`, runtime-only
   app state, re-enter after reload/SPA close), isolated sandbox session with a
   dedicated flat map, debug UI tabs (Character/Blocks/Enemies/Items), and
-  core-authoritative debug APIs for sigma mode (invulnerability), free
-  leveling/progression edits, sandbox death level-loss + redistribution, and
+  core-authoritative debug APIs for Sigma state (star-powerup-like: damage
+  immunity, contact damage to enemies, aura regen to full over 3s; falling and
+  debug Die can still cause death), free leveling/progression edits, sandbox
+  death level-loss with consistent point-balance loss (level -1, -5: unspent
+  reduced first; deficit removed randomly from applied status points down to 0), and
   runtime block/entity/item placement/removal. Transport via semantic UI bridge
   actions and published UI state; see [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md).
 
