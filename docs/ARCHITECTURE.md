@@ -15,7 +15,8 @@
 > implemented as a simple punch skill with cooldown and deterministic random
 > animation frame selection (no 3-hit combo). Remaining/planned work includes full
 > keybinding persistence/UI, skill-owned asset pipeline, richer loadout/action-bar
-> UX (locks/toasts/icons/pause polish), and a possible migration of the DOM UI
+> UX (locks/toasts/icons/pause polish), sandbox/debug QA mode
+> ([`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)), and a possible migration of the DOM UI
 > implementation to Vue/Vite. Where this document describes planned work, it is
 > labeled explicitly.
 >
@@ -93,7 +94,8 @@ enzoballz/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── SPEC.md
-│   └── ACTIONS_AND_SKILLS.md
+│   ├── ACTIONS_AND_SKILLS.md
+│   └── SANDBOX_DEBUG.md
 └── dist/                      # build output (gitignored)
 ```
 
@@ -529,7 +531,7 @@ Client B ──commands @ 60 Hz──▶   ├─ step @ 60 Hz
 - [ ] No `enzo-core` file imports `macroquad`, `wasm-bindgen`, or `web-sys`.
 - [ ] Save/restore works after reloading the page (including loadout migration).
 
-## 12. Planned evolution: keybindings, loadout/UI polish, skill assets, DOM UI (Vue/Vite migration candidate)
+## 12. Planned evolution: keybindings, loadout/UI polish, skill assets, DOM UI (Vue/Vite migration candidate), sandbox/debug
 
 > Partially implemented in core/client (see audit in `ACTIONS_AND_SKILLS.md`).
 > This section tracks remaining architectural integration work.
@@ -563,6 +565,14 @@ Remaining/planned integration work:
   layer to Vue components while preserving the Rust bridge contract (`UiState`,
   semantic actions, loadout actions, virtual input). Build pipeline (`dist/`),
   miniquad plugin/script ordering, and web tests must be updated accordingly.
+- **Sandbox/debug mode (planned, QA):** secret menu unlock (`67`), isolated
+  sandbox session with a dedicated flat map, debug UI tabs (Character/Blocks/
+  Enemies/Items), and core-authoritative debug APIs for sigma mode
+  (invulnerability), free leveling/progression edits, sandbox death level-loss +
+  redistribution, and runtime block/entity/item placement/removal. Transport via
+  semantic UI bridge actions and published UI state; see
+  [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md).
 
 All core invariants from section 1 still apply. HTML/DOM must never calculate
-game rules or read/write authoritative saves.
+game rules or read/write authoritative saves. Sandbox/debug mutations that affect
+simulation must be enforced by `enzo-core`.
