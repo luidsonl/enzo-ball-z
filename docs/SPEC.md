@@ -317,6 +317,9 @@ Systems must not assemble entities by hand or duplicate attributes.
 - Control hints, phase/level-up banners, and death/victory overlays include
   restart and menu actions.
 - All UI text is managed through the i18n system (pt-BR and English).
+- **Canvas text policy:** the game canvas must render **no text at all** (no
+  labels, numbers, hints, banners, toasts, floating text, or death/victory
+  messages). All textual UI is presented through DOM/UI elements.
 
 **Planned/partial:** a full action bar for all 4 slots with complete
 icon/cooldown/lock/aura feedback, functional loadout editor (slot → skill,

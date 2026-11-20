@@ -53,19 +53,16 @@ pub fn panel(x: f32, y: f32, w: f32, h: f32, fill: Color, border: Color) {
     );
 }
 
-pub fn center_text(text: &str, cx: f32, y: f32, size: f32, color: Color) {
-    let dims = measure_text(text, None, size as u16, 1.0);
-    draw_text(text, cx - dims.width * 0.5, y, size, color);
+pub fn center_text(_text: &str, _cx: f32, _y: f32, _size: f32, _color: Color) {
+    // Canvas text rendering is intentionally disabled (HUD/UI text is DOM-only).
 }
 
-pub fn shadow_text(text: &str, x: f32, y: f32, size: f32, color: Color) {
-    draw_text(text, x + 1.0, y + 1.0, size, rgba(4, 4, 12, 220));
-    draw_text(text, x, y, size, color);
+pub fn shadow_text(_text: &str, _x: f32, _y: f32, _size: f32, _color: Color) {
+    // Canvas text rendering is intentionally disabled (HUD/UI text is DOM-only).
 }
 
-pub fn right_text(text: &str, right: f32, y: f32, size: f32, color: Color) {
-    let dims = measure_text(text, None, size as u16, 1.0);
-    shadow_text(text, right - dims.width, y, size, color);
+pub fn right_text(_text: &str, _right: f32, _y: f32, _size: f32, _color: Color) {
+    // Canvas text rendering is intentionally disabled (HUD/UI text is DOM-only).
 }
 
 /// Botão retangular com hover. Retorna `true` apenas no frame do clique.

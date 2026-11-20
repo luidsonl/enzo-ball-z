@@ -360,12 +360,18 @@ commands or scene changes. No game rules live in the UI layer.
 - `tiles.rs` groups the map into chunks (e.g., 16×16 tiles). Visible chunks are
   built once as static meshes; off-camera chunks are not built.
 - `camera.rs` follows the player with smoothing and clamps to map bounds.
-- `ui.rs` contains shared visual primitives (panels, buttons, dots, text), mainly for canvas-rendered UI.
+- `ui.rs` contains shared visual primitives (panels, buttons, dots). Canvas text
+  rendering is disabled: the game canvas must not draw any text.
 - `menu/` contains menu/screen logic as used by the client; DOM menus in `web/ui/menus.js` also render menu state from `UiState`.
-- `hud/` contains canvas HUD/overlay modules. In addition, DOM HUD in `web/ui/hud.js` renders tabs/panels (Status point distribution, Equipment, Skills assignment for unlocked skills, Items), and DOM mobile controls live in `web/ui/mobile-controls.js`.
-- `ui_bridge.rs` / `ui_controller.rs` expose semantic UI actions and polled `UiState` JSON to the DOM layer; the DOM layer must not compute game rules.
+- `hud/` contains canvas HUD/overlay modules (visual-only where applicable). In
+  addition, DOM HUD in `web/ui/hud.js` renders tabs/panels (Status point
+  distribution, Equipment, Skills assignment for unlocked skills, Items), and DOM
+  mobile controls live in `web/ui/mobile-controls.js`.
+- `ui_bridge.rs` / `ui_controller.rs` expose semantic UI actions and polled
+  `UiState` JSON to the DOM layer; the DOM layer must not compute game rules.
 - `i18n.rs` stores `Text` keys and translations (pt-BR/en). Language is selected
   in the menu and persisted in `localStorage`; the core never formats UI text.
+  All textual UI is presented through DOM/UI elements, not the canvas.
 - `save.rs` stores versioned JSON in `localStorage` (save v2 with migration
   behavior). Language is stored separately (e.g., `enzoballz.language`).
 - `sprites.rs` loads sprite atlases and provides shared sprite access.

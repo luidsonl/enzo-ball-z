@@ -5,7 +5,6 @@
 //! porque o `app` ainda envia os mesmos comandos ao core.
 
 use enzo_core::snapshot::WorldSnapshot;
-use enzo_core::state::GamePhase;
 use macroquad::prelude::*;
 
 use crate::i18n::{I18n, Text};
@@ -15,96 +14,16 @@ use crate::ui;
 use super::find_player;
 use super::HudAction;
 
-pub(super) fn draw_phase_banner(snapshot: &WorldSnapshot, i18n: I18n, ui: f32) {
-    if snapshot.phase != GamePhase::Playing {
-        return;
-    }
-    let text = i18n.t(Text::PhaseBanner);
-    let dims = measure_text(text, None, (13.0 * ui) as u16, 1.0);
-    let x = (screen_width() - dims.width) * 0.5;
-    draw_text(
-        text,
-        x + 1.0,
-        30.0 * ui + 1.0,
-        13.0 * ui,
-        ui::rgba(8, 8, 18, 160),
-    );
-    draw_text(text, x, 30.0 * ui, 13.0 * ui, ui::rgba(232, 236, 255, 190));
+pub(super) fn draw_phase_banner(_snapshot: &WorldSnapshot, _i18n: I18n, _ui: f32) {
+    // Canvas text rendering is intentionally disabled.
 }
 
-pub(super) fn draw_hints(hint_timer: f32, i18n: I18n, ui: f32) {
-    if hint_timer <= 0.0 {
-        return;
-    }
-    let alpha = (hint_timer / 1.0).clamp(0.0, 1.0);
-    let width = (screen_width() - 32.0 * ui).min(820.0 * ui);
-    let height = 58.0 * ui;
-    let x = (screen_width() - width) * 0.5;
-    let y = screen_height() - height - 16.0 * ui;
-
-    draw_rectangle(
-        x,
-        y,
-        width,
-        height,
-        ui::rgba(10, 10, 24, (185.0 * alpha) as u8),
-    );
-    draw_rectangle_lines(
-        x,
-        y,
-        width,
-        height,
-        1.0,
-        ui::rgba(94, 242, 255, (70.0 * alpha) as u8),
-    );
-
-    ui::center_text(
-        i18n.t(Text::ControlsLine1),
-        x + width * 0.5,
-        y + 23.0 * ui,
-        (13.0 * ui).max(10.0),
-        ui::rgba(232, 236, 255, (235.0 * alpha) as u8),
-    );
-    ui::center_text(
-        i18n.t(Text::ControlsLine2),
-        x + width * 0.5,
-        y + 43.0 * ui,
-        (12.0 * ui).max(9.0),
-        ui::rgba(168, 178, 214, (220.0 * alpha) as u8),
-    );
+pub(super) fn draw_hints(_hint_timer: f32, _i18n: I18n, _ui: f32) {
+    // Canvas text rendering is intentionally disabled.
 }
 
-pub(super) fn draw_save_toast(save_toast: Option<(&str, f32)>, i18n: I18n, ui: f32) {
-    let Some((text, remaining)) = save_toast else {
-        return;
-    };
-    if remaining <= 0.0 {
-        return;
-    }
-    let alpha = (remaining / 0.6).clamp(0.0, 1.0);
-    let label = format!("{} · {text}", i18n.t(Text::SavedPrefix));
-    let size = (13.0 * ui).max(9.0);
-    let dims = measure_text(&label, None, size as u16, 1.0);
-    let w = dims.width + 24.0 * ui;
-    let h = 28.0 * ui;
-    let x = screen_width() - w - 16.0 * ui;
-    let y = 54.0 * ui;
-    draw_rectangle(x, y, w, h, ui::rgba(12, 12, 26, (210.0 * alpha) as u8));
-    draw_rectangle_lines(
-        x,
-        y,
-        w,
-        h,
-        1.0,
-        ui::rgba(246, 196, 69, (130.0 * alpha) as u8),
-    );
-    draw_text(
-        &label,
-        x + 12.0 * ui,
-        y + 18.0 * ui,
-        size,
-        ui::rgba(255, 227, 138, (255.0 * alpha) as u8),
-    );
+pub(super) fn draw_save_toast(_save_toast: Option<(&str, f32)>, _i18n: I18n, _ui: f32) {
+    // Canvas text rendering is intentionally disabled.
 }
 
 pub(super) fn draw_level_up_banner(

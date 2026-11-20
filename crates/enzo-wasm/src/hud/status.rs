@@ -238,11 +238,6 @@ fn draw_bar(x: f32, y: f32, w: f32, h: f32, ratio: f32, fill: Color, light: Colo
     draw_rectangle_lines(x, y, w, h, 1.0, ui::rgba(150, 160, 200, 90));
 }
 
-fn bar_label(x: f32, y: f32, w: f32, h: f32, text: &str, ui: f32) {
-    let size = (10.0 * ui).max(8.0);
-    let dims = measure_text(text, None, size as u16, 1.0);
-    let tx = x + (w - dims.width) * 0.5;
-    let ty = y + h * 0.5 + size * 0.36;
-    draw_text(text, tx + 1.0, ty + 1.0, size, ui::rgba(4, 4, 12, 220));
-    draw_text(text, tx, ty, size, WHITE);
+fn bar_label(_x: f32, _y: f32, _w: f32, _h: f32, _text: &str, _ui: f32) {
+    // Canvas text rendering is intentionally disabled.
 }

@@ -163,20 +163,8 @@ fn draw_effects_world(effects: &Effects) {
         );
     }
 
-    for text in &effects.texts {
-        let alpha = (text.life / text.max_life).clamp(0.0, 1.0);
-        let color = Color::new(
-            text.color.r,
-            text.color.g,
-            text.color.b,
-            text.color.a * alpha,
-        );
-        let shadow = Color::from_rgba(10, 8, 18, (alpha * 190.0) as u8);
-        let dimensions = measure_text(&text.text, None, text.size as u16, 1.0);
-        let x = text.pos.x - dimensions.width * 0.5;
-        draw_text(&text.text, x + 1.0, text.pos.y + 1.0, text.size, shadow);
-        draw_text(&text.text, x, text.pos.y, text.size, color);
-    }
+    // Floating/world texts are intentionally not drawn on canvas.
+    let _ = effects;
 }
 
 fn interpolate(previous: &WorldSnapshot, entity: &EntitySnapshot, alpha: f32) -> Vec2 {
