@@ -483,6 +483,9 @@ pub struct UiSupportedKey {
 pub struct UiSandboxBlockOption {
     pub code: u8,
     pub name: String,
+    pub icon: Option<String>,
+    /// Special "remove/eraser" tool entry.
+    pub remove: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -490,12 +493,20 @@ pub struct UiSandboxEnemyOption {
     pub code: u8,
     pub kind: String,
     pub name: String,
+    pub sprite: String,
+    pub frame_x: i32,
+    pub frame_y: i32,
+    pub frame_w: i32,
+    pub frame_h: i32,
+    pub sheet_w: i32,
+    pub sheet_h: i32,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct UiSandboxItemOption {
     pub code: u8,
     pub name: String,
+    pub icon: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -816,6 +827,23 @@ pub fn publish_with_sandbox(
     }
 }
 
+fn sandbox_block_icon(id: enzo_core::map::BlockId) -> Option<String> {
+    use enzo_core::map::BlockId;
+    let path = match id {
+        BlockId::Ground => "assets/blocks/ground/top.png",
+        BlockId::Block => "assets/blocks/block/default.png",
+        BlockId::Platform => "assets/blocks/platform/default.png",
+        BlockId::Crate => "assets/blocks/crate/intact.png",
+        BlockId::BreakableStone => "assets/blocks/breakable_stone/intact.png",
+        BlockId::FlagBottom => "assets/blocks/flag_bottom/default.png",
+        BlockId::FlagTop => "assets/blocks/flag_top/default.png",
+        // Invisible block has no visible texture; render as labeled slot in UI.
+        BlockId::InvisibleBlock => return None,
+        BlockId::Empty => return None,
+    };
+    Some(path.to_owned())
+}
+
 fn sandbox_block_options() -> Vec<UiSandboxBlockOption> {
     use enzo_core::map::BlockId;
     let ids = [
@@ -828,12 +856,23 @@ fn sandbox_block_options() -> Vec<UiSandboxBlockOption> {
         BlockId::FlagBottom,
         BlockId::FlagTop,
     ];
-    ids.into_iter()
-        .map(|id| UiSandboxBlockOption {
+    let mut out = Vec::with_capacity(ids.len() + 1);
+    // Special remove tool at top.
+    out.push(UiSandboxBlockOption {
+        code: 255,
+        name: "Remove".to_owned(),
+        icon: None,
+        remove: true,
+    });
+    for id in ids {
+        out.push(UiSandboxBlockOption {
             code: id as u8,
             name: enzo_core::map::Tile::new(id).def().name.to_owned(),
-        })
-        .collect()
+            icon: sandbox_block_icon(id),
+            remove: false,
+        });
+    }
+    out
 }
 
 pub fn default_sandbox_ui_state() -> UiSandboxState {
@@ -841,12 +880,20 @@ pub fn default_sandbox_ui_state() -> UiSandboxState {
         code: 0,
         kind: "slime".to_owned(),
         name: "Slime".to_owned(),
+        sprite: "assets/entities/slime/sheet.png".to_owned(),
+        frame_x: 0,
+        frame_y: 0,
+        frame_w: 32,
+        frame_h: 32,
+        sheet_w: 192,
+        sheet_h: 32,
     }];
     let items = enzo_core::entities::ItemKind::ALL
         .iter()
         .map(|k| UiSandboxItemOption {
             code: k.code(),
             name: format!("{:?}", k),
+            icon: k.icon_path().to_owned(),
         })
         .collect();
     UiSandboxState {

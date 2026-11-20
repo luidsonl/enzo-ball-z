@@ -133,6 +133,36 @@ impl ItemKind {
         }
     }
 
+    pub const fn icon_path(self) -> &'static str {
+        match self {
+            Self::Sword => sword::visual::ICON,
+            Self::Bow => bow::visual::ICON,
+            Self::Armor => armor::visual::ICON,
+            Self::Amulet => amulet::visual::ICON,
+            Self::Potion => potion::visual::ICON,
+            Self::NutellaGun => nutella_gun::visual::ICON,
+            Self::Sword67 => sword_67::visual::ICON,
+            Self::Cap67 => cap_67::visual::ICON,
+            Self::Shirt67 => shirt_67::visual::ICON,
+            Self::Sneakers67 => sneakers_67::visual::ICON,
+        }
+    }
+
+    pub const fn world_sprite_path(self) -> &'static str {
+        match self {
+            Self::Sword => sword::visual::WORLD_SPRITE,
+            Self::Bow => bow::visual::WORLD_SPRITE,
+            Self::Armor => armor::visual::WORLD_SPRITE,
+            Self::Amulet => amulet::visual::WORLD_SPRITE,
+            Self::Potion => potion::visual::WORLD_SPRITE,
+            Self::NutellaGun => nutella_gun::visual::WORLD_SPRITE,
+            Self::Sword67 => sword_67::visual::WORLD_SPRITE,
+            Self::Cap67 => cap_67::visual::WORLD_SPRITE,
+            Self::Shirt67 => shirt_67::visual::WORLD_SPRITE,
+            Self::Sneakers67 => sneakers_67::visual::WORLD_SPRITE,
+        }
+    }
+
     pub fn data(self) -> ItemData {
         match self {
             Self::Sword => ItemData::SWORD,

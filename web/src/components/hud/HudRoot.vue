@@ -744,59 +744,71 @@ function translateSkillCalc(text, lang = uiLang()) {
               </template>
 
               <template v-else-if="sandboxTab === 1">
-                <div class="dom-option-row" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-                  <button type="button" class="dom-btn small" :class="{ primary: (sandbox.block_mode ?? 0) === 0 }" @click.prevent.stop="sandboxSelectBlock(sandbox.selected_block ?? 2, 0)">{{ labels.place || 'Place' }}</button>
-                  <button type="button" class="dom-btn small" :class="{ primary: (sandbox.block_mode ?? 0) === 1 }" @click.prevent.stop="sandboxSelectBlock(sandbox.selected_block ?? 2, 1)">{{ labels.remove || 'Remove' }}</button>
-                </div>
-                <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um bloco e clique no mapa para aplicar.' : 'Select a block and click the map to apply.' }}</p>
-                <div class="dom-skill-list">
+                <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um bloco ou a borracha e clique no mapa.' : 'Select a block or the eraser and click the map.' }}</p>
+                <div class="dom-debug-grid">
                   <button
                     v-for="b in sandboxBlocks"
-                    :key="b.code"
+                    :key="'b'+b.code+'-'+(b.remove?1:0)"
                     type="button"
-                    class="dom-btn small dom-skill-row"
-                    :class="{ selected: sandbox.selected_block === b.code }"
-                    style="justify-content:space-between"
-                    @click.prevent.stop="sandboxSelectBlock(b.code, sandbox.block_mode ?? 0)"
+                    class="dom-debug-slot"
+                    :class="{
+                      selected: b.remove ? (sandbox.block_mode ?? 0) === 1 : ((sandbox.block_mode ?? 0) === 0 && sandbox.selected_block === b.code),
+                      remove: !!b.remove
+                    }"
+                    :title="b.remove ? (labels.remove || 'Remove') : b.name"
+                    @click.prevent.stop="b.remove ? sandboxSelectBlock(sandbox.selected_block ?? 2, 1) : sandboxSelectBlock(b.code, 0)"
                   >
-                    <span>{{ b.name }}</span>
-                    <span class="muted">#{{ b.code }}</span>
+                    <span v-if="b.remove" class="dom-debug-slot-icon dom-debug-remove-icon" aria-hidden="true">✕</span>
+                    <img v-else-if="b.icon" class="dom-debug-slot-icon pixel" :src="b.icon" :alt="b.name" />
+                    <span v-else class="dom-debug-slot-fallback">{{ b.name.slice(0, 1) }}</span>
+                    <span class="dom-debug-slot-name">{{ b.remove ? (labels.remove || 'Remove') : b.name }}</span>
                   </button>
                 </div>
               </template>
 
               <template v-else-if="sandboxTab === 2">
                 <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um inimigo e clique no mapa para spawnar.' : 'Select an enemy and click the map to spawn it.' }}</p>
-                <div class="dom-skill-list">
+                <div class="dom-debug-grid">
                   <button
                     v-for="e in sandboxEnemies"
-                    :key="e.code"
+                    :key="'e'+e.code"
                     type="button"
-                    class="dom-btn small dom-skill-row"
+                    class="dom-debug-slot"
                     :class="{ selected: sandbox.selected_enemy === e.code }"
-                    style="justify-content:space-between"
+                    :title="e.name"
                     @click.prevent.stop="sandboxSetEnemy(e.code)"
                   >
-                    <span>{{ e.name }}</span>
-                    <span class="muted">{{ e.kind }}</span>
+                    <span
+                      class="dom-debug-slot-icon dom-debug-sprite"
+                      :style="{
+                        backgroundImage: `url(${e.sprite})`,
+                        backgroundPosition: `-${e.frame_x}px -${e.frame_y}px`,
+                        backgroundSize: `${e.sheet_w}px ${e.sheet_h}px`,
+                        width: `${e.frame_w}px`,
+                        height: `${e.frame_h}px`,
+                      }"
+                      aria-hidden="true"
+                    ></span>
+                    <span class="dom-debug-slot-name">{{ e.name }}</span>
                   </button>
                 </div>
               </template>
 
               <template v-else-if="sandboxTab === 3">
                 <p class="muted" style="margin-bottom:8px">{{ uiLang() === 'pt' ? 'Selecione um item e clique no mapa para spawnar.' : 'Select an item and click the map to spawn it.' }}</p>
-                <div class="dom-skill-list">
+                <div class="dom-debug-grid">
                   <button
                     v-for="it in sandboxItems"
-                    :key="it.code"
+                    :key="'i'+it.code"
                     type="button"
-                    class="dom-btn small dom-skill-row"
+                    class="dom-debug-slot"
                     :class="{ selected: sandbox.selected_item === it.code }"
-                    style="justify-content:space-between"
+                    :title="it.name"
                     @click.prevent.stop="sandboxSetItem(it.code)"
                   >
-                    <span>{{ it.name }}</span>
-                    <span class="muted">#{{ it.code }}</span>
+                    <img v-if="it.icon" class="dom-debug-slot-icon pixel" :src="it.icon" :alt="it.name" />
+                    <span v-else class="dom-debug-slot-fallback">?</span>
+                    <span class="dom-debug-slot-name">{{ it.name }}</span>
                   </button>
                 </div>
               </template>
