@@ -124,6 +124,8 @@ pub struct PlayerSnapshot {
     pub combo_window: f32,
     pub melee_step: u8,
     pub melee_timer: f32,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub sigma_mode: bool,
 }
 
 #[cfg(feature = "serde")]
@@ -373,6 +375,7 @@ impl PlayerSnapshot {
             combo_window: 0.0,
             melee_step: entity.skills.punch.variant,
             melee_timer: entity.skills.punch.anim_timer,
+            sigma_mode: player.sigma_mode,
         }
     }
 }

@@ -129,6 +129,75 @@ pub fn confirm_level_up(entity: &mut Entity) {
     }
 }
 
+/// Returns total unspent+spent attribute points for a given level (5 per level above 1).
+pub fn total_points_for_level(level: u32) -> u32 {
+    level.saturating_sub(1).saturating_mul(5)
+}
+
+/// Sandbox/debug: sets level and resets XP/attributes/points for a clean redistribute state.
+/// Keeps character identity, inventory, equipment, and loadout; recomputes stats/HP/aura.
+pub fn debug_set_level(entity: &mut Entity, level: u32) -> bool {
+    let Some(player) = entity.player_mut() else {
+        return false;
+    };
+    let level = level.max(1);
+    player.level = level;
+    player.xp = 0.0;
+    player.points = total_points_for_level(level);
+    player.pending_level_up = player.points > 0;
+    player.aura = 0.0; // will be clamped/restored below
+
+    entity.attributes = crate::entities::Attributes::default();
+    let stats = Stats::player(entity.attributes);
+    entity.stats = stats;
+    entity.health.current = stats.max_health;
+    if let Some(player) = entity.player_mut() {
+        player.aura = stats.max_aura;
+    }
+    entity.skills.loadout.sanitize();
+    true
+}
+
+/// Sandbox/debug: grants levels (adds 5 points per level gained) without resetting attributes.
+pub fn debug_grant_levels(entity: &mut Entity, levels: u32) -> bool {
+    if levels == 0 {
+        return entity.player().is_some();
+    }
+    let Some(player) = entity.player_mut() else {
+        return false;
+    };
+    player.level = player.level.saturating_add(levels);
+    player.points = player.points.saturating_add(levels.saturating_mul(5));
+    player.pending_level_up = player.points > 0;
+    player.xp = 0.0;
+    // Preserve current attributes; stats unchanged except health/aura caps remain valid.
+    let stats = entity.stats;
+    if let Some(player) = entity.player_mut() {
+        player.aura = player.aura.min(stats.max_aura);
+    }
+    entity.health.current = entity.health.current.min(stats.max_health);
+    true
+}
+
+/// Sandbox/debug death rule: lose one level (min 1) and redistribute all attribute points.
+/// Returns false if entity is not a player.
+pub fn sandbox_apply_death_level_loss(entity: &mut Entity) -> bool {
+    if entity.player().is_none() {
+        return false;
+    }
+    let current_level = entity.player().map(|p| p.level).unwrap_or(1);
+    let next_level = current_level.saturating_sub(1).max(1);
+    debug_set_level(entity, next_level)
+}
+
+/// Sandbox/debug: reset allocated attributes and return all level points to unspent.
+pub fn debug_reset_attributes(entity: &mut Entity) -> bool {
+    let Some(player) = entity.player() else {
+        return false;
+    };
+    debug_set_level(entity, player.level)
+}
+
 /// Persistent data. Position, enemies, and projectiles are not saved.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -407,5 +476,55 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn debug_set_level_resets_attributes_and_grants_unspent_points() {
+        let mut entity = player();
+        entity.attributes.speed = 3;
+        entity.attributes.strength = 2;
+        entity.player_mut().unwrap().xp = 77.0;
+        assert!(debug_set_level(&mut entity, 4));
+        let p = entity.player().unwrap();
+        assert_eq!(p.level, 4);
+        assert_eq!(p.xp, 0.0);
+        assert_eq!(p.points, 15);
+        assert!(p.pending_level_up);
+        assert_eq!(entity.attributes, Attributes::default());
+        assert_eq!(entity.stats, Stats::player(Attributes::default()));
+        assert_eq!(entity.health.current, entity.stats.max_health);
+        assert_eq!(p.aura, entity.stats.max_aura);
+    }
+
+    #[test]
+    fn sandbox_death_level_loss_redistributes_and_clamps_to_level_one() {
+        let mut entity = player();
+        assert!(debug_set_level(&mut entity, 3));
+        assert!(allocate_point(&mut entity, Attribute::Speed));
+        assert!(sandbox_apply_death_level_loss(&mut entity));
+        let p = entity.player().unwrap();
+        assert_eq!(p.level, 2);
+        assert_eq!(p.points, 5);
+        assert_eq!(p.xp, 0.0);
+        assert_eq!(entity.attributes, Attributes::default());
+
+        assert!(sandbox_apply_death_level_loss(&mut entity));
+        assert!(sandbox_apply_death_level_loss(&mut entity));
+        let p = entity.player().unwrap();
+        assert_eq!(p.level, 1);
+        assert_eq!(p.points, 0);
+        assert_eq!(entity.attributes, Attributes::default());
+    }
+
+    #[test]
+    fn debug_grant_levels_adds_points_without_resetting_attributes() {
+        let mut entity = player();
+        entity.player_mut().unwrap().points = 1;
+        assert!(allocate_point(&mut entity, Attribute::Strength));
+        assert!(debug_grant_levels(&mut entity, 2));
+        let p = entity.player().unwrap();
+        assert_eq!(p.level, 3);
+        assert_eq!(p.points, 10);
+        assert_eq!(entity.attributes.strength, 1);
     }
 }

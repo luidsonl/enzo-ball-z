@@ -11,7 +11,7 @@ use crate::entities::{
 use crate::events::{GameEvent, SkillRejectReason, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
 use crate::map::TILE_SIZE;
-use crate::map::{Level, LevelError};
+use crate::map::{BlockId, Level, LevelError};
 use crate::math::Vec2;
 use crate::mechanics::{self, Locomotion};
 use crate::progression::{self, SaveData};
@@ -35,15 +35,25 @@ pub const FALL_DEATH_MARGIN: f32 = 64.0;
 
 pub struct World {
     level: Level,
+    initial_level: Level,
     store: EntityStore,
     tick: u64,
     phase: GamePhase,
     phase_timer: f32,
     pending_events: Vec<GameEvent>,
+    sandbox_mode: bool,
 }
 
 impl World {
     pub fn new(source: &str) -> Result<Self, LevelError> {
+        Self::new_with_mode(source, false)
+    }
+
+    pub fn new_sandbox(source: &str) -> Result<Self, LevelError> {
+        Self::new_with_mode(source, true)
+    }
+
+    fn new_with_mode(source: &str, sandbox_mode: bool) -> Result<Self, LevelError> {
         let level = Level::parse(source)?;
         let mut store = EntityStore::new();
 
@@ -58,14 +68,21 @@ impl World {
             spawn_enemy(&mut store, &spawn.kind, pos);
         }
 
+        let initial_level = level.clone();
         Ok(Self {
             level,
+            initial_level,
             store,
             tick: 0,
             phase: GamePhase::Playing,
             phase_timer: 0.0,
             pending_events: Vec::new(),
+            sandbox_mode,
         })
+    }
+
+    pub fn is_sandbox(&self) -> bool {
+        self.sandbox_mode
     }
 
     pub fn level(&self) -> &Level {
@@ -404,7 +421,15 @@ impl World {
             entity.locomotion = locomotion;
 
             if entity.is_actor() && entity.body.pos.y > fall_limit {
-                entity.health.current = 0.0;
+                let sigma = entity.player().is_some_and(|p| p.sigma_mode);
+                if sigma {
+                    // Keep sandbox/debug invulnerable players in-bounds.
+                    entity.body.pos.y = (fall_limit - entity.body.size.y).max(0.0);
+                    entity.body.vel.y = 0.0;
+                    entity.body.on_ground = false;
+                } else {
+                    entity.health.current = 0.0;
+                }
             }
         }
 
@@ -467,6 +492,10 @@ impl World {
         if !dead_players.is_empty() {
             for player in dead_players {
                 events.push(GameEvent::PlayerDied { player });
+            }
+            if self.sandbox_mode {
+                self.sandbox_handle_player_deaths();
+                return;
             }
             self.phase = GamePhase::Dead;
             self.phase_timer = RESPAWN_DELAY;
@@ -662,7 +691,7 @@ impl World {
         let removable: Vec<EntityId> = self
             .store
             .iter()
-            .filter(|entity| entity.is_enemy() || entity.is_projectile())
+            .filter(|entity| entity.is_enemy() || entity.is_projectile() || entity.is_item())
             .map(|entity| entity.id)
             .collect();
         for id in removable {
@@ -676,6 +705,219 @@ impl World {
         self.phase = GamePhase::Playing;
         self.phase_timer = 0.0;
         events.push(GameEvent::PhaseRestarted { player: 0 });
+    }
+
+    fn sandbox_handle_player_deaths(&mut self) {
+        let spawn = self
+            .level
+            .spawn_points(ENZO_SIZE)
+            .first()
+            .copied()
+            .unwrap_or(Vec2::ZERO);
+        let player_entity_ids: Vec<EntityId> = self.store.players().map(|e| e.id).collect();
+        for eid in player_entity_ids {
+            let Some(entity) = self.store.get_mut(eid) else {
+                continue;
+            };
+            if entity.player().is_some_and(|p| p.sigma_mode) {
+                // Keep sigma; just restore vitals/position.
+            } else {
+                let _ = progression::sandbox_apply_death_level_loss(entity);
+            }
+            entity.body.pos = spawn;
+            entity.body.vel = Vec2::ZERO;
+            entity.body.on_ground = false;
+            entity.health.iframes = 0.0;
+            let max_aura = entity.stats.max_aura;
+            let max_health = entity.stats.max_health;
+            entity.health.current = max_health.max(1.0);
+            if let Some(player) = entity.player_mut() {
+                player.aura = max_aura;
+                player.respawn = spawn;
+                player.pending_level_up = player.points > 0;
+            }
+            entity.locomotion = Locomotion::player();
+            entity.skills.reset();
+            if let Some(controller) = entity.controller.player_controller_mut() {
+                *controller = Default::default();
+            }
+        }
+        self.phase = GamePhase::Playing;
+        self.phase_timer = 0.0;
+    }
+
+    // --- Sandbox/debug APIs (authoritative core mutations) ---
+
+    pub fn sandbox_set_sigma_mode(&mut self, player_id: PlayerId, enabled: bool) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        let max_health = entity.stats.max_health;
+        let max_aura = entity.stats.max_aura;
+        {
+            let Some(player) = entity.player_mut() else {
+                return false;
+            };
+            player.sigma_mode = enabled;
+            if enabled {
+                player.aura = player.aura.max(max_aura);
+            }
+        }
+        if enabled {
+            entity.health.current = entity.health.current.max(max_health);
+        }
+        true
+    }
+
+    pub fn sandbox_debug_set_level(&mut self, player_id: PlayerId, level: u32) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        progression::debug_set_level(entity, level)
+    }
+
+    pub fn sandbox_debug_grant_levels(&mut self, player_id: PlayerId, levels: u32) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        progression::debug_grant_levels(entity, levels)
+    }
+
+    pub fn sandbox_debug_reset_attributes(&mut self, player_id: PlayerId) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        progression::debug_reset_attributes(entity)
+    }
+
+    pub fn sandbox_debug_die(&mut self, player_id: PlayerId) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        let Some(entity) = self.store.player_mut(player_id) else {
+            return false;
+        };
+        if entity.player().is_some_and(|p| p.sigma_mode) {
+            return false;
+        }
+        entity.health.current = 0.0;
+        true
+    }
+
+    pub fn sandbox_reset(&mut self) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        self.level = self.initial_level.clone();
+        let spawn = self
+            .level
+            .spawn_points(ENZO_SIZE)
+            .first()
+            .copied()
+            .unwrap_or(Vec2::ZERO);
+
+        // Preserve character/profile customization and sigma mode? QA reset should be clean but useful.
+        // Reset to default sandbox player state while keeping selected character/profile.
+        let (character, profile, sigma_mode) = self
+            .store
+            .player(0)
+            .and_then(|e| e.player().map(|p| (p.character, p.visual_profile, p.sigma_mode)))
+            .unwrap_or((PlayableCharacter::Enzo, VisualProfile::default(), false));
+
+        self.store = EntityStore::new();
+        let mut spec = EntitySpec::player(0, spawn);
+        spec.visual_character = Some(character);
+        spec.visual_profile = profile;
+        let pid = self.store.spawn(spec);
+        if let Some(entity) = self.store.get_mut(pid) {
+            if let Some(player) = entity.player_mut() {
+                player.character = character;
+                player.visual_profile = profile;
+                player.sigma_mode = sigma_mode;
+                player.respawn = spawn;
+            }
+        }
+
+        for spawn_def in &self.level.enemy_spawns {
+            let pos = enemy_anchor(spawn_def.tile, &spawn_def.kind);
+            spawn_enemy(&mut self.store, &spawn_def.kind, pos);
+        }
+
+        self.tick = 0;
+        self.phase = GamePhase::Playing;
+        self.phase_timer = 0.0;
+        self.pending_events.clear();
+        true
+    }
+
+    pub fn sandbox_set_block(&mut self, tx: i32, ty: i32, block: BlockId) -> bool {
+        if !self.sandbox_mode || tx < 0 || ty < 0 {
+            return false;
+        }
+        self.level.set_block(tx as usize, ty as usize, block)
+    }
+
+    pub fn sandbox_remove_block(&mut self, tx: i32, ty: i32) -> bool {
+        if !self.sandbox_mode || tx < 0 || ty < 0 {
+            return false;
+        }
+        self.level.remove_block(tx as usize, ty as usize)
+    }
+
+    pub fn sandbox_spawn_enemy(&mut self, kind: &str, pos: Vec2) -> Option<EntityId> {
+        if !self.sandbox_mode {
+            return None;
+        }
+        if !(0.0..self.level.width_px()).contains(&pos.x)
+            || !(0.0..self.level.height_px()).contains(&pos.y)
+        {
+            return None;
+        }
+        let id = match kind {
+            "slime" | "" => self.store.spawn(EntitySpec::slime(pos)),
+            _ => return None,
+        };
+        Some(id)
+    }
+
+    pub fn sandbox_spawn_item(&mut self, kind: ItemKind, pos: Vec2) -> Option<EntityId> {
+        if !self.sandbox_mode {
+            return None;
+        }
+        if !(0.0..self.level.width_px()).contains(&pos.x)
+            || !(0.0..self.level.height_px()).contains(&pos.y)
+        {
+            return None;
+        }
+        Some(self.store.spawn(EntitySpec::item(kind.data(), pos)))
+    }
+
+    pub fn sandbox_clear_dynamic_entities(&mut self) -> bool {
+        if !self.sandbox_mode {
+            return false;
+        }
+        let removable: Vec<EntityId> = self
+            .store
+            .iter()
+            .filter(|entity| entity.is_enemy() || entity.is_projectile() || entity.is_item())
+            .map(|entity| entity.id)
+            .collect();
+        for id in removable {
+            self.store.despawn(id);
+        }
+        true
     }
 
     pub fn snapshot(&self) -> WorldSnapshot {
@@ -904,5 +1146,65 @@ mod tests {
         let entity = world.store().player(0).unwrap();
         assert_eq!(entity.player().unwrap().visual_profile, profile);
         assert_eq!(entity.player().unwrap().character, PlayableCharacter::Enzo);
+    }
+
+    #[test]
+    fn sandbox_sigma_prevents_fall_death() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        assert!(world.sandbox_set_sigma_mode(0, true));
+        let below = world.level().height_px() + FALL_DEATH_MARGIN + 32.0;
+        if let Some(player) = world.store_mut().player_mut(0) {
+            player.body.pos.y = below;
+            player.body.vel.y = 500.0;
+        }
+        for _ in 0..10 {
+            world.step(crate::input::TickInput::default());
+        }
+        let player = world.store().player(0).unwrap();
+        assert!(player.health.is_alive());
+        assert!(player.player().unwrap().sigma_mode);
+        assert_ne!(world.phase(), GamePhase::Dead);
+    }
+
+    #[test]
+    fn sandbox_death_loses_level_and_redistributes() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        assert!(world.sandbox_debug_set_level(0, 3));
+        if let Some(entity) = world.store_mut().player_mut(0) {
+            progression::allocate_point(entity, crate::input::Attribute::Speed);
+        }
+        assert!(world.sandbox_debug_die(0));
+        for _ in 0..5 {
+            world.step(crate::input::TickInput::default());
+        }
+        let player = world.store().player(0).unwrap();
+        let pdata = player.player().unwrap();
+        assert_eq!(pdata.level, 2);
+        assert_eq!(pdata.points, 5);
+        assert_eq!(pdata.xp, 0.0);
+        assert_eq!(player.attributes, crate::entities::Attributes::default());
+        assert!(player.health.is_alive());
+        assert_ne!(world.phase(), GamePhase::Dead);
+    }
+
+    #[test]
+    fn sandbox_block_edit_and_spawns_work() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        assert!(world.sandbox_set_block(5, 5, crate::map::BlockId::Block));
+        assert_eq!(world.level().tile(5, 5), crate::map::Tile::BLOCK);
+        assert!(world.sandbox_remove_block(5, 5));
+        assert_eq!(world.level().tile(5, 5), crate::map::Tile::EMPTY);
+
+        let enemy_count_before = world.store().enemies().count();
+        assert!(world
+            .sandbox_spawn_enemy("slime", crate::math::Vec2::new(200.0, 100.0))
+            .is_some());
+        assert_eq!(world.store().enemies().count(), enemy_count_before + 1);
+
+        let item_count_before = world.store().items().count();
+        assert!(world
+            .sandbox_spawn_item(ItemKind::Sword, crate::math::Vec2::new(240.0, 100.0))
+            .is_some());
+        assert_eq!(world.store().items().count(), item_count_before + 1);
     }
 }

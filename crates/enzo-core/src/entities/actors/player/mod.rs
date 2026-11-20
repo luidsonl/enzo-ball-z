@@ -168,6 +168,9 @@ pub struct PlayerData {
     /// Collected items not yet equipped. The HUD reads this list from snapshots;
     /// the client must not mutate it directly.
     pub inventory: Vec<ItemKind>,
+    /// Sandbox/debug invulnerability mode (not persisted in campaign saves).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub sigma_mode: bool,
 }
 
 impl PlayerData {
@@ -189,6 +192,7 @@ impl PlayerData {
             pending_level_up: false,
             respawn,
             inventory: Vec::new(),
+            sigma_mode: false,
         }
     }
 

@@ -250,6 +250,7 @@ pub fn store_draft_visual_profile(
 }
 
 const KEYBINDINGS_KEY: &str = "enzoballz.keybindings";
+const SANDBOX_UNLOCKED_KEY: &str = "enzoballz.sandbox_unlocked";
 
 pub fn load_keybindings() -> crate::input::KeyBindings {
     read_key(KEYBINDINGS_KEY)
@@ -262,6 +263,14 @@ pub fn store_keybindings(bindings: &crate::input::KeyBindings) -> Result<(), Str
     let value = serde_json::Value::Object(bindings.to_serializable());
     let raw = serde_json::to_string(&value).map_err(|err| err.to_string())?;
     write_key(KEYBINDINGS_KEY, &raw)
+}
+
+pub fn load_sandbox_unlocked() -> bool {
+    matches!(read_key(SANDBOX_UNLOCKED_KEY).as_deref(), Some("1") | Some("true") | Some("on"))
+}
+
+pub fn store_sandbox_unlocked(unlocked: bool) -> Result<(), String> {
+    write_key(SANDBOX_UNLOCKED_KEY, if unlocked { "1" } else { "0" })
 }
 
 #[cfg(test)]

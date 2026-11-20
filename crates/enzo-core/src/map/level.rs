@@ -362,6 +362,22 @@ impl Level {
     pub fn flag_rect(&self) -> Option<Rect> {
         self.flag
     }
+
+    /// Sets a block at tile coordinates (sandbox/debug editing). Resets block damage.
+    /// Returns false if coordinates are out of bounds.
+    pub fn set_block(&mut self, tx: usize, ty: usize, block: BlockId) -> bool {
+        let Some(index) = self.index(tx, ty) else {
+            return false;
+        };
+        self.tiles[index] = Tile::new(block);
+        self.damage[index] = 0;
+        true
+    }
+
+    /// Removes a block at tile coordinates (sets to empty). Returns false if out of bounds.
+    pub fn remove_block(&mut self, tx: usize, ty: usize) -> bool {
+        self.set_block(tx, ty, BlockId::Empty)
+    }
 }
 
 fn tile_anchor(tx: usize, ty: usize, size: Vec2) -> Vec2 {
@@ -721,5 +737,33 @@ F = marker:flag
         assert_eq!(level.enemy_spawns[0].kind, "slime");
         assert!(level.flag.is_some());
         assert_eq!(level.tile(0, 3), Tile::GROUND);
+    }
+
+    #[test]
+    fn set_and_remove_block_update_tiles_for_sandbox_editing() {
+        let mut level = Level::from_block_ids(
+            3,
+            3,
+            vec![
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Empty,
+                crate::map::BlockId::Ground,
+                crate::map::BlockId::Ground,
+                crate::map::BlockId::Ground,
+            ],
+            vec![(0, 0)],
+            vec![],
+            None,
+        )
+        .unwrap();
+        assert!(level.set_block(1, 1, crate::map::BlockId::Block));
+        assert_eq!(level.tile(1, 1), Tile::BLOCK);
+        assert!(level.remove_block(1, 1));
+        assert_eq!(level.tile(1, 1), Tile::EMPTY);
+        assert!(!level.set_block(9, 9, crate::map::BlockId::Block));
     }
 }

@@ -34,6 +34,8 @@ pub enum MenuAction {
     Start { slot: usize, save: Option<SaveData> },
     /// Retoma o jogo que está rodando em segundo plano.
     Resume,
+    /// Starts the QA sandbox/debug session (isolated from campaign saves).
+    StartSandbox,
 }
 
 /// Eventos internos produzidos por uma tela. O `Menu` aplica depois de desenhar,
@@ -61,6 +63,11 @@ pub struct Menu {
     pub draft_visual_profile: enzo_core::entities::VisualProfile,
     /// Active key bindings (configurable in Options > Controls).
     pub bindings: crate::input::KeyBindings,
+    /// Secret sandbox/debug unlock state (persisted locally).
+    pub sandbox_unlocked: bool,
+    /// Unlock sequence progress for "67" (0 = waiting for 6, 1 = waiting for 7).
+    sandbox_unlock_step: u8,
+    sandbox_unlock_timer: f32,
 }
 
 impl Menu {
@@ -78,6 +85,43 @@ impl Menu {
                 save::load_draft_visual_profile(c)
             },
             bindings: save::load_keybindings(),
+            sandbox_unlocked: save::load_sandbox_unlocked(),
+            sandbox_unlock_step: 0,
+            sandbox_unlock_timer: 0.0,
+        }
+    }
+
+    /// Handle secret unlock sequence input ("6" then "7") while in menu.
+    /// Returns true if the sandbox was just unlocked.
+    pub fn handle_sandbox_unlock_digit(&mut self, digit: u8) -> bool {
+        if self.sandbox_unlocked {
+            return false;
+        }
+        const WINDOW: f32 = 1.0;
+        match (self.sandbox_unlock_step, digit) {
+            (0, 6) => {
+                self.sandbox_unlock_step = 1;
+                self.sandbox_unlock_timer = WINDOW;
+                false
+            }
+            (1, 7) if self.sandbox_unlock_timer > 0.0 => {
+                self.sandbox_unlock_step = 0;
+                self.sandbox_unlock_timer = 0.0;
+                self.sandbox_unlocked = true;
+                let _ = save::store_sandbox_unlocked(true);
+                self.toast = Some(("Sandbox unlocked".to_owned(), 2.0));
+                true
+            }
+            (_, 6) => {
+                self.sandbox_unlock_step = 1;
+                self.sandbox_unlock_timer = WINDOW;
+                false
+            }
+            _ => {
+                self.sandbox_unlock_step = 0;
+                self.sandbox_unlock_timer = 0.0;
+                false
+            }
         }
     }
 
@@ -137,6 +181,17 @@ impl Menu {
             }
             UiAction::MenuOpenControls => {
                 self.push(MenuScreen::Controls);
+                None
+            }
+            UiAction::MenuOpenSandbox => {
+                if self.sandbox_unlocked {
+                    Some(MenuAction::StartSandbox)
+                } else {
+                    None
+                }
+            }
+            UiAction::SandboxUnlockDigit { digit } => {
+                self.handle_sandbox_unlock_digit(digit);
                 None
             }
             UiAction::ControlsResetDefaults
@@ -267,6 +322,12 @@ impl Menu {
         frame_dt: f32,
     ) -> Option<MenuAction> {
         self.time += frame_dt;
+        if self.sandbox_unlock_timer > 0.0 {
+            self.sandbox_unlock_timer = (self.sandbox_unlock_timer - frame_dt).max(0.0);
+            if self.sandbox_unlock_timer <= 0.0 {
+                self.sandbox_unlock_step = 0;
+            }
+        }
         if let Some((_, remaining)) = self.toast.as_mut() {
             *remaining -= frame_dt;
             if *remaining <= 0.0 {

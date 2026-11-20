@@ -15,13 +15,25 @@ pub fn contact_damage(store: &mut EntityStore, events: &mut Vec<GameEvent>) {
     let players: Vec<EntityId> = store.players().map(|entity| entity.id).collect();
 
     for player_id in players {
-        let Some((player_rect, player_center, player_team)) = store
+        let Some((player_rect, player_center, player_team, sigma_mode)) = store
             .get(player_id)
-            .filter(|player| player.health.is_alive() && player.health.iframes <= 0.0)
-            .map(|player| (player.rect(), player.center(), player.team))
+            .filter(|player| {
+                player.health.is_alive()
+                    && player.health.iframes <= 0.0
+                    && !player.player().is_some_and(|p| p.sigma_mode)
+            })
+            .map(|player| {
+                (
+                    player.rect(),
+                    player.center(),
+                    player.team,
+                    player.player().is_some_and(|p| p.sigma_mode),
+                )
+            })
         else {
             continue;
         };
+        let _ = sigma_mode;
 
         let hostiles = store.hostiles_in_rect(player_rect, player_team);
         for enemy_id in hostiles {
