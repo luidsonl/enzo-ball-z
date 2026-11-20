@@ -256,7 +256,7 @@ impl UiLabels {
             skill_aura_cost: i18n.t(Text::SkillAuraCost).to_owned(),
             skill_cooldown: i18n.t(Text::SkillCooldown).to_owned(),
             sandbox: "Sandbox".to_owned(),
-            sandbox_debug: "Sandbox / Debug".to_owned(),
+            sandbox_debug: "Debug".to_owned(),
             tab_character: if en {
                 "Character".to_owned()
             } else {

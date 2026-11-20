@@ -43,9 +43,9 @@ face, and outfit colors/slots) through stable visual profile IDs.
 - **Implemented (core/client adaptation):** 4 generic action slots, modular
   skills, loadout in core/save/snapshot, and generic skill dispatch.
 - **Planned (QA/debug):** secret sandbox/debug mode unlocked from the menu via
-  `67`, with a unique flat map and debug tools for progression, invulnerability,
-  and runtime placement/removal of blocks, enemies, and items (see
-  [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)).
+  `67` (runtime-only per session/reload), with a unique flat map and debug tools
+  for progression, invulnerability, and runtime placement/removal of blocks,
+  enemies, and items (see [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)).
 
 ## 3. Non-goals (current MVP scope)
 
@@ -395,11 +395,11 @@ Items below are not fully implemented unless stated above:
    must not calculate rules or read/write saves.
 6. **Finalized placeholder skills:** Nutella Shot/Shout balance, visuals, and
    gameplay integration.
-7. **Sandbox/debug mode (QA):** secret `67` menu unlock, isolated sandbox
-   session with a unique flat map, 4-tab debug panel (Character/Blocks/Enemies/
-   Items), sigma mode (invulnerability), free leveling and sandbox death/
-   redistribution rules, and runtime world editing tools (see
-   [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)).
+7. **Sandbox/debug mode (QA):** secret `67` menu unlock (runtime-only, re-enter
+   after reload/SPA close), isolated sandbox session with a unique flat map,
+   4-tab debug panel (Character/Blocks/Enemies/Items), sigma mode
+   (invulnerability), free leveling and sandbox death/redistribution rules, and
+   runtime world editing tools (see [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md)).
 
 See [`ACTIONS_AND_SKILLS.md`](ACTIONS_AND_SKILLS.md) for detailed contracts,
 phases, and acceptance criteria. See [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md) for

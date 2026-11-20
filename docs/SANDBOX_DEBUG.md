@@ -61,10 +61,10 @@ campaign constraints.
 ### 2.2 Unlock state and persistence
 
 - **Default:** sandbox entry is hidden until unlocked.
-- **Persistence (recommended):** store an `unlocked` preference locally (client
-  storage, separate from campaign `SaveData`) so QA does not need to re-enter
-  the code every session.
-- **Reset:** clearing local app data/preferences resets the unlock state.
+- **Persistence:** unlock is **runtime-only app state** (not stored in local
+  storage/preferences and not part of campaign saves). Closing the SPA or
+  reloading the page resets the unlock state, and the `6`,`7` sequence must be
+  entered again.
 - **Feedback:** when unlocked, the UI should provide clear confirmation (toast,
   label, or newly visible menu item).
 
@@ -314,7 +314,8 @@ This rule is required for sandbox QA behavior.
 
 ### 9.2 Client/UI validation (required targets)
 
-- Secret `67` unlock flow works (keyboard and touch-accessible path).
+- Secret `67` unlock flow works (keyboard and touch-accessible path) and is
+  required again after reload/SPA close (runtime-only unlock state).
 - Sandbox menu entry appears only when unlocked and launches the flat map.
 - All 4 debug tabs render and emit correct semantic actions.
 - Placement tools target correct tiles/positions and provide user feedback on
@@ -325,5 +326,5 @@ This rule is required for sandbox QA behavior.
 
 - `docs/SPEC.md` and `docs/ARCHITECTURE.md` reference this spec and summarize
   sandbox/debug behavior and boundaries.
-- Any finalized payload/action codes and persistence keys are documented in code
-  and relevant docs when implemented.
+- Any finalized payload/action codes are documented in code and relevant docs
+  when implemented.

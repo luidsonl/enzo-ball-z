@@ -122,6 +122,8 @@ function togglePanel(panel) {
   }
 }
 function closePanelOnOverlay(e) {
+  // In sidebar mode the overlay is transparent/pass-through; don't close on map clicks.
+  if (openPanel.value === "debug" && isSandbox.value) return;
   if (e.target === e.currentTarget) closePanel();
 }
 
@@ -134,7 +136,7 @@ const tabs = computed(() => {
     ["items", labels.value.inventory || "Items", false],
   ];
   if (isSandbox.value) {
-    base.push(["debug", labels.value.sandbox_debug || labels.value.sandbox || "Debug", false]);
+    base.push(["debug", labels.value.sandbox_debug || "Debug", false]);
   }
   return base;
 });
@@ -372,7 +374,6 @@ function translateSkillCalc(text, lang = uiLang()) {
             <span class="dom-hud-bar-label">
               HP {{ Math.ceil(player.health) }}/{{ Math.ceil(player.max_health) }}
               <span v-if="player.sigma_mode" style="margin-left:8px; color:#ffd966; font-weight:700">{{ labels.sigma_mode || 'Sigma' }}</span>
-              <span v-if="isSandbox" style="margin-left:8px; color:#8fd3ff; font-weight:700">{{ labels.sandbox || 'Sandbox' }}</span>
             </span>
             <div class="dom-hud-track hp"><div class="dom-hud-fill" :style="{ width: pct(player.health, player.max_health) + '%' }" /></div>
           </div>
@@ -431,8 +432,13 @@ function translateSkillCalc(text, lang = uiLang()) {
         </button>
       </div>
 
-      <div v-if="openPanel" class="dom-game-panel-overlay" @click="closePanelOnOverlay">
-        <div class="dom-game-panel" style="pointer-events: auto" @click.stop>
+      <div
+        v-if="openPanel"
+        class="dom-game-panel-overlay"
+        :class="{ 'is-debug-sidebar': openPanel === 'debug' && isSandbox }"
+        @click="closePanelOnOverlay"
+      >
+        <div class="dom-game-panel" :class="{ 'debug-sidebar-panel': openPanel === 'debug' && isSandbox }" style="pointer-events: auto" @click.stop>
           <template v-if="openPanel === 'status'">
             <div class="dom-game-panel-header">
               <h3 class="dom-title">{{ labels.status_title || labels.status || 'Status' }}</h3>
@@ -705,7 +711,7 @@ function translateSkillCalc(text, lang = uiLang()) {
 
           <template v-else-if="openPanel === 'debug' && isSandbox">
             <div class="dom-game-panel-header">
-              <h3 class="dom-title">{{ labels.sandbox_debug || labels.sandbox || 'Sandbox / Debug' }}</h3>
+              <h3 class="dom-title">{{ labels.sandbox_debug || 'Debug' }}</h3>
               <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
             </div>
             <div class="dom-game-panel-body">

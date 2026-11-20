@@ -461,8 +461,10 @@ impl App {
                             let _ = session.world.set_playable_character(0, c);
                             let profile = enzo_core::entities::VisualProfile::default_for(c);
                             let _ = session.world.set_visual_profile(0, profile);
-                            let _ = save::store_draft_character(c);
-                            let _ = save::store_draft_visual_profile(profile);
+                            if !session.is_sandbox {
+                                let _ = save::store_draft_character(c);
+                                let _ = save::store_draft_visual_profile(profile);
+                            }
                         }
                     }
                     UiAction::SetVisualProfileField { field, value } => {
@@ -470,7 +472,9 @@ impl App {
                             if let Some(player) = entity.player() {
                                 let profile = player.visual_profile.with_field(field, value);
                                 let _ = session.world.set_visual_profile(0, profile);
-                                let _ = save::store_draft_visual_profile(profile);
+                                if !session.is_sandbox {
+                                    let _ = save::store_draft_visual_profile(profile);
+                                }
                             }
                         }
                     }
@@ -527,10 +531,12 @@ impl App {
                             let profile = enzo_core::entities::VisualProfile::default_for(c);
                             let _ = game.world.set_visual_profile(0, profile);
                             game.world.write_snapshot(&mut game.current);
-                            menu.draft_character = c;
-                            menu.draft_visual_profile = profile;
-                            let _ = save::store_draft_character(c);
-                            let _ = save::store_draft_visual_profile(profile);
+                            if !game.is_sandbox {
+                                menu.draft_character = c;
+                                menu.draft_visual_profile = profile;
+                                let _ = save::store_draft_character(c);
+                                let _ = save::store_draft_visual_profile(profile);
+                            }
                         }
                     }
                     UiAction::SetVisualProfileField { field, value } => {
@@ -539,8 +545,10 @@ impl App {
                                 let profile = player.visual_profile.with_field(field, value);
                                 let _ = game.world.set_visual_profile(0, profile);
                                 game.world.write_snapshot(&mut game.current);
-                                menu.draft_visual_profile = profile;
-                                let _ = save::store_draft_visual_profile(profile);
+                                if !game.is_sandbox {
+                                    menu.draft_visual_profile = profile;
+                                    let _ = save::store_draft_visual_profile(profile);
+                                }
                             }
                         }
                     }

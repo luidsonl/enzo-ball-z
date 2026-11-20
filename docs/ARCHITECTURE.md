@@ -565,13 +565,13 @@ Remaining/planned integration work:
   layer to Vue components while preserving the Rust bridge contract (`UiState`,
   semantic actions, loadout actions, virtual input). Build pipeline (`dist/`),
   miniquad plugin/script ordering, and web tests must be updated accordingly.
-- **Sandbox/debug mode (planned, QA):** secret menu unlock (`67`), isolated
-  sandbox session with a dedicated flat map, debug UI tabs (Character/Blocks/
-  Enemies/Items), and core-authoritative debug APIs for sigma mode
-  (invulnerability), free leveling/progression edits, sandbox death level-loss +
-  redistribution, and runtime block/entity/item placement/removal. Transport via
-  semantic UI bridge actions and published UI state; see
-  [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md).
+- **Sandbox/debug mode (planned, QA):** secret menu unlock (`67`, runtime-only
+  app state, re-enter after reload/SPA close), isolated sandbox session with a
+  dedicated flat map, debug UI tabs (Character/Blocks/Enemies/Items), and
+  core-authoritative debug APIs for sigma mode (invulnerability), free
+  leveling/progression edits, sandbox death level-loss + redistribution, and
+  runtime block/entity/item placement/removal. Transport via semantic UI bridge
+  actions and published UI state; see [`SANDBOX_DEBUG.md`](SANDBOX_DEBUG.md).
 
 All core invariants from section 1 still apply. HTML/DOM must never calculate
 game rules or read/write authoritative saves. Sandbox/debug mutations that affect

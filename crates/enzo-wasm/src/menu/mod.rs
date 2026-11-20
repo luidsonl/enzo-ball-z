@@ -85,7 +85,7 @@ impl Menu {
                 save::load_draft_visual_profile(c)
             },
             bindings: save::load_keybindings(),
-            sandbox_unlocked: save::load_sandbox_unlocked(),
+            sandbox_unlocked: false,
             sandbox_unlock_step: 0,
             sandbox_unlock_timer: 0.0,
         }
@@ -108,7 +108,6 @@ impl Menu {
                 self.sandbox_unlock_step = 0;
                 self.sandbox_unlock_timer = 0.0;
                 self.sandbox_unlocked = true;
-                let _ = save::store_sandbox_unlocked(true);
                 self.toast = Some(("Sandbox unlocked".to_owned(), 2.0));
                 true
             }
