@@ -492,6 +492,18 @@ impl I18n {
                 Language::PtBr => "Tênis 67",
                 Language::English => "67 Sneakers",
             },
+            ItemKind::EnzotellaBig => match self.language() {
+                Language::PtBr => "Enzotella Grande",
+                Language::English => "Big Enzotella",
+            },
+            ItemKind::EnzotellaMedium => match self.language() {
+                Language::PtBr => "Enzotella Média",
+                Language::English => "Medium Enzotella",
+            },
+            ItemKind::EnzotellaSmall => match self.language() {
+                Language::PtBr => "Enzotella Pequena",
+                Language::English => "Small Enzotella",
+            },
         }
     }
 

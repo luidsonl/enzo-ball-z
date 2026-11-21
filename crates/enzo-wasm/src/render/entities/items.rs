@@ -12,10 +12,16 @@ pub fn draw(sprites: &Sprites, entity: &EntitySnapshot, pos: Vec2, time: f32) {
     let size = vec2(entity.size.x, entity.size.y);
     let bob = (time * 3.0 + entity.id.0 as f32).sin() * 2.0;
     let center = pos + size * 0.5 + vec2(0.0, bob);
-    draw_circle(center.x, center.y, 14.0, Color::from_rgba(246, 196, 69, 30));
+    let glow_r = (size.x.max(size.y) * 0.5).max(14.0);
+    draw_circle(
+        center.x,
+        center.y,
+        glow_r,
+        Color::from_rgba(246, 196, 69, 30),
+    );
     sprites.draw_item_world(
         data.kind,
-        Rect::new(center.x - 8.0, center.y - 8.0, 16.0, 16.0),
+        Rect::new(pos.x, pos.y + bob, size.x, size.y),
         WHITE,
     );
 }

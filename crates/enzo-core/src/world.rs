@@ -68,6 +68,9 @@ impl World {
             let pos = enemy_anchor(spawn.tile, &spawn.kind);
             spawn_enemy(&mut store, &spawn.kind, pos);
         }
+        for spawn in &level.item_spawns {
+            spawn_map_item(&mut store, spawn.tile, &spawn.kind);
+        }
 
         let initial_level = level.clone();
         Ok(Self {
@@ -778,15 +781,25 @@ impl World {
         }
 
         if item_data.is_consumable() {
-            // Consume immediately (no inventory).
-            if let Some(player) = self.store.get_mut(player_eid) {
-                if item_data.heal > 0.0 {
-                    let max = player.stats.max_health;
-                    player.health.current = (player.health.current + item_data.heal).min(max);
+            // Instant-use consumable: apply effect and consume only if applicable.
+            let applied = {
+                let Some(player) = self.store.get_mut(player_eid) else {
+                    return;
+                };
+                let current = player.health.current;
+                let max = player.stats.max_health;
+                let heal = item_data.consumable_effect.resolve_heal(current, max);
+                if heal > 0.0 {
+                    player.health.current = (current + heal).min(max);
+                    true
+                } else {
+                    item_data.consumable_effect.can_apply(current, max)
                 }
+            };
+            if applied {
+                self.store.despawn(item_eid);
+                self.pending_events.push(GameEvent::SaveRequested);
             }
-            self.store.despawn(item_eid);
-            self.pending_events.push(GameEvent::SaveRequested);
             return;
         }
 
@@ -882,6 +895,9 @@ impl World {
         for spawn in &self.level.enemy_spawns {
             let pos = enemy_anchor(spawn.tile, &spawn.kind);
             spawn_enemy(&mut self.store, &spawn.kind, pos);
+        }
+        for spawn in &self.level.item_spawns {
+            spawn_map_item(&mut self.store, spawn.tile, &spawn.kind);
         }
 
         self.phase = GamePhase::Playing;
@@ -1062,6 +1078,9 @@ impl World {
             let pos = enemy_anchor(spawn_def.tile, &spawn_def.kind);
             spawn_enemy(&mut self.store, &spawn_def.kind, pos);
         }
+        for spawn_def in &self.level.item_spawns {
+            spawn_map_item(&mut self.store, spawn_def.tile, &spawn_def.kind);
+        }
 
         self.tick = 0;
         self.phase = GamePhase::Playing;
@@ -1195,6 +1214,22 @@ fn spawn_enemy(store: &mut EntityStore, kind: &str, pos: Vec2) {
             store.spawn(EntitySpec::slime(pos));
         }
     }
+}
+
+fn item_anchor(tile: (usize, usize), size: Vec2) -> Vec2 {
+    Vec2::new(
+        tile.0 as f32 * TILE_SIZE + (TILE_SIZE - size.x) * 0.5,
+        (tile.1 as f32 + 1.0) * TILE_SIZE - size.y,
+    )
+}
+
+fn spawn_map_item(store: &mut EntityStore, tile: (usize, usize), kind: &str) {
+    let Some(item_kind) = ItemKind::from_id(kind) else {
+        return;
+    };
+    let data = item_kind.data();
+    let pos = item_anchor(tile, data.world_physics.collision_size);
+    store.spawn(EntitySpec::item(data, pos));
 }
 
 fn crouch_sizes_for(entity: &crate::entities::Entity) -> Option<(Vec2, Vec2)> {
@@ -1527,5 +1562,85 @@ mod tests {
         );
         let equipped_armor = world.store().player(0).unwrap().equipped[EquipSlot::Armor.index()];
         assert_eq!(equipped_armor.map(|e| e.kind), Some(ItemKind::Shirt67));
+    }
+
+    #[test]
+    fn enzotella_variants_have_expected_sizes_healing_and_touch_behavior() {
+        let cases = [
+            (ItemKind::EnzotellaBig, Vec2::new(64.0, 64.0), 1.0),
+            (ItemKind::EnzotellaMedium, Vec2::new(32.0, 32.0), 0.5),
+            (ItemKind::EnzotellaSmall, Vec2::new(16.0, 16.0), 0.25),
+        ];
+
+        for (kind, expected_size, fraction) in cases {
+            let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+            let player_pos = world.store().player(0).unwrap().body.pos;
+            let id = world.spawn_item(kind.data(), player_pos);
+
+            let item = world.store().get(id).unwrap();
+            assert_eq!(item.body.size, expected_size, "{kind:?} size mismatch");
+            let y0 = item.body.pos.y;
+
+            // Full HP: not consumed/taken
+            world.step(crate::input::TickInput::default());
+            assert!(
+                world.store().get(id).is_some(),
+                "{kind:?} should not be consumed at full HP"
+            );
+            let player = world.store().player(0).unwrap();
+            assert!((player.health.current - player.stats.max_health).abs() < f32::EPSILON);
+
+            // Damaged: restores expected fraction and is consumed
+            if let Some(entity) = world.store_mut().player_mut(0) {
+                let max = entity.stats.max_health;
+                entity.health.current = (max * 0.2).max(1.0);
+            }
+            let (before, max) = {
+                let p = world.store().player(0).unwrap();
+                (p.health.current, p.stats.max_health)
+            };
+            world.step(crate::input::TickInput::default());
+            assert!(
+                world.store().get(id).is_none(),
+                "{kind:?} should be consumed when healing applies"
+            );
+            let after = world.store().player(0).unwrap().health.current;
+            let expected = (before + max * fraction).min(max);
+            assert!(
+                (after - expected).abs() < 0.01,
+                "{kind:?} expected heal {expected}, got {after}"
+            );
+
+            // No gravity over time
+            let id2 = world.spawn_item(
+                kind.data(),
+                crate::math::Vec2::new(player_pos.x + 220.0, y0),
+            );
+            for _ in 0..30 {
+                world.step(crate::input::TickInput::default());
+            }
+            let y1 = world.store().get(id2).unwrap().body.pos.y;
+            assert!((y1 - y0).abs() < 0.01, "{kind:?} should have no gravity");
+        }
+    }
+
+    #[test]
+    fn map_legend_can_spawn_items() {
+        let src = "name: item map\n\n[legend]\n. = block:empty\n# = block:ground\nP = marker:player\nN = item:enzotella\nM = item:enzotella_medium\nS = item:enzotella_small\nH = item:potion\n\n[map]\nP.NMSH\n######\n";
+        let world = World::new(src).unwrap();
+        assert_eq!(world.level().item_spawns.len(), 4);
+        assert_eq!(world.level().item_spawns[0].kind, "enzotella");
+        assert_eq!(world.level().item_spawns[1].kind, "enzotella_medium");
+        assert_eq!(world.level().item_spawns[2].kind, "enzotella_small");
+        assert_eq!(world.level().item_spawns[3].kind, "potion");
+        let kinds: Vec<_> = world
+            .store()
+            .items()
+            .filter_map(|e| e.item().map(|i| i.kind))
+            .collect();
+        assert!(kinds.contains(&ItemKind::EnzotellaBig));
+        assert!(kinds.contains(&ItemKind::EnzotellaMedium));
+        assert!(kinds.contains(&ItemKind::EnzotellaSmall));
+        assert!(kinds.contains(&ItemKind::Potion));
     }
 }

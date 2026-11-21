@@ -317,8 +317,8 @@ impl Sprites {
     }
 
     pub fn draw_item_world(&self, kind: ItemKind, dest: Rect, tint: Color) {
-        let path = format!("assets/items/{}/world.png", kind.id());
-        if !draw_lazy(&self.assets, &path, None, dest, false, tint) {
+        let path = kind.world_sprite_path();
+        if !draw_lazy(&self.assets, path, None, dest, false, tint) {
             draw_rectangle(
                 dest.x + 2.0,
                 dest.y + 2.0,

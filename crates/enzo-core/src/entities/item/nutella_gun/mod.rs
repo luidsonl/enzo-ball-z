@@ -2,7 +2,10 @@
 
 use crate::skills::EntityType;
 
-use super::{ItemCategory, ItemData, ItemKind, ItemPickup, ItemRequirements, ItemWorldPhysics};
+use super::{
+    ItemCategory, ItemConsumableEffect, ItemData, ItemKind, ItemPickup, ItemRequirements,
+    ItemWorldPhysics,
+};
 use crate::entities::{AttributeSet, Equipment, EquipmentTags};
 
 impl ItemData {
@@ -15,7 +18,7 @@ impl ItemData {
             skill_levels: crate::skills::NO_SKILL_LEVELS,
         },
         requirements: ItemRequirements::new(&[EntityType::Playable], AttributeSet::ZERO),
-        heal: 0.0,
+        consumable_effect: ItemConsumableEffect::None,
         world_physics: ItemWorldPhysics::FALLING,
         pickup: ItemPickup::INTERACT,
     };

@@ -4,7 +4,9 @@ use crate::events::{BlockPos, GameEvent};
 use crate::math::{Rect, Vec2};
 
 use super::block::BlockId;
-use super::format::{parse_map_text, EnemySpawnDef, Legend, LegendTarget, MapMetadata};
+use super::format::{
+    parse_map_text, EnemySpawnDef, ItemSpawnDef, Legend, LegendTarget, MapMetadata,
+};
 use super::parse::LevelError;
 use super::tile::Tile;
 
@@ -19,6 +21,7 @@ pub struct Level {
     pub metadata: MapMetadata,
     pub spawn_tiles: Vec<(usize, usize)>,
     pub enemy_spawns: Vec<EnemySpawnDef>,
+    pub item_spawns: Vec<ItemSpawnDef>,
     pub flag: Option<Rect>,
 }
 
@@ -41,6 +44,7 @@ impl Level {
         let mut tiles = vec![Tile::EMPTY; width * height];
         let mut spawn_tiles = Vec::new();
         let mut enemy_spawns = Vec::new();
+        let mut item_spawns = Vec::new();
         let mut flag = None;
         let legend = if parsed.used_new_format {
             parsed.legend
@@ -75,12 +79,20 @@ impl Level {
                         });
                         Tile::EMPTY
                     }
+                    LegendTarget::Item(kind) => {
+                        item_spawns.push(ItemSpawnDef {
+                            tile: (col, row),
+                            kind,
+                        });
+                        Tile::EMPTY
+                    }
                     LegendTarget::Flag => {
                         // 2-tile-tall flag: top + bottom blocks (2 parts).
                         // Bottom is placed at the marker row; top goes one row above when safe.
                         let has_top = row > 0
                             && !spawn_tiles.contains(&(col, row - 1))
                             && !enemy_spawns.iter().any(|e| e.tile == (col, row - 1))
+                            && !item_spawns.iter().any(|e| e.tile == (col, row - 1))
                             && tiles[(row - 1) * width + col] == Tile::EMPTY;
                         if has_top {
                             tiles[(row - 1) * width + col] = Tile::FLAG_TOP;
@@ -114,6 +126,7 @@ impl Level {
             metadata: parsed.metadata,
             spawn_tiles,
             enemy_spawns,
+            item_spawns,
             flag,
         })
     }
@@ -140,17 +153,20 @@ impl Level {
                     kind: "slime".to_owned(),
                 })
                 .collect(),
+            Vec::new(),
             flag,
             MapMetadata::default(),
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn from_block_ids_with_meta(
         width: usize,
         height: usize,
         cells: Vec<BlockId>,
         spawn_tiles: Vec<(usize, usize)>,
         enemy_spawns: Vec<EnemySpawnDef>,
+        item_spawns: Vec<ItemSpawnDef>,
         flag: Option<Rect>,
         metadata: MapMetadata,
     ) -> Result<Self, LevelError> {
@@ -170,6 +186,10 @@ impl Level {
             .into_iter()
             .filter(|e| in_bounds(&e.tile))
             .collect();
+        let item_spawns: Vec<_> = item_spawns
+            .into_iter()
+            .filter(|e| in_bounds(&e.tile))
+            .collect();
         let flag = flag.filter(|rect| {
             rect.w > 0.0
                 && rect.h > 0.0
@@ -186,6 +206,7 @@ impl Level {
             metadata,
             spawn_tiles,
             enemy_spawns,
+            item_spawns,
             flag,
         })
     }

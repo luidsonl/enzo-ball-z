@@ -23,7 +23,9 @@ pub use blocks::{
     BLOCK_BRICK, BLOCK_CRATE, BLOCK_DEFS, BLOCK_EMPTY, BLOCK_FLAG_BOTTOM, BLOCK_FLAG_TOP,
     BLOCK_GROUND, BLOCK_INVISIBLE, BLOCK_PLATFORM,
 };
-pub use format::{BackgroundMetadata, EnemySpawnDef, Legend, LegendTarget, MapMetadata};
+pub use format::{
+    BackgroundMetadata, EnemySpawnDef, ItemSpawnDef, Legend, LegendTarget, MapMetadata,
+};
 pub use level::{Level, TILE_SIZE};
 pub use parse::LevelError;
 pub use tile::Tile;

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use enzo_core::entities::{AttributeId, ItemKind};
+use enzo_core::entities::{item::ItemConsumableEffect, AttributeId, ItemKind};
 use enzo_core::map::{block_def, BlockId};
 use enzo_core::skills::SkillId;
 use serde::Serialize;
@@ -129,7 +129,7 @@ struct ItemOut {
     slot: Option<String>,
     usage: String,
     consumable: bool,
-    heal: f32,
+    consumable_effect: serde_json::Value,
     equipment_tags: Vec<String>,
     equipment_modifiers: serde_json::Value,
     requirements: serde_json::Value,
@@ -155,6 +155,15 @@ fn items() -> Vec<ItemOut> {
             if et.contains(enzo_core::entities::EquipmentTags::SIXSEVEN) {
                 tags.push("sixseven".to_owned());
             }
+            let consumable_effect = match d.consumable_effect {
+                ItemConsumableEffect::None => serde_json::json!({"type": "none"}),
+                ItemConsumableEffect::HealFixed(v) => {
+                    serde_json::json!({"type": "heal_fixed", "amount": v})
+                }
+                ItemConsumableEffect::HealFractionOfMaxHealth(v) => {
+                    serde_json::json!({"type": "heal_fraction_of_max_health", "fraction": v})
+                }
+            };
             ItemOut {
                 id: kind.id().to_owned(),
                 kind: format!("{kind:?}"),
@@ -162,7 +171,7 @@ fn items() -> Vec<ItemOut> {
                 slot: d.slot().map(|s| format!("{s:?}").to_lowercase()),
                 usage: format!("{:?}", d.usage()).to_lowercase(),
                 consumable: d.is_consumable(),
-                heal: d.heal,
+                consumable_effect,
                 equipment_tags: tags,
                 equipment_modifiers: attr_set_json(d.equipment.modifiers),
                 requirements: serde_json::json!({
@@ -170,8 +179,8 @@ fn items() -> Vec<ItemOut> {
                     "min_attributes": attr_set_json(d.requirements.min_attributes),
                 }),
                 visual: serde_json::json!({
-                    "icon": format!("assets/items/{}/icon.png", kind.id()),
-                    "world": format!("assets/items/{}/world.png", kind.id()),
+                    "icon": kind.icon_path(),
+                    "world": kind.world_sprite_path(),
                     "equipped": format!("assets/items/{}/equipped.png", kind.id()),
                 }),
             }

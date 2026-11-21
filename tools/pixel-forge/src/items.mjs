@@ -29,6 +29,9 @@ const VISUAL_HINTS = {
   cap_67: { bg: '#2a355f', fg: '#ffd84d', accent: '#7cf6ff', world: 'cap', equipped: 'cap', layer: 'head' },
   shirt_67: { bg: '#2a355f', fg: '#7cf6ff', accent: '#ffd84d', world: 'shirt', equipped: 'shirt', layer: 'armor' },
   sneakers_67: { bg: '#2a355f', fg: '#e8eefc', accent: '#ffd84d', world: 'shoes', equipped: 'shoes', layer: 'feet' },
+  enzotella_big: { bg: '#4a2a16', fg: '#7a4a2a', world: 'enzotella_pot', equipped: 'enzotella_pot', layer: null },
+  enzotella_medium: { bg: '#4a2a16', fg: '#7a4a2a', world: 'enzotella_pot', equipped: 'enzotella_pot', layer: null },
+  enzotella_small: { bg: '#4a2a16', fg: '#7a4a2a', world: 'enzotella_pot', equipped: 'enzotella_pot', layer: null },
 };
 
 function loadContract() {
@@ -40,9 +43,21 @@ function loadContract() {
   }})) };
 }
 
-function draw67Mark(c, x, y, fg, accent) {
-  c.rect(x, y, 2, 6, fg); c.rect(x + 1, y, 3, 1, fg); c.rect(x + 3, y + 1, 1, 2, fg); c.rect(x + 1, y + 3, 2, 1, accent);
-  c.rect(x + 6, y, 4, 1, fg); c.rect(x + 9, y + 1, 1, 4, fg); c.rect(x + 6, y + 5, 4, 1, fg); c.rect(x + 6, y + 3, 3, 1, accent);
+function draw67Mark(c, x, y, fg, accent, s = 1) {
+  s = Math.max(1, Math.round(s));
+  // "6"
+  c.rect(x, y, s, 6 * s, fg);
+  c.rect(x + s, y, 3 * s, s, fg);
+  c.rect(x + 3 * s, y + s, s, 2 * s, fg);
+  c.rect(x + s, y + 3 * s, 2 * s, s, accent || fg);
+  c.rect(x + s, y + 5 * s, 3 * s, s, fg);
+  c.rect(x + 3 * s, y + 4 * s, s, s, fg);
+  // "7"
+  const x7 = x + 5 * s;
+  c.rect(x7, y, 4 * s, s, fg);
+  c.rect(x7 + 3 * s, y + s, s, 4 * s, fg);
+  c.rect(x7, y + 5 * s, 4 * s, s, fg);
+  c.rect(x7, y + 3 * s, 3 * s, s, accent || fg);
 }
 
 function pose(frame) {
@@ -58,15 +73,91 @@ function pose(frame) {
   return { y: 0, step: 0, crouch:false };
 }
 
-function icon(bg, fg, accent = null) {
+function drawChocolatePot16(c, ox = 0, oy = 0) {
+  // 16x16 chocolate pot with "67" on label
+  // lid
+  c.rect(ox + 3, oy + 1, 10, 3, '#c7373d');
+  c.rect(ox + 4, oy + 1, 8, 1, '#e85a5f');
+  c.rect(ox + 3, oy + 3, 10, 1, '#8f1f24');
+  // neck
+  c.rect(ox + 4, oy + 4, 8, 1, '#9b5b34');
+  // pot body
+  c.rect(ox + 3, oy + 5, 10, 9, '#6b3a1c');
+  c.rect(ox + 4, oy + 5, 8, 8, '#7a4422');
+  c.rect(ox + 3, oy + 13, 10, 1, '#4a2812');
+  c.rect(ox + 3, oy + 5, 1, 8, '#4a2812');
+  c.rect(ox + 12, oy + 5, 1, 8, '#4a2812');
+  // chocolate at top inside
+  c.rect(ox + 4, oy + 5, 8, 2, '#4a2814');
+  c.rect(ox + 5, oy + 6, 6, 1, '#5a3118');
+  // label
+  c.rect(ox + 4, oy + 8, 8, 4, '#f3e7d3');
+  c.rect(ox + 4, oy + 8, 8, 1, '#ffffff');
+  c.rect(ox + 4, oy + 11, 8, 1, '#cdbb9b');
+  // "67"
+  // 6
+  c.rect(ox + 5, oy + 9, 1, 2, '#5a2f18');
+  c.rect(ox + 6, oy + 9, 1, 1, '#5a2f18');
+  c.rect(ox + 6, oy + 10, 1, 1, '#c83a3a');
+  // 7
+  c.rect(ox + 8, oy + 9, 3, 1, '#5a2f18');
+  c.rect(ox + 10, oy + 10, 1, 1, '#5a2f18');
+  c.rect(ox + 8, oy + 10, 1, 1, '#c83a3a');
+  // highlight/shadow
+  c.rect(ox + 4, oy + 7, 2, 5, '#8b533044');
+}
+
+function drawChocolatePot(c, x, y, w, h) {
+  if (w <= 16 && h <= 16) {
+    drawChocolatePot16(c, Math.round(x), Math.round(y));
+    return;
+  }
+  if (w <= 20 && h <= 20) {
+    // draw centered 16x16 pot in small canvases
+    drawChocolatePot16(c, Math.round(x + (w - 16) / 2), Math.round(y + (h - 16) / 2));
+    return;
+  }
+  // larger canvases: draw scaled 16x16 pixel art for crisp reuse
+  const scale = Math.max(1, Math.floor(Math.min(w, h) / 16));
+  const sprite = new Canvas(16, 16);
+  drawChocolatePot16(sprite, 0, 0);
+  const sw = 16 * scale;
+  const sh = 16 * scale;
+  const ox = Math.round(x + (w - sw) / 2);
+  const oy = Math.round(y + (h - sh) / 2);
+  for (let py = 0; py < 16; py += 1) {
+    for (let px = 0; px < 16; px += 1) {
+      const i = (py * 16 + px) * 4;
+      const a = sprite.data[i + 3];
+      if (a === 0) continue;
+      c.rect(ox + px * scale, oy + py * scale, scale, scale, [
+        sprite.data[i],
+        sprite.data[i + 1],
+        sprite.data[i + 2],
+        a,
+      ]);
+    }
+  }
+}
+
+function icon(bg, fg, accent = null, worldKind = null) {
   const c = new Canvas(32, 32);
   c.rect(0, 0, 32, 32, P.outline); c.rect(1, 1, 30, 30, bg); c.rect(2, 2, 28, 2, '#ffffff33');
-  c.rect(10, 8, 12, 16, fg); c.rect(12, 10, 8, 12, bg); c.rect(15, 6, 2, 20, '#ffffff55');
+  if (worldKind === 'enzotella_pot') {
+    drawChocolatePot(c, 0, 0, 32, 32);
+  } else {
+    c.rect(10, 8, 12, 16, fg); c.rect(12, 10, 8, 12, bg); c.rect(15, 6, 2, 20, '#ffffff55');
+  }
   if (accent) draw67Mark(c, 11, 22, fg, accent);
   return c;
 }
 
 function worldSprite(kind, fg, accent = null) {
+  if (kind === 'enzotella_pot') {
+    const c = new Canvas(16, 16);
+    drawChocolatePot(c, 0, 0, 16, 16);
+    return c;
+  }
   const c = new Canvas(20, 20);
   if (kind === 'blade' || kind === 'blade67') {
     c.rect(9, 2, 2, 14, fg); c.rect(6, 14, 8, 2, P.wood); c.rect(9, 16, 2, 2, P.woodLight);
@@ -180,7 +271,7 @@ export function buildItemAssets(opts = {}) {
     const dir = join(ROOT, 'assets/items', item.id);
     mkdirSync(join(dir, 'layers'), { recursive: true });
     const assets = [
-      ['icon', icon(hint.bg, hint.fg, hint.accent || null)],
+      ['icon', icon(hint.bg, hint.fg, hint.accent || null, hint.world)],
       ['world', worldSprite(hint.world, hint.fg, hint.accent || null)],
       ['equipped', equippedSprite(hint.equipped || hint.world, hint.fg, hint.accent || null)],
     ];

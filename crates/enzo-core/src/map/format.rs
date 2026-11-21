@@ -69,10 +69,18 @@ pub struct EnemySpawnDef {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ItemSpawnDef {
+    pub tile: (usize, usize),
+    /// Item kind id (see `ItemKind::from_id` / `ItemKind::id`).
+    pub kind: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LegendTarget {
     Block(BlockId),
     PlayerSpawn,
     Enemy(String),
+    Item(String),
     Flag,
 }
 
@@ -116,6 +124,11 @@ impl Legend {
             "block" => blocks::block_def_by_id(id).map(|d| LegendTarget::Block(d.id)),
             "enemy" => Some(LegendTarget::Enemy(if id.is_empty() {
                 "slime".to_owned()
+            } else {
+                id.to_owned()
+            })),
+            "item" | "pickup" => Some(LegendTarget::Item(if id.is_empty() {
+                "potion".to_owned()
             } else {
                 id.to_owned()
             })),

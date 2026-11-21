@@ -16,6 +16,7 @@ pub mod amulet;
 pub mod armor;
 pub mod bow;
 pub mod cap_67;
+pub mod enzotella;
 pub mod nutella_gun;
 pub mod potion;
 pub mod shirt_67;
@@ -94,10 +95,13 @@ pub enum ItemKind {
     Cap67,
     Shirt67,
     Sneakers67,
+    EnzotellaBig,
+    EnzotellaMedium,
+    EnzotellaSmall,
 }
 
 impl ItemKind {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 13] = [
         Self::Sword,
         Self::Bow,
         Self::Armor,
@@ -108,6 +112,9 @@ impl ItemKind {
         Self::Cap67,
         Self::Shirt67,
         Self::Sneakers67,
+        Self::EnzotellaBig,
+        Self::EnzotellaMedium,
+        Self::EnzotellaSmall,
     ];
 
     pub const fn code(self) -> u8 {
@@ -130,6 +137,16 @@ impl ItemKind {
             Self::Cap67 => "cap_67",
             Self::Shirt67 => "shirt_67",
             Self::Sneakers67 => "sneakers_67",
+            Self::EnzotellaBig => "enzotella_big",
+            Self::EnzotellaMedium => "enzotella_medium",
+            Self::EnzotellaSmall => "enzotella_small",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Option<Self> {
+        match id {
+            "enzotella" => Some(Self::EnzotellaBig),
+            _ => Self::ALL.into_iter().find(|k| k.id() == id),
         }
     }
 
@@ -145,6 +162,9 @@ impl ItemKind {
             Self::Cap67 => cap_67::visual::ICON,
             Self::Shirt67 => shirt_67::visual::ICON,
             Self::Sneakers67 => sneakers_67::visual::ICON,
+            Self::EnzotellaBig | Self::EnzotellaMedium | Self::EnzotellaSmall => {
+                enzotella::visual::ICON
+            }
         }
     }
 
@@ -160,6 +180,9 @@ impl ItemKind {
             Self::Cap67 => cap_67::visual::WORLD_SPRITE,
             Self::Shirt67 => shirt_67::visual::WORLD_SPRITE,
             Self::Sneakers67 => sneakers_67::visual::WORLD_SPRITE,
+            Self::EnzotellaBig | Self::EnzotellaMedium | Self::EnzotellaSmall => {
+                enzotella::visual::WORLD_SPRITE
+            }
         }
     }
 
@@ -175,6 +198,9 @@ impl ItemKind {
             Self::Cap67 => ItemData::CAP_67,
             Self::Shirt67 => ItemData::SHIRT_67,
             Self::Sneakers67 => ItemData::SNEAKERS_67,
+            Self::EnzotellaBig => ItemData::ENZOTELLA_BIG,
+            Self::EnzotellaMedium => ItemData::ENZOTELLA_MEDIUM,
+            Self::EnzotellaSmall => ItemData::ENZOTELLA_SMALL,
         }
     }
 
@@ -300,6 +326,45 @@ impl ItemPickup {
     }
 }
 
+/// Instant-use/consumable effect applied when a consumable item is taken.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ItemConsumableEffect {
+    None,
+    HealFixed(f32),
+    /// Heals a fraction of max HP (e.g. 0.25 = 1/4). Not consumed if HP is full.
+    HealFractionOfMaxHealth(f32),
+}
+
+impl ItemConsumableEffect {
+    /// Returns the health amount that can be applied now (clamped to missing HP).
+    pub fn resolve_heal(self, current_health: f32, max_health: f32) -> f32 {
+        if max_health <= 0.0 || current_health >= max_health {
+            return 0.0;
+        }
+        let raw = match self {
+            Self::None => 0.0,
+            Self::HealFixed(amount) => amount,
+            Self::HealFractionOfMaxHealth(fraction) => max_health * fraction,
+        };
+        if raw <= 0.0 {
+            0.0
+        } else {
+            raw.min((max_health - current_health).max(0.0))
+        }
+    }
+
+    /// Whether consuming this effect should be allowed now.
+    pub fn can_apply(self, current_health: f32, max_health: f32) -> bool {
+        match self {
+            Self::None => false,
+            Self::HealFixed(_) | Self::HealFractionOfMaxHealth(_) => {
+                self.resolve_heal(current_health, max_health) > 0.0
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EquipError {
     WrongEntityType {
@@ -321,8 +386,8 @@ pub struct ItemData {
     /// Contribuição enquanto equipado. Poções deixam em [`Equipment::NONE`].
     pub equipment: Equipment,
     pub requirements: ItemRequirements,
-    /// Cura aplicada ao consumir. Zero para itens não consumíveis.
-    pub heal: f32,
+    /// Instant-use/consumable effect (e.g. healing on touch).
+    pub consumable_effect: ItemConsumableEffect,
     /// Behavior for item entities spawned/dropped in the world.
     pub world_physics: ItemWorldPhysics,
     /// How the item is collected from the world.

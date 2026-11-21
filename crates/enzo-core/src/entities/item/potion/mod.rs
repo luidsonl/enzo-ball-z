@@ -2,7 +2,10 @@
 
 use crate::skills::EntityType;
 
-use super::{ItemCategory, ItemData, ItemKind, ItemPickup, ItemRequirements, ItemWorldPhysics};
+use super::{
+    ItemCategory, ItemConsumableEffect, ItemData, ItemKind, ItemPickup, ItemRequirements,
+    ItemWorldPhysics,
+};
 use crate::entities::{AttributeId, AttributeSet, Equipment};
 
 impl ItemData {
@@ -14,7 +17,7 @@ impl ItemData {
             &[EntityType::Playable],
             AttributeSet::ZERO.with(AttributeId::AURA, 1),
         ),
-        heal: 3.0,
+        consumable_effect: ItemConsumableEffect::HealFixed(3.0),
         world_physics: ItemWorldPhysics::FLOATING,
         pickup: ItemPickup::TOUCH,
     };
