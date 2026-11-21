@@ -13,6 +13,7 @@
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EnemySpecies {
     Slime,
+    GiantSlime,
 }
 
 /// Estado comum a qualquer inimigo. A intenção de patrulha fica no componente

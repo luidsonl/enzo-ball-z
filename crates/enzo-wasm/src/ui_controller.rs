@@ -850,18 +850,32 @@ fn sandbox_block_options() -> Vec<UiSandboxBlockOption> {
 }
 
 pub fn default_sandbox_ui_state() -> UiSandboxState {
-    let enemies = vec![UiSandboxEnemyOption {
-        code: 0,
-        kind: "slime".to_owned(),
-        name: "Slime".to_owned(),
-        sprite: "assets/entities/slime/sheet.png".to_owned(),
-        frame_x: 0,
-        frame_y: 0,
-        frame_w: 32,
-        frame_h: 32,
-        sheet_w: 192,
-        sheet_h: 32,
-    }];
+    let enemies = vec![
+        UiSandboxEnemyOption {
+            code: 0,
+            kind: "slime".to_owned(),
+            name: "Slime".to_owned(),
+            sprite: "assets/entities/slime/sheet.png".to_owned(),
+            frame_x: 0,
+            frame_y: 0,
+            frame_w: 32,
+            frame_h: 32,
+            sheet_w: 192,
+            sheet_h: 32,
+        },
+        UiSandboxEnemyOption {
+            code: 1,
+            kind: "giant_slime".to_owned(),
+            name: "Giant Slime".to_owned(),
+            sprite: "assets/entities/slime/sheet.png".to_owned(),
+            frame_x: 0,
+            frame_y: 0,
+            frame_w: 32,
+            frame_h: 32,
+            sheet_w: 192,
+            sheet_h: 32,
+        },
+    ];
     let items = enzo_core::entities::ItemKind::ALL
         .iter()
         .map(|k| UiSandboxItemOption {

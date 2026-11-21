@@ -833,8 +833,10 @@ impl GameSession {
             }
             2 => {
                 // Spawn selected enemy centered on the cursor world position.
-                let kind = "slime";
-                let size = enzo_core::entities::SLIME_SIZE;
+                let (kind, size) = match self.sandbox_tool.selected_enemy {
+                    1 => ("giant_slime", enzo_core::entities::GIANT_SLIME_SIZE),
+                    _ => ("slime", enzo_core::entities::SLIME_SIZE),
+                };
                 let spawn_pos = enzo_core::math::Vec2::new(
                     world_pos.x - size.x * 0.5,
                     world_pos.y - size.y * 0.5,

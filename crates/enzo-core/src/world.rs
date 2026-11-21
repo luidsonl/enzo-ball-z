@@ -6,8 +6,8 @@ use crate::entities::{
     actors::enzo::ENZO_CROUCH_SIZE,
     actors::valentina::{VALENTINA_CROUCH_SIZE, VALENTINA_SIZE},
     item::ItemPickupMode,
-    EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind,
-    PlayableCharacter, PlayerId, VisualProfile, ENZO_SIZE, SLIME_SIZE,
+    EnemySpecies, EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind,
+    PlayableCharacter, PlayerId, VisualProfile, ENZO_SIZE, GIANT_SLIME_SIZE, SLIME_SIZE,
 };
 use crate::events::{GameEvent, SkillRejectReason, TickOutput};
 use crate::input::{PlayerCommand, TickInput};
@@ -451,24 +451,41 @@ impl World {
 
         // 11. Limpeza
         let mut dead_to_despawn = Vec::new();
+        let mut split_spawns: Vec<Vec2> = Vec::new();
         for entity in self.store.enemies_mut() {
             if entity.health.is_alive() {
                 continue;
             }
-            let Some(enemy) = entity.enemy_mut() else {
-                continue;
+            let (species, timer_ready) = {
+                let Some(enemy) = entity.enemy_mut() else {
+                    continue;
+                };
+                if enemy.death_timer <= 0.0 {
+                    enemy.death_timer = ENEMY_DEATH_DELAY;
+                } else {
+                    enemy.death_timer = (enemy.death_timer - DT).max(0.0);
+                }
+                (enemy.species, enemy.death_timer <= 0.0)
             };
-            if enemy.death_timer <= 0.0 {
-                enemy.death_timer = ENEMY_DEATH_DELAY;
-            } else {
-                enemy.death_timer = (enemy.death_timer - DT).max(0.0);
-            }
-            if enemy.death_timer <= 0.0 {
+            if timer_ready {
+                if species == EnemySpecies::GiantSlime {
+                    let bottom = entity.body.bottom();
+                    let cx = entity.body.center().x;
+                    for ox in [-18.0_f32, 0.0, 18.0] {
+                        split_spawns.push(Vec2::new(
+                            cx + ox - SLIME_SIZE.x * 0.5,
+                            bottom - SLIME_SIZE.y,
+                        ));
+                    }
+                }
                 dead_to_despawn.push(entity.id);
             }
         }
         for id in dead_to_despawn {
             self.store.despawn(id);
+        }
+        for pos in split_spawns {
+            spawn_enemy(&mut self.store, "slime", pos);
         }
 
         let dead_players: Vec<EntityId> = self
@@ -1114,6 +1131,7 @@ impl World {
         }
         let id = match kind {
             "slime" | "" => self.store.spawn(EntitySpec::slime(pos)),
+            "giant_slime" => self.store.spawn(EntitySpec::giant_slime(pos)),
             _ => return None,
         };
         Some(id)
@@ -1196,7 +1214,8 @@ impl World {
 
 fn enemy_anchor(tile: (usize, usize), kind: &str) -> Vec2 {
     let size = match kind {
-        "slime" => SLIME_SIZE,
+        "slime" | "" => SLIME_SIZE,
+        "giant_slime" => GIANT_SLIME_SIZE,
         _ => SLIME_SIZE,
     };
     Vec2::new(
@@ -1209,6 +1228,9 @@ fn spawn_enemy(store: &mut EntityStore, kind: &str, pos: Vec2) {
     match kind {
         "slime" | "" => {
             store.spawn(EntitySpec::slime(pos));
+        }
+        "giant_slime" => {
+            store.spawn(EntitySpec::giant_slime(pos));
         }
         _ => {
             store.spawn(EntitySpec::slime(pos));
@@ -1642,5 +1664,66 @@ mod tests {
         assert!(kinds.contains(&ItemKind::EnzotellaMedium));
         assert!(kinds.contains(&ItemKind::EnzotellaSmall));
         assert!(kinds.contains(&ItemKind::Potion));
+    }
+
+    #[test]
+    fn giant_slime_splits_into_three_slimes_on_death() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        let pos = crate::math::Vec2::new(300.0, 200.0);
+        let id = world
+            .sandbox_spawn_enemy("giant_slime", pos)
+            .expect("giant slime should spawn in sandbox");
+
+        // Stronger than regular slime.
+        let giant = world.store().get(id).unwrap();
+        let slime = crate::entities::EntitySpec::slime(crate::math::Vec2::ZERO);
+        assert!(giant.stats.max_health > slime.stats.max_health);
+        assert!(
+            giant.enemy().copied().unwrap().contact_damage
+                > slime.kind.enemy().copied().unwrap().contact_damage
+        );
+        assert_eq!(
+            giant.enemy().copied().unwrap().species,
+            crate::entities::EnemySpecies::GiantSlime
+        );
+
+        // Kill it and wait for death/despawn delay.
+        world.store_mut().get_mut(id).unwrap().health.current = 0.0;
+        let ticks = ((crate::world::ENEMY_DEATH_DELAY / crate::DT).ceil() as usize) + 2;
+        for _ in 0..ticks {
+            world.step(crate::input::TickInput::default());
+        }
+
+        assert!(
+            world.store().get(id).is_none(),
+            "giant slime should despawn after death delay"
+        );
+        let spawned_slimes: Vec<_> = world
+            .store()
+            .iter()
+            .filter(|e| {
+                e.enemy()
+                    .is_some_and(|d| d.species == crate::entities::EnemySpecies::Slime)
+            })
+            .collect();
+        assert_eq!(
+            spawned_slimes.len(),
+            3,
+            "giant slime should split into 3 regular slimes"
+        );
+    }
+
+    #[test]
+    fn map_legend_can_spawn_giant_slime() {
+        let src = "name: slime map\n\n[legend]\n. = block:empty\n# = block:ground\nP = marker:player\nG = enemy:giant_slime\nE = enemy:slime\n\n[map]\nP.GE\n####\n";
+        let world = World::new(src).unwrap();
+        assert_eq!(world.level().enemy_spawns.len(), 2);
+        let species: Vec<_> = world
+            .store()
+            .iter()
+            .filter_map(|e| e.enemy().map(|d| d.species))
+            .collect();
+        assert!(species.contains(&crate::entities::EnemySpecies::Slime));
+        assert!(species.contains(&crate::entities::EnemySpecies::GiantSlime));
     }
 }

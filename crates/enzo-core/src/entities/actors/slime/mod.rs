@@ -1,4 +1,4 @@
-//! **Slime** enemy actor.
+//! **Slime** enemy actors (regular and giant variants).
 
 use crate::ai::Ai;
 use crate::math::Vec2;
@@ -18,6 +18,11 @@ pub const SLIME_SIZE: Vec2 = Vec2::new(26.0, 26.0);
 pub const SLIME_XP_REWARD: f32 = 25.0;
 /// Slime contact damage (rebalance target 2-4, integer). Fixed at 3 for determinism.
 pub const SLIME_CONTACT_DAMAGE: f32 = 3.0;
+
+/// Giant slime: stronger slime that splits into 3 regular slimes on death.
+pub const GIANT_SLIME_SIZE: Vec2 = Vec2::new(52.0, 52.0);
+pub const GIANT_SLIME_XP_REWARD: f32 = 60.0;
+pub const GIANT_SLIME_CONTACT_DAMAGE: f32 = 5.0;
 
 /// Visual/animation contract (pure data). Rendering resolves frames from this.
 pub mod visual {
@@ -50,16 +55,34 @@ impl Stats {
             mogging_damage: 0.0,
         }
     }
+
+    pub fn giant_slime() -> Self {
+        Self {
+            walk_speed: 50.0,
+            run_speed: 50.0,
+            jump_speed: 0.0,
+            strength: 0.0,
+            max_health: 9.0,
+            max_aura: 0.0,
+            mogging_damage: 0.0,
+        }
+    }
 }
 
 impl EntitySpec {
-    pub fn slime(pos: Vec2) -> Self {
-        let stats = Stats::slime();
+    fn slime_variant(
+        pos: Vec2,
+        species: EnemySpecies,
+        size: Vec2,
+        stats: Stats,
+        xp_reward: f32,
+        contact_damage: f32,
+    ) -> Self {
         Self {
             kind: EntityKind::Enemy(EnemyData {
-                species: EnemySpecies::Slime,
-                xp_reward: SLIME_XP_REWARD,
-                contact_damage: SLIME_CONTACT_DAMAGE,
+                species,
+                xp_reward,
+                contact_damage,
                 stun: 0.0,
                 xp_awarded: false,
                 death_timer: 0.0,
@@ -67,7 +90,7 @@ impl EntitySpec {
             controller: Controller::from_ai(Ai::slime()),
             team: TeamId::ENEMIES,
             pos,
-            size: SLIME_SIZE,
+            size,
             health: Health::full(stats.max_health),
             stats,
             attributes: Attributes::ZERO,
@@ -79,6 +102,28 @@ impl EntitySpec {
             visual_character: None,
             visual_profile: Default::default(),
         }
+    }
+
+    pub fn slime(pos: Vec2) -> Self {
+        Self::slime_variant(
+            pos,
+            EnemySpecies::Slime,
+            SLIME_SIZE,
+            Stats::slime(),
+            SLIME_XP_REWARD,
+            SLIME_CONTACT_DAMAGE,
+        )
+    }
+
+    pub fn giant_slime(pos: Vec2) -> Self {
+        Self::slime_variant(
+            pos,
+            EnemySpecies::GiantSlime,
+            GIANT_SLIME_SIZE,
+            Stats::giant_slime(),
+            GIANT_SLIME_XP_REWARD,
+            GIANT_SLIME_CONTACT_DAMAGE,
+        )
     }
 }
 
@@ -100,5 +145,18 @@ mod tests {
         assert!(!entity.locomotion.has_sixseven());
         assert!(entity.skills.loadout.is_empty());
         assert!(entity.ai().is_some());
+    }
+
+    #[test]
+    fn giant_slime_is_stronger_than_regular_slime() {
+        let giant = EntitySpec::giant_slime(Vec2::ZERO);
+        let slime = EntitySpec::slime(Vec2::ZERO);
+        assert!(giant.size.x > slime.size.x && giant.size.y > slime.size.y);
+        assert!(giant.stats.max_health > slime.stats.max_health);
+        let giant_enemy = giant.kind.enemy().copied().unwrap();
+        let slime_enemy = slime.kind.enemy().copied().unwrap();
+        assert!(giant_enemy.contact_damage > slime_enemy.contact_damage);
+        assert!(giant_enemy.xp_reward > slime_enemy.xp_reward);
+        assert_eq!(giant_enemy.species, EnemySpecies::GiantSlime);
     }
 }
