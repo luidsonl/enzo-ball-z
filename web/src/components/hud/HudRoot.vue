@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { UiAction, closeMenuAndFocusGame, equipItem, focusGameCanvas, loadoutAssign, loadoutClear, sandboxApply, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
+import { UiAction, closeMenuAndFocusGame, focusGameCanvas, loadoutAssign, loadoutClear, sandboxApply, setPlayableCharacter, setVisualProfileField, uiAction, unequipSlot } from "../../bridge/bridge.js";
 import { mobileControlsVisible } from "../../lib/mobile.js";
 
 const props = defineProps({
@@ -135,7 +135,6 @@ const tabs = computed(() => {
     ["status", labels.value.status || "Status", needsDistribution.value],
     ["equipment", labels.value.equipment || "Equipment", false],
     ["skills", labels.value.skills || "Skills", false],
-    ["items", labels.value.inventory || "Items", false],
   ];
   if (isSandbox.value) {
     base.push(["debug", labels.value.sandbox_debug || "Debug", false]);
@@ -495,28 +494,6 @@ function translateSkillCalc(text, lang = uiLang()) {
                     style="margin-left:auto; pointer-events:auto; touch-action: manipulation"
                     @click.prevent.stop="unequipSlot(slot.slot_code)"
                   >{{ labels.unequip || 'Unequip' }}</button>
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template v-else-if="openPanel === 'items'">
-            <div class="dom-game-panel-header">
-              <h3 class="dom-title">{{ labels.inventory_title || labels.inventory || 'Items' }}</h3>
-              <button type="button" class="dom-btn small secondary" @click.prevent.stop="closePanel()">{{ labels.close || 'Close' }}</button>
-            </div>
-            <div class="dom-game-panel-body">
-              <p v-if="!(player.inventory || []).length" class="muted">{{ labels.inventory_empty || 'Empty' }}</p>
-              <div v-else class="dom-list">
-                <div v-for="(item, i) in (player.inventory || [])" :key="i" class="dom-list-row">
-                  <span class="dom-list-val">{{ item.name || item.kind }}</span>
-                  <button
-                    v-if="item.code != null"
-                    type="button"
-                    class="dom-btn small primary"
-                    style="margin-left:auto; pointer-events:auto; touch-action: manipulation"
-                    @click.prevent.stop="equipItem(item.code)"
-                  >{{ labels.equip || 'Equip' }}</button>
                 </div>
               </div>
             </div>

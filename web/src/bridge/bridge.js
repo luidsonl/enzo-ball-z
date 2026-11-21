@@ -42,7 +42,6 @@ export const UiAction = Object.freeze({
   HudRestart: 14,
   HudOpenMenu: 15,
   HudOpenSkills: 16,
-  EquipInventoryItem: 19,
   UnequipSlot: 20,
   SetPlayableCharacter: 21,
   SetVisualProfileField: 22,
@@ -145,14 +144,6 @@ export function loadoutClear(slot) {
     return;
   }
   if (pendingUi.length < 64) pendingUi.push({ kind: "clear", slot });
-}
-
-export function equipItem(itemCode) {
-  if (exportsReady() && typeof globalThis.wasm_exports.enzo_equip_item === "function") {
-    globalThis.wasm_exports.enzo_equip_item(itemCode);
-    return;
-  }
-  uiAction(UiAction.EquipInventoryItem, itemCode, 0, 0);
 }
 
 export function unequipSlot(slotCode) {

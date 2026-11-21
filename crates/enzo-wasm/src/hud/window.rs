@@ -1,7 +1,7 @@
 //! Janelas arrastáveis do HUD.
 //!
 //! Cada janela tem estado próprio (aberta, posição e tamanho). O conteúdo vive
-//! em módulos separados (`status_window`, `inventory`, `equipment`, `skills`);
+//! em módulos separados (`status_window`, `equipment`, `skills`);
 //! este módulo cuida apenas da moldura, do título e do botão de fechar.
 
 use macroquad::prelude::*;
@@ -13,32 +13,24 @@ use crate::ui::{self, rgba};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WindowId {
     Status,
-    Inventory,
     Equipment,
     Skills,
 }
 
 impl WindowId {
-    pub const ALL: [WindowId; 4] = [
-        WindowId::Status,
-        WindowId::Inventory,
-        WindowId::Equipment,
-        WindowId::Skills,
-    ];
+    pub const ALL: [WindowId; 3] = [WindowId::Status, WindowId::Equipment, WindowId::Skills];
 
     pub fn index(self) -> usize {
         match self {
             Self::Status => 0,
-            Self::Inventory => 1,
-            Self::Equipment => 2,
-            Self::Skills => 3,
+            Self::Equipment => 1,
+            Self::Skills => 2,
         }
     }
 
     pub fn title(self, i18n: I18n) -> &'static str {
         match self {
             Self::Status => i18n.t(Text::StatusTitle),
-            Self::Inventory => i18n.t(Text::InventoryTitle),
             Self::Equipment => i18n.t(Text::EquipmentTitle),
             Self::Skills => i18n.t(Text::SkillsTitle),
         }
@@ -47,7 +39,6 @@ impl WindowId {
     pub fn accent(self) -> Color {
         match self {
             Self::Status => ui::GOLD,
-            Self::Inventory => ui::GREEN,
             Self::Equipment => ui::STEEL,
             Self::Skills => ui::PURPLE,
         }

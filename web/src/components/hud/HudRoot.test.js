@@ -20,7 +20,7 @@ function gameState(overrides = {}) {
     scene: "game",
     phase: "Playing",
     labels: {
-      status: "Status", equipment: "Equipment", skills: "Skills", inventory: "Items",
+      status: "Status", equipment: "Equipment", skills: "Skills",
       points: "Points", level: "Level", menu: "Menu", close: "Close", assign: "Assign", clear: "Clear",
     },
     settings: { language: "en", mobile_controls: "off" },
@@ -40,7 +40,6 @@ function gameState(overrides = {}) {
         { skill: 5, name: "Nutella", available: false, category: "Attack", equipped_slot: null, aura_cost: 0, cooldown_max: 0.25 },
       ],
       equipment_slots: [{ slot: "weapon", slot_label: "Weapon", item: null }],
-      inventory: [],
     },
     ...overrides,
   };

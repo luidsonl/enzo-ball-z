@@ -458,7 +458,6 @@ impl App {
                             );
                         }
                     }
-                    UiAction::EquipInventoryItem { .. } => {}
                     UiAction::UnequipSlot { slot } => {
                         if let Some(slot) = enzo_core::entities::EquipSlot::from_code(slot) {
                             let _ = session.world.unequip_slot(0, slot);
@@ -523,7 +522,6 @@ impl App {
                             );
                         }
                     }
-                    UiAction::EquipInventoryItem { .. } => {}
                     UiAction::UnequipSlot { slot } => {
                         if let Some(slot) = enzo_core::entities::EquipSlot::from_code(slot) {
                             let _ = game.world.unequip_slot(0, slot);

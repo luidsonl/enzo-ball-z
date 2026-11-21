@@ -69,9 +69,6 @@ pub enum UiAction {
     LoadoutClear {
         slot: u8,
     },
-    EquipInventoryItem {
-        item: u8,
-    },
     UnequipSlot {
         slot: u8,
     },
@@ -153,7 +150,6 @@ impl UiAction {
             14 => UiAction::HudRestart,
             15 => UiAction::HudOpenMenu,
             16 => UiAction::HudOpenSkills,
-            19 => UiAction::EquipInventoryItem { item: a },
             20 => UiAction::UnequipSlot { slot: a },
             21 => UiAction::SetPlayableCharacter { character: a },
             22 => UiAction::SetVisualProfileField { field: a, value: b },
@@ -289,11 +285,6 @@ pub extern "C" fn enzo_loadout_clear(slot: u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn enzo_equip_item(item_code: u8) {
-    push_ui_action(UiAction::EquipInventoryItem { item: item_code });
-}
-
-#[no_mangle]
 pub extern "C" fn enzo_unequip_slot(slot_code: u8) {
     push_ui_action(UiAction::UnequipSlot { slot: slot_code });
 }
@@ -316,7 +307,7 @@ pub extern "C" fn enzo_set_visual_profile_field(field: u8, value: u8) {
 /// 5=resume, 6=request delete(slot=a), 7=cancel delete, 8=confirm delete,
 /// 9=set language(a), 10=set mobile controls(a), 11=set interface scale percent(a*256+b),
 /// 12=allocate attribute(a), 13=confirm level up, 14=restart, 15=open menu, 16=open skills,
-/// 19=equip inventory item(a=item code), 20=unequip slot(a=slot code),
+/// 20=unequip slot(a=slot code),
 /// 21=set playable character(a=code), 22=set visual profile field(a=field,b=value),
 /// 23=open customize, 24=open controls, 25=reset controls to defaults,
 /// 26=set control key(a=input action code,b=supported key index,c=1 replace/0 add), 27=clear action keys(a=input action code),

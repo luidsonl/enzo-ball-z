@@ -1,22 +1,10 @@
-//! HUD e overlays em screen space.
+//! HUD e overlays in screen space.
 //!
-//! O HUD tem duas camadas:
-//! - uma barra fixa (vida, aura, XP, Mogging) com os dots que abrem submenus;
-//! - janelas arrastáveis de status, inventário, equipamento e habilidades.
-//!
-//! Tudo aqui é leitura do snapshot e estado de UI do cliente. Nenhuma regra de
-//! jogo é decidida aqui: cliques só produzem [`HudAction`], que o `app` traduz
-//! para comandos do core.
-//!
-//! O desenho é dividido por responsabilidade:
-//! - [`status`] desenha a barra fixa e os toggles;
-//! - [`window`] concentra a moldura/arraste das janelas;
-//! - `status_window`, `inventory`, `equipment` e `skills` desenham conteúdos;
-//! - [`overlays`] desenha banners, dicas e telas de morte/vitória;
-//! - as primitivas visuais compartilhadas ficam em `crate::ui`.
+//! HUD has a fixed bar and draggable windows (status, equipment, skills).
+//! This module is read-only over snapshots/UI state; clicks only produce
+//! [`HudAction`] for the app to translate.
 
 mod equipment;
-mod inventory;
 mod overlays;
 mod skills;
 mod status;
@@ -167,10 +155,6 @@ impl Hud {
             let active = interactive == Some(id);
             let window_action = match id {
                 WindowId::Status => status_window::draw(pointer, state, player, i18n, ui, active),
-                WindowId::Inventory => {
-                    inventory::draw(state, player, i18n, ui);
-                    None
-                }
                 WindowId::Equipment => {
                     equipment::draw(state, player, i18n, ui);
                     None
@@ -249,7 +233,6 @@ impl Default for Hud {
 fn default_pos(id: WindowId) -> Vec2 {
     match id {
         WindowId::Status => Vec2::new(430.0, 116.0),
-        WindowId::Inventory => Vec2::new(490.0, 150.0),
         WindowId::Equipment => Vec2::new(530.0, 186.0),
         WindowId::Skills => Vec2::new(570.0, 222.0),
     }
@@ -259,7 +242,6 @@ fn default_pos(id: WindowId) -> Vec2 {
 fn default_size(id: WindowId) -> Vec2 {
     match id {
         WindowId::Status => Vec2::new(360.0, 380.0),
-        WindowId::Inventory => Vec2::new(340.0, 300.0),
         WindowId::Equipment => Vec2::new(340.0, 250.0),
         WindowId::Skills => Vec2::new(360.0, 380.0),
     }
@@ -319,8 +301,8 @@ mod tests {
     #[test]
     fn focus_moves_the_window_to_the_top_of_the_stack() {
         let mut hud = Hud::new();
-        hud.focus(WindowId::Inventory);
-        assert_eq!(hud.order.last().copied(), Some(WindowId::Inventory));
+        hud.focus(WindowId::Equipment);
+        assert_eq!(hud.order.last().copied(), Some(WindowId::Equipment));
         hud.focus(WindowId::Skills);
         assert_eq!(hud.order.last().copied(), Some(WindowId::Skills));
     }
@@ -330,11 +312,10 @@ mod tests {
         let mut hud = Hud::new();
         hud.init_layout(1.0, Vec2::new(1280.0, 720.0));
         hud.open(WindowId::Status);
-        hud.open(WindowId::Inventory);
+        hud.open(WindowId::Equipment);
 
-        let center = hud.windows[WindowId::Inventory.index()].pos + Vec2::new(10.0, 10.0);
-        // As janelas se sobrepõem; a última aberta/focada deve ganhar.
-        hud.bring_to_front(WindowId::Inventory);
-        assert_eq!(hud.top_window_at(center), Some(WindowId::Inventory));
+        let center = hud.windows[WindowId::Equipment.index()].pos + Vec2::new(10.0, 10.0);
+        hud.bring_to_front(WindowId::Equipment);
+        assert_eq!(hud.top_window_at(center), Some(WindowId::Equipment));
     }
 }

@@ -87,7 +87,6 @@ pub enum Text {
     Xp,
     Points,
     Status,
-    Inventory,
     Equipment,
     Skills,
     MenuButton,
@@ -115,10 +114,6 @@ pub enum Text {
     PointsToSpend,
     SpendHint,
     BackToGame,
-
-    // Janela de inventário
-    InventoryTitle,
-    InventoryEmpty,
 
     // Janela de equipamentos
     EquipmentTitle,
@@ -281,8 +276,6 @@ impl I18n {
             (Language::English, Text::Points) => "POINTS",
             (Language::PtBr, Text::Status) => "Status",
             (Language::English, Text::Status) => "Status",
-            (Language::PtBr, Text::Inventory) => "Inventário",
-            (Language::English, Text::Inventory) => "Inventory",
             (Language::PtBr, Text::Equipment) => "Equipamentos",
             (Language::English, Text::Equipment) => "Equipment",
             (Language::PtBr, Text::Skills) => "Habilidades",
@@ -335,13 +328,6 @@ impl I18n {
             (Language::English, Text::SpendHint) => "Click an attribute to spend",
             (Language::PtBr, Text::BackToGame) => "Voltar ao jogo",
             (Language::English, Text::BackToGame) => "Back to game",
-
-            // Inventário
-            (Language::PtBr, Text::InventoryTitle) => "INVENTÁRIO",
-            (Language::English, Text::InventoryTitle) => "INVENTORY",
-            (Language::PtBr, Text::InventoryEmpty) => "Nenhum item coletado ainda.",
-            (Language::English, Text::InventoryEmpty) => "No items collected yet.",
-
             // Equipamentos
             (Language::PtBr, Text::EquipmentTitle) => "EQUIPAMENTOS",
             (Language::English, Text::EquipmentTitle) => "EQUIPMENT",
@@ -567,7 +553,7 @@ mod tests {
     use super::*;
 
     /// List of keys for coverage testing. Keep in sync with the enum.
-    const ALL_TEXT: [Text; 111] = [
+    const ALL_TEXT: [Text; 108] = [
         Text::MenuSubtitle,
         Text::Play,
         Text::Resume,
@@ -603,7 +589,6 @@ mod tests {
         Text::Xp,
         Text::Points,
         Text::Status,
-        Text::Inventory,
         Text::Equipment,
         Text::Skills,
         Text::MenuButton,
@@ -629,8 +614,6 @@ mod tests {
         Text::PointsToSpend,
         Text::SpendHint,
         Text::BackToGame,
-        Text::InventoryTitle,
-        Text::InventoryEmpty,
         Text::EquipmentTitle,
         Text::WeaponSlot,
         Text::ArmorSlot,
