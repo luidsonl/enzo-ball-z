@@ -6,14 +6,14 @@ const mocks = vi.hoisted(() => ({
   loadoutAssign: vi.fn(),
   loadoutClear: vi.fn(),
 }));
-vi.mock("../../bridge/bridge.js", async (importOriginal) => {
+vi.mock("../../../bridge/bridge.js", async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, uiAction: mocks.uiAction, loadoutAssign: mocks.loadoutAssign, loadoutClear: mocks.loadoutClear };
 });
-vi.mock("../../lib/mobile.js", () => ({ mobileControlsVisible: () => false }));
+vi.mock("../../../lib/mobile.js", () => ({ mobileControlsVisible: () => false }));
 
 import HudRoot from "./HudRoot.vue";
-import { UiAction } from "../../bridge/bridge.js";
+import { UiAction } from "../../../bridge/bridge.js";
 
 function gameState(overrides = {}) {
   return {

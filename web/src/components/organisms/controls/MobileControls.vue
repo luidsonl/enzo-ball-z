@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
-import { Action, actionDown, actionUp } from "../../bridge/bridge.js";
-import { mobileControlsVisible } from "../../lib/mobile.js";
+import { Action, actionDown, actionUp } from "../../../bridge/bridge.js";
+import { mobileControlsVisible } from "../../../lib/mobile.js";
+import MobileJoystick from "../../molecules/mobile/MobileJoystick.vue";
+import MobileActionButton from "../../molecules/mobile/MobileActionButton.vue";
 
 const props = defineProps({
   state: { type: Object, default: null },
@@ -282,61 +284,34 @@ onBeforeUnmount(() => {
     :style="{ display: visible ? '' : 'none' }"
   >
     <template v-for="control in renderControls" :key="control.id || `${control.label}-${control.x}-${control.y}`">
-      <div
+      <MobileJoystick
         v-if="control.kind === 'joystick'"
-        :ref="(el) => setJoyEl(control.id, el)"
-        class="ui-joystick"
-        :class="[anchorClass(control.anchor), { active: activeClasses[control.id] }]"
-        :data-control-id="control.id || ''"
-        :style="layoutVars(control)"
+        :control="control"
+        :active="!!activeClasses[control.id]"
+        :anchor-class="anchorClass(control.anchor)"
+        :layout-vars="layoutVars(control)"
+        :knob-style="joyKnobStyle(control)"
+        :set-el="(el) => setJoyEl(control.id, el)"
         @pointerdown="joyDown(control, $event)"
         @pointermove="joyMove(control, $event)"
         @pointerup="joyUp(control, $event)"
         @pointercancel="joyUp(control, $event)"
-        @contextmenu.prevent
-      >
-        <div class="ui-joystick-base" aria-hidden="true"></div>
-        <div class="ui-joystick-knob" :style="joyKnobStyle(control)" aria-hidden="true"></div>
-      </div>
+      />
 
-      <div
+      <MobileActionButton
         v-else
-        class="ui-btn"
-        :class="[
-          anchorClass(control.anchor),
-          { active: activeClasses[control.id] },
-          control.kind === 'slot' ? slotClasses(control) : '',
-        ]"
-        :data-control-id="control.id || ''"
-        :data-kind="control.kind || null"
-        :data-slot="control.slot != null ? String(control.slot) : null"
-        :style="layoutVars(control)"
-        role="button"
-        tabindex="-1"
+        :control="control"
+        :active="!!activeClasses[control.id]"
+        :anchor-class="anchorClass(control.anchor)"
+        :layout-vars="layoutVars(control)"
+        :extra-classes="control.kind === 'slot' ? slotClasses(control) : {}"
+        :slot-info="slotInfo(control)"
+        :slot-skill-name="slotSkillName(slotInfo(control))"
         @pointerdown="press(control, $event)"
         @pointerup="release(control, $event)"
         @pointercancel="release(control, $event)"
         @pointerleave="release(control, $event)"
-        @contextmenu.prevent
-      >
-        <span v-if="control.kind === 'slot'" class="ui-label">
-          <span class="ui-label__slot-num">{{ control.slot }}</span>
-          <img
-            v-if="slotInfo(control)?.skill_icon"
-            class="ui-label__skill-icon"
-            :src="slotInfo(control).skill_icon"
-            :alt="slotInfo(control)?.skill_name || ''"
-            :title="slotInfo(control)?.skill_name || ''"
-          />
-          <span v-else-if="slotSkillName(slotInfo(control))" class="ui-label__skill-name">{{ slotSkillName(slotInfo(control)) }}</span>
-        </span>
-        <span v-else class="ui-label">{{ control.label }}</span>
-
-        <span
-          v-if="control.kind === 'slot' && slotInfo(control)?.cooldown > 0.01"
-          class="ui-slot-cd"
-        >{{ slotInfo(control).cooldown.toFixed(1) }}</span>
-      </div>
+      />
     </template>
   </div>
 </template>

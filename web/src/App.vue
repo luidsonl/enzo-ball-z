@@ -7,9 +7,9 @@ import {
   isInterfaceScaleAuto,
   syncInterfaceScaleRuntime,
 } from "./lib/mobile.js";
-import MenuRoot from "./components/menus/MenuRoot.vue";
-import HudRoot from "./components/hud/HudRoot.vue";
-import MobileControls from "./components/controls/MobileControls.vue";
+import MenuRoot from "./components/organisms/menu/MenuRoot.vue";
+import HudRoot from "./components/organisms/hud/HudRoot.vue";
+import MobileControls from "./components/organisms/controls/MobileControls.vue";
 
 const state = computed(() => uiState.value);
 

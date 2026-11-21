@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 
 const mocks = vi.hoisted(() => ({ uiAction: vi.fn() }));
-vi.mock("../../bridge/bridge.js", async (importOriginal) => {
+vi.mock("../../../bridge/bridge.js", async (importOriginal) => {
   const actual = await importOriginal();
   return { ...actual, uiAction: mocks.uiAction };
 });
 
 import MenuRoot from "./MenuRoot.vue";
-import { UiAction } from "../../bridge/bridge.js";
+import { UiAction } from "../../../bridge/bridge.js";
 
 describe("MenuRoot", () => {
   it("renders saves screen and emits semantic actions", async () => {
