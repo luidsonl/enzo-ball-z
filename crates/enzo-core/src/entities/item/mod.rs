@@ -220,6 +220,86 @@ impl ItemRequirements {
     }
 }
 
+/// World-entity physics and collision behavior for dropped/spawned items
+/// (modular per item type).
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ItemWorldPhysics {
+    /// When true, gravity is applied each tick.
+    pub gravity: bool,
+    /// When true, movement resolves against solid level tiles.
+    pub collides_level: bool,
+    /// AABB collision/pickup box size in world units.
+    pub collision_size: Vec2,
+}
+
+impl ItemWorldPhysics {
+    /// Floats in place (no gravity, no level collision).
+    pub const FLOATING: Self = Self {
+        gravity: false,
+        collides_level: false,
+        collision_size: ITEM_SIZE,
+    };
+    /// Falls with gravity and collides with the level.
+    pub const FALLING: Self = Self {
+        gravity: true,
+        collides_level: true,
+        collision_size: ITEM_SIZE,
+    };
+
+    pub const fn with_size(mut self, size: Vec2) -> Self {
+        self.collision_size = size;
+        self
+    }
+
+    pub const fn with_level_collision(mut self, collides_level: bool) -> Self {
+        self.collides_level = collides_level;
+        self
+    }
+}
+
+impl Default for ItemWorldPhysics {
+    fn default() -> Self {
+        Self::FALLING
+    }
+}
+
+/// How a world item is collected by a player.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ItemPickupMode {
+    /// Collected automatically on touch/overlap.
+    Touch,
+    /// Collected when the player presses the action/interact key while overlapping.
+    Interact,
+}
+
+/// Pickup behavior and action-button selection priority (modular per item type).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ItemPickup {
+    pub mode: ItemPickupMode,
+    /// Higher values are preferred when multiple interactable items overlap and
+    /// the action button is pressed.
+    pub priority: i32,
+}
+
+impl ItemPickup {
+    pub const TOUCH: Self = Self {
+        mode: ItemPickupMode::Touch,
+        priority: 0,
+    };
+    pub const INTERACT: Self = Self {
+        mode: ItemPickupMode::Interact,
+        priority: 0,
+    };
+
+    pub const fn with_priority(mut self, priority: i32) -> Self {
+        self.priority = priority;
+        self
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EquipError {
     WrongEntityType {
@@ -243,6 +323,10 @@ pub struct ItemData {
     pub requirements: ItemRequirements,
     /// Cura aplicada ao consumir. Zero para itens não consumíveis.
     pub heal: f32,
+    /// Behavior for item entities spawned/dropped in the world.
+    pub world_physics: ItemWorldPhysics,
+    /// How the item is collected from the world.
+    pub pickup: ItemPickup,
 }
 
 impl ItemData {
@@ -256,6 +340,21 @@ impl ItemData {
 
     pub fn is_consumable(self) -> bool {
         self.category.is_consumable()
+    }
+
+    /// World physics behavior for this item when spawned as a world entity.
+    pub fn world_physics(self) -> ItemWorldPhysics {
+        self.world_physics
+    }
+
+    /// Pickup/collection behavior for this item when spawned as a world entity.
+    pub fn pickup(self) -> ItemPickup {
+        self.pickup
+    }
+
+    /// Pickup mode for this item when spawned as a world entity.
+    pub fn pickup_mode(self) -> ItemPickupMode {
+        self.pickup.mode
     }
 
     /// Valida as restrições de tipo de personagem e atributos do personagem.
@@ -295,7 +394,7 @@ impl EntitySpec {
             controller: Controller::None,
             team: TeamId::NEUTRAL,
             pos,
-            size: ITEM_SIZE,
+            size: item.world_physics.collision_size,
             health: Health::full(stats.max_health),
             stats,
             attributes: Attributes::ZERO,

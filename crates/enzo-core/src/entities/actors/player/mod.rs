@@ -14,7 +14,6 @@
 use crate::math::Vec2;
 
 use crate::entities::base::attributes::Stats;
-use crate::entities::item::ItemKind;
 
 pub type PlayerId = u32;
 
@@ -185,9 +184,6 @@ pub struct PlayerData {
     pub aura: f32,
     pub pending_level_up: bool,
     pub respawn: Vec2,
-    /// Collected items not yet equipped. The HUD reads this list from snapshots;
-    /// the client must not mutate it directly.
-    pub inventory: Vec<ItemKind>,
     /// Sandbox/debug Sigma powerup state (not persisted in campaign saves).
     #[cfg_attr(feature = "serde", serde(default))]
     pub sigma: SigmaState,
@@ -211,24 +207,11 @@ impl PlayerData {
             aura: stats.max_aura,
             pending_level_up: false,
             respawn,
-            inventory: Vec::new(),
             sigma: SigmaState::Off,
         }
     }
 
     pub fn sigma_active(&self) -> bool {
         self.sigma.is_active()
-    }
-
-    pub fn add_item(&mut self, kind: ItemKind) {
-        self.inventory.push(kind);
-    }
-
-    pub fn remove_item(&mut self, kind: ItemKind) -> bool {
-        let Some(index) = self.inventory.iter().position(|item| *item == kind) else {
-            return false;
-        };
-        self.inventory.remove(index);
-        true
     }
 }

@@ -114,10 +114,12 @@ pub enum InputAction {
     OpenSkills,
     /// Allocates a point into Ego (intelligence). Appended for ABI stability.
     AllocateEgo,
+    /// Interact/take action (pick up manual items, contextual interactions).
+    Interact,
 }
 
 impl InputAction {
-    pub const ALL: [InputAction; 19] = [
+    pub const ALL: [InputAction; 20] = [
         InputAction::MoveLeft,
         InputAction::MoveRight,
         InputAction::MoveUp,
@@ -137,6 +139,7 @@ impl InputAction {
         InputAction::OpenMenu,
         InputAction::OpenSkills,
         InputAction::AllocateEgo,
+        InputAction::Interact,
     ];
 
     pub const COUNT: usize = Self::ALL.len();
@@ -207,6 +210,7 @@ impl InputAction {
             InputAction::OpenMenu => 16,
             InputAction::OpenSkills => 17,
             InputAction::AllocateEgo => 18,
+            InputAction::Interact => 19,
         }
     }
 
@@ -231,6 +235,7 @@ impl InputAction {
             16 => Some(InputAction::OpenMenu),
             17 => Some(InputAction::OpenSkills),
             18 => Some(InputAction::AllocateEgo),
+            19 => Some(InputAction::Interact),
             _ => None,
         }
     }
@@ -258,8 +263,8 @@ impl SlotInput {
 /// Intenção de um jogador em um único tick.
 ///
 /// `move_x`/`move_y` e o `held` dos slots são contínuos. `pressed`, `sixseven`,
-/// `allocate`, `confirm` e `restart` são edge-triggered: o cliente envia `true`
-/// apenas no tick em que a tecla foi pressionada.
+/// `allocate`, `confirm`, `restart` e `interact` são edge-triggered: o cliente
+/// envia `true` apenas no tick em que a tecla foi pressionada.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlayerCommand {
@@ -270,6 +275,9 @@ pub struct PlayerCommand {
     pub allocate: Option<Attribute>,
     pub confirm: bool,
     pub restart: bool,
+    /// Edge: take/interact with world items/objects (e.g. manual pickups).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub interact: bool,
 }
 
 impl PlayerCommand {
@@ -285,6 +293,7 @@ impl PlayerCommand {
             allocate: None,
             confirm: false,
             restart: false,
+            interact: false,
         }
     }
 
@@ -298,6 +307,7 @@ impl PlayerCommand {
         self.allocate = None;
         self.confirm = false;
         self.restart = false;
+        self.interact = false;
         self
     }
 

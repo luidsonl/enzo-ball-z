@@ -167,7 +167,7 @@ pub fn confirm_level_up(entity: &mut Entity) {
 }
 
 /// Sandbox/debug: sets level and resets XP/attributes/points for a clean redistribute state.
-/// Keeps character identity, inventory, equipment, and loadout; recomputes stats/HP/aura.
+/// Keeps character identity, equipment, and loadout; recomputes stats/HP/aura.
 pub fn debug_set_level(entity: &mut Entity, level: u32) -> bool {
     let Some(player) = entity.player_mut() else {
         return false;

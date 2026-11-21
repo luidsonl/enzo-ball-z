@@ -2,7 +2,7 @@
 
 use crate::skills::EntityType;
 
-use super::{ItemCategory, ItemData, ItemKind, ItemRequirements};
+use super::{ItemCategory, ItemData, ItemKind, ItemPickup, ItemRequirements, ItemWorldPhysics};
 use crate::entities::{AttributeId, AttributeSet, Equipment};
 
 impl ItemData {
@@ -15,6 +15,8 @@ impl ItemData {
             AttributeSet::ZERO.with(AttributeId::AURA, 1),
         ),
         heal: 3.0,
+        world_physics: ItemWorldPhysics::FLOATING,
+        pickup: ItemPickup::TOUCH,
     };
 }
 

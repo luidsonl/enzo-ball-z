@@ -35,6 +35,7 @@ pub struct InputState {
     restart: bool,
     menu: bool,
     open_skills: bool,
+    interact: bool,
 }
 
 impl Default for InputState {
@@ -60,6 +61,7 @@ impl InputState {
             restart: false,
             menu: false,
             open_skills: false,
+            interact: false,
         }
     }
 
@@ -97,6 +99,7 @@ impl InputState {
         // Esc must always be able to open the menu as a fallback.
         self.menu |= self.action_active(InputAction::OpenMenu).0 || is_key_pressed(KeyCode::Escape);
         self.open_skills |= self.action_active(InputAction::OpenSkills).0;
+        self.interact |= self.action_active(InputAction::Interact).0;
 
         if self.allocate.is_none() {
             self.allocate = InputAction::ALL
@@ -156,6 +159,7 @@ impl InputState {
             allocate: self.allocate,
             confirm: self.confirm,
             restart: self.restart,
+            interact: self.interact,
         };
         self.slots_pressed = [false; ActionSlot::COUNT];
         self.six = false;
@@ -163,6 +167,7 @@ impl InputState {
         self.allocate = None;
         self.confirm = false;
         self.restart = false;
+        self.interact = false;
         command
     }
 
@@ -214,6 +219,7 @@ impl InputState {
             || self.restart
             || self.menu
             || self.open_skills
+            || self.interact
     }
 
     pub fn allocate_pressed(&self, attribute: Attribute) -> bool {

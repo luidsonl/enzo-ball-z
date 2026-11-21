@@ -12,13 +12,17 @@ use crate::input::{ActionSlot, PlayerCommand, SlotInput};
 
 /// Última intenção contínua e edges de um jogador.
 ///
-/// `move_x`/`move_y` e `slots[*].held` são estados; `slots[*].pressed` é edge.
+/// `move_x`/`move_y` e `slots[*].held` são estados; `slots[*].pressed` e
+/// `interact` são edges.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PlayerInput {
     pub move_x: i8,
     pub move_y: i8,
     pub slots: [SlotInput; ActionSlot::COUNT],
+    /// Edge: interact/take action (e.g. manual item pickup).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub interact: bool,
 }
 
 impl PlayerInput {
@@ -27,6 +31,7 @@ impl PlayerInput {
             move_x: command.move_x.clamp(-1, 1),
             move_y: command.move_y.clamp(-1, 1),
             slots: command.slots,
+            interact: command.interact,
         }
     }
 
@@ -35,6 +40,7 @@ impl PlayerInput {
         for slot in &mut self.slots {
             slot.pressed = false;
         }
+        self.interact = false;
     }
 }
 
@@ -133,6 +139,7 @@ mod tests {
             move_x: 2,
             move_y: -1,
             slots,
+            interact: true,
             ..PlayerCommand::none()
         };
         let mut controller = Controller::player();
@@ -142,6 +149,7 @@ mod tests {
         assert_eq!(input.move_x, 1);
         assert_eq!(input.move_y, -1);
         assert!(input.slots[ActionSlot::Slot1.index()].pressed);
+        assert!(input.interact);
     }
 
     #[test]
@@ -155,6 +163,7 @@ mod tests {
         controller.apply(PlayerCommand {
             move_x: -1,
             slots,
+            interact: true,
             ..PlayerCommand::none()
         });
 
@@ -163,6 +172,7 @@ mod tests {
         assert_eq!(controller.input.move_x, -1);
         assert!(controller.input.slots[0].held);
         assert!(!controller.input.slots[0].pressed);
+        assert!(!controller.input.interact);
     }
 
     #[test]

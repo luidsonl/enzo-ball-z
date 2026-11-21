@@ -5,6 +5,7 @@ use crate::aura;
 use crate::entities::{
     actors::enzo::ENZO_CROUCH_SIZE,
     actors::valentina::{VALENTINA_CROUCH_SIZE, VALENTINA_SIZE},
+    item::ItemPickupMode,
     EntityId, EntitySpec, EntityStore, EquipError, EquipSlot, ItemData, ItemKind,
     PlayableCharacter, PlayerId, VisualProfile, ENZO_SIZE, SLIME_SIZE,
 };
@@ -121,69 +122,18 @@ impl World {
         self.store.equip(entity_id, item)
     }
 
-    pub fn add_inventory(&mut self, player_id: PlayerId, kind: ItemKind) -> bool {
-        let Some(entity) = self.store.player_mut(player_id) else {
-            return false;
-        };
-        let Some(player) = entity.player_mut() else {
-            return false;
-        };
-        player.add_item(kind);
-        true
-    }
-
-    /// Equips an item from the player's inventory, swapping any previously equipped item
-    /// in the same slot back into inventory. Authoritative validation runs in core.
-    pub fn equip_inventory_item(
-        &mut self,
-        player_id: PlayerId,
-        kind: ItemKind,
-    ) -> Result<(), EquipError> {
-        let item = kind.data();
-        let slot = item.slot().ok_or(EquipError::NotEquippable)?;
-        // Validate first (no mutation).
-        {
-            let entity = self
-                .store
-                .player(player_id)
-                .ok_or(EquipError::NotEquippable)?;
-            item.can_be_equipped_by(entity.entity_type(), entity.character_attribute_set())?;
-            let player = entity.player().ok_or(EquipError::NotEquippable)?;
-            if !player.inventory.contains(&kind) {
-                return Err(EquipError::NotEquippable);
-            }
-        }
-        let entity = self
-            .store
-            .player_mut(player_id)
-            .ok_or(EquipError::NotEquippable)?;
-        {
-            let player = entity.player_mut().ok_or(EquipError::NotEquippable)?;
-            if !player.remove_item(kind) {
-                return Err(EquipError::NotEquippable);
-            }
-        }
-        if let Some(old) = entity.unequip(slot) {
-            if let Some(player) = entity.player_mut() {
-                player.add_item(old.kind);
-            }
-        }
-        entity.try_equip(&item)?;
-        self.pending_events.push(GameEvent::SaveRequested);
-        Ok(())
-    }
-
-    /// Unequips a slot and returns the item to inventory.
+    /// Unequips a slot and drops the item into the world (inventory removed).
     pub fn unequip_slot(&mut self, player_id: PlayerId, slot: EquipSlot) -> bool {
-        let Some(entity) = self.store.player_mut(player_id) else {
-            return false;
+        let (old, pos) = {
+            let Some(entity) = self.store.player_mut(player_id) else {
+                return false;
+            };
+            let Some(old) = entity.unequip(slot) else {
+                return false;
+            };
+            (old, entity.body.pos)
         };
-        let Some(old) = entity.unequip(slot) else {
-            return false;
-        };
-        if let Some(player) = entity.player_mut() {
-            player.add_item(old.kind);
-        }
+        self.store.spawn(EntitySpec::item(old.kind.data(), pos));
         self.pending_events.push(GameEvent::SaveRequested);
         true
     }
@@ -416,6 +366,39 @@ impl World {
             }
         }
 
+        // 2b. World item physics (modular per item type)
+        for entity in self.store.iter_mut() {
+            if !entity.is_item() {
+                continue;
+            }
+            let Some(physics_cfg) = entity.item().map(|item| item.world_physics()) else {
+                continue;
+            };
+            if !physics_cfg.gravity && !physics_cfg.collides_level {
+                continue;
+            }
+            if physics_cfg.gravity {
+                crate::physics::apply_gravity(&mut entity.body, DT);
+            }
+            if physics_cfg.collides_level {
+                crate::physics::integrate(&mut entity.body, level, DT);
+            } else {
+                entity.body.pos += entity.body.vel * DT;
+                entity.body.on_ground = false;
+            }
+        }
+
+        // Despawn world items that fell far below the level.
+        let fallen_items: Vec<EntityId> = self
+            .store
+            .iter()
+            .filter(|e| e.is_item() && e.body.pos.y > fall_limit)
+            .map(|e| e.id)
+            .collect();
+        for id in fallen_items {
+            self.store.despawn(id);
+        }
+
         // 5. Skills pós-física
         for index in 0..crate::MAX_PLAYERS {
             let player_id = index as PlayerId;
@@ -440,6 +423,9 @@ impl World {
             entity.skills.tick(DT);
             entity.locomotion.tick(DT);
         }
+
+        // 9b. World item pickup/collection (modular per item type).
+        self.collect_world_items(events);
 
         // Sigma state: aura recovers to 100% in 3 seconds while active.
         for entity in self.store.players_mut() {
@@ -651,6 +637,202 @@ impl World {
                 }
             }
         }
+    }
+
+    fn collect_world_items(&mut self, events: &mut Vec<GameEvent>) {
+        #[derive(Clone, Copy)]
+        struct PickupDecision {
+            player_eid: EntityId,
+            item_eid: EntityId,
+        }
+        #[derive(Clone, Copy)]
+        struct Candidate {
+            item_eid: EntityId,
+            mode: ItemPickupMode,
+            priority: i32,
+            dist2: i64,
+        }
+
+        let player_ids: Vec<EntityId> = self.store.players().map(|e| e.id).collect();
+        let mut consumed_items: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+        let mut decisions: Vec<PickupDecision> = Vec::new();
+
+        for player_eid in &player_ids {
+            let Some(player) = self.store.get(*player_eid) else {
+                continue;
+            };
+            if !player.health.is_alive() || player.player().is_none() {
+                continue;
+            }
+            let interact_pressed = player
+                .controller
+                .player_controller()
+                .is_some_and(|c| c.input.interact);
+            let player_rect = player.rect();
+            let pc = player_rect.center();
+
+            let mut candidates: Vec<Candidate> = self
+                .store
+                .iter()
+                .filter_map(|e| {
+                    if !e.is_item() {
+                        return None;
+                    }
+                    let item = e.item().copied()?;
+                    let rect = e.rect();
+                    if !player_rect.overlaps(rect) {
+                        return None;
+                    }
+                    let ic = rect.center();
+                    let dx = (ic.x - pc.x) as i64;
+                    let dy = (ic.y - pc.y) as i64;
+                    let pickup = item.pickup();
+                    Some(Candidate {
+                        item_eid: e.id,
+                        mode: pickup.mode,
+                        priority: pickup.priority,
+                        dist2: dx * dx + dy * dy,
+                    })
+                })
+                .collect();
+
+            // Deterministic base order (priority for interact is applied below).
+            candidates.sort_unstable_by_key(|c| (c.dist2, c.item_eid.0));
+
+            // Touch/instant-use items: auto-collect on overlap.
+            for c in &candidates {
+                if consumed_items.contains(&c.item_eid.0) {
+                    continue;
+                }
+                if !matches!(c.mode, ItemPickupMode::Touch) {
+                    continue;
+                }
+                decisions.push(PickupDecision {
+                    player_eid: *player_eid,
+                    item_eid: c.item_eid,
+                });
+                consumed_items.insert(c.item_eid.0);
+            }
+
+            // Interact items: action button picks one by collision/pickup priority.
+            if interact_pressed {
+                let mut interact_candidates: Vec<Candidate> = candidates
+                    .iter()
+                    .copied()
+                    .filter(|c| {
+                        matches!(c.mode, ItemPickupMode::Interact)
+                            && !consumed_items.contains(&c.item_eid.0)
+                    })
+                    .collect();
+                interact_candidates.sort_unstable_by(|a, b| {
+                    b.priority
+                        .cmp(&a.priority)
+                        .then_with(|| a.dist2.cmp(&b.dist2))
+                        .then_with(|| a.item_eid.0.cmp(&b.item_eid.0))
+                });
+                if let Some(best) = interact_candidates.first() {
+                    decisions.push(PickupDecision {
+                        player_eid: *player_eid,
+                        item_eid: best.item_eid,
+                    });
+                    consumed_items.insert(best.item_eid.0);
+                }
+            }
+        }
+
+        for decision in decisions {
+            self.apply_item_pickup(decision.player_eid, decision.item_eid, events);
+        }
+    }
+
+    fn apply_item_pickup(
+        &mut self,
+        player_eid: EntityId,
+        item_eid: EntityId,
+        _events: &mut Vec<GameEvent>,
+    ) {
+        let Some((item_data, drop_pos)) = self
+            .store
+            .get(item_eid)
+            .and_then(|e| e.item().copied().map(|data| (data, e.body.pos)))
+        else {
+            return;
+        };
+        let Some(player_snapshot) = self.store.get(player_eid) else {
+            return;
+        };
+        if !player_snapshot.health.is_alive() || player_snapshot.player().is_none() {
+            return;
+        }
+
+        // General usability/requirements gate (entity type + character attributes).
+        if item_data
+            .requirements
+            .allows(
+                player_snapshot.entity_type(),
+                player_snapshot.character_attribute_set(),
+            )
+            .is_err()
+        {
+            return;
+        }
+
+        if item_data.is_consumable() {
+            // Consume immediately (no inventory).
+            if let Some(player) = self.store.get_mut(player_eid) {
+                if item_data.heal > 0.0 {
+                    let max = player.stats.max_health;
+                    player.health.current = (player.health.current + item_data.heal).min(max);
+                }
+            }
+            self.store.despawn(item_eid);
+            self.pending_events.push(GameEvent::SaveRequested);
+            return;
+        }
+
+        // Equippables: place directly into the character slot.
+        let Some(slot) = item_data.slot() else {
+            return;
+        };
+        // Validate equipment-specific eligibility (same as direct equip).
+        {
+            let Some(player) = self.store.get(player_eid) else {
+                return;
+            };
+            if item_data
+                .can_be_equipped_by(player.entity_type(), player.character_attribute_set())
+                .is_err()
+            {
+                return;
+            }
+        }
+
+        let drop_old = {
+            let Some(player) = self.store.get_mut(player_eid) else {
+                return;
+            };
+            let old = player.unequip(slot);
+            if player.try_equip(&item_data).is_err() {
+                // Restore previous item if equip unexpectedly fails.
+                if let Some(old_item) = old {
+                    let _ = player.try_equip(&old_item.kind.data());
+                }
+                return;
+            }
+            old
+        };
+
+        self.store.despawn(item_eid);
+        if let Some(old_item) = drop_old {
+            let drop_at = self
+                .store
+                .get(player_eid)
+                .map(|p| p.body.pos)
+                .unwrap_or(drop_pos);
+            self.store
+                .spawn(EntitySpec::item(old_item.kind.data(), drop_at));
+        }
+        self.pending_events.push(GameEvent::SaveRequested);
     }
 
     fn clear_input_edges(&mut self) {
@@ -1078,8 +1260,7 @@ mod tests {
     fn apply_loadout_swaps_skills() {
         let mut world = World::new(LEVEL_1).unwrap();
         // Mogging requires skill level 1 (granted by 67 items).
-        assert!(world.add_inventory(0, ItemKind::Cap67));
-        world.equip_inventory_item(0, ItemKind::Cap67).unwrap();
+        world.equip(0, &ItemKind::Cap67.data()).unwrap();
         let change = world
             .apply_loadout(
                 0,
@@ -1120,38 +1301,23 @@ mod tests {
     }
 
     #[test]
-    fn equip_inventory_item_moves_between_inventory_and_slots() {
+    fn direct_equip_replaces_same_slot() {
         let mut world = World::new(LEVEL_1).unwrap();
-        assert!(world.add_inventory(0, ItemKind::Cap67));
-        assert!(world.add_inventory(0, ItemKind::Shirt67));
-        world.equip_inventory_item(0, ItemKind::Cap67).unwrap();
-        let entity = world.store().player(0).unwrap();
-        assert!(entity.equipped[EquipSlot::Head.index()].is_some());
-        assert!(!entity
-            .player()
-            .unwrap()
-            .inventory
-            .contains(&ItemKind::Cap67));
-
-        // Swap: equip another head item? use Sword slot behavior by equipping shirt on armor slot.
-        world.equip_inventory_item(0, ItemKind::Shirt67).unwrap();
-        let entity = world.store().player(0).unwrap();
-        assert!(entity.equipped[EquipSlot::Armor.index()].is_some());
+        world.equip(0, &ItemKind::Cap67.data()).unwrap();
+        assert!(world.store().player(0).unwrap().equipped[EquipSlot::Head.index()].is_some());
+        world.equip(0, &ItemKind::Shirt67.data()).unwrap();
+        assert!(world.store().player(0).unwrap().equipped[EquipSlot::Armor.index()].is_some());
     }
 
     #[test]
-    fn unequip_slot_returns_item_to_inventory() {
+    fn unequip_slot_drops_item_into_world() {
         let mut world = World::new(LEVEL_1).unwrap();
-        world.add_inventory(0, ItemKind::Sneakers67);
-        world.equip_inventory_item(0, ItemKind::Sneakers67).unwrap();
+        world.equip(0, &ItemKind::Sneakers67.data()).unwrap();
+        let items_before = world.store().items().count();
         assert!(world.unequip_slot(0, EquipSlot::Feet));
         let entity = world.store().player(0).unwrap();
         assert!(entity.equipped[EquipSlot::Feet.index()].is_none());
-        assert!(entity
-            .player()
-            .unwrap()
-            .inventory
-            .contains(&ItemKind::Sneakers67));
+        assert_eq!(world.store().items().count(), items_before + 1);
     }
 
     #[test]
@@ -1250,5 +1416,116 @@ mod tests {
             .sandbox_spawn_item(ItemKind::Sword, crate::math::Vec2::new(240.0, 100.0))
             .is_some());
         assert_eq!(world.store().items().count(), item_count_before + 1);
+    }
+
+    #[test]
+    fn item_gravity_is_modular_per_item_type() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        let pos = crate::math::Vec2::new(240.0, 120.0);
+        let falling = world
+            .sandbox_spawn_item(ItemKind::Sword, pos)
+            .expect("sword item");
+        let floating = world
+            .sandbox_spawn_item(ItemKind::Amulet, pos)
+            .expect("amulet item");
+
+        for _ in 0..30 {
+            world.step(crate::input::TickInput::default());
+        }
+
+        let falling_y = world.store().get(falling).unwrap().body.pos.y;
+        let floating_y = world.store().get(floating).unwrap().body.pos.y;
+        assert!(falling_y > pos.y + 1.0, "falling item should drop");
+        assert!(
+            (floating_y - pos.y).abs() < 0.01,
+            "floating item should stay in place"
+        );
+    }
+
+    #[test]
+    fn touch_item_is_auto_consumed_on_overlap() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        let player_pos = world.store().player(0).unwrap().body.pos;
+        // Give enough aura to satisfy potion requirements.
+        if let Some(entity) = world.store_mut().player_mut(0) {
+            entity.attributes.aura = 2;
+            entity.stats = crate::entities::Stats::player(entity.attributes);
+            let max_aura = entity.stats.max_aura;
+            entity.health.current = (entity.stats.max_health - 1.0).max(1.0);
+            if let Some(p) = entity.player_mut() {
+                p.aura = max_aura;
+            }
+        }
+        let health_before = world.store().player(0).unwrap().health.current;
+        let potion_id = world
+            .sandbox_spawn_item(ItemKind::Potion, player_pos)
+            .expect("potion");
+
+        world.step(crate::input::TickInput::default());
+
+        assert!(world.store().get(potion_id).is_none(), "potion consumed");
+        let health_after = world.store().player(0).unwrap().health.current;
+        assert!(
+            health_after > health_before,
+            "potion should heal on touch pickup"
+        );
+    }
+
+    #[test]
+    fn interact_item_requires_action_key_and_equips_directly() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        let player_pos = world.store().player(0).unwrap().body.pos;
+        // Cap67 has no strict attribute barrier for pickup in this setup and equips to head.
+        let item_id = world
+            .sandbox_spawn_item(ItemKind::Cap67, player_pos)
+            .expect("cap item");
+
+        // No interact edge: item remains on the ground.
+        world.step(crate::input::TickInput::default());
+        assert!(world.store().get(item_id).is_some());
+        assert!(world.store().player(0).unwrap().equipped[EquipSlot::Head.index()].is_none());
+
+        // Interact edge: picked up and equipped directly (no inventory).
+        let cmd = crate::input::PlayerCommand {
+            interact: true,
+            ..crate::input::PlayerCommand::none()
+        };
+        let input = crate::input::TickInput::single(cmd);
+        world.step(input);
+
+        assert!(world.store().get(item_id).is_none());
+        let equipped = world.store().player(0).unwrap().equipped[EquipSlot::Head.index()];
+        assert_eq!(equipped.map(|e| e.kind), Some(ItemKind::Cap67));
+    }
+
+    #[test]
+    fn interact_pickup_prefers_higher_priority_when_items_overlap() {
+        let mut world = World::new_sandbox(crate::levels::SANDBOX_LEVEL).unwrap();
+        let player_pos = world.store().player(0).unwrap().body.pos;
+
+        let mut low = ItemKind::Cap67.data();
+        low.pickup = low.pickup.with_priority(0);
+        let mut high = ItemKind::Shirt67.data();
+        high.pickup = high.pickup.with_priority(10);
+
+        let low_id = world.spawn_item(low, player_pos);
+        let high_id = world.spawn_item(high, player_pos);
+
+        let cmd = crate::input::PlayerCommand {
+            interact: true,
+            ..crate::input::PlayerCommand::none()
+        };
+        world.step(crate::input::TickInput::single(cmd));
+
+        assert!(
+            world.store().get(high_id).is_none(),
+            "higher-priority item should be taken by action button"
+        );
+        assert!(
+            world.store().get(low_id).is_some(),
+            "lower-priority overlapping item should remain"
+        );
+        let equipped_armor = world.store().player(0).unwrap().equipped[EquipSlot::Armor.index()];
+        assert_eq!(equipped_armor.map(|e| e.kind), Some(ItemKind::Shirt67));
     }
 }

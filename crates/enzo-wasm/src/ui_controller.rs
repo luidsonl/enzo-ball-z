@@ -52,13 +52,10 @@ pub struct UiLabels {
     pub game_over: String,
     pub status: String,
     pub equipment: String,
-    pub inventory: String,
     pub skills: String,
     pub status_title: String,
     pub equipment_title: String,
-    pub inventory_title: String,
     pub skills_title: String,
-    pub inventory_empty: String,
     pub no_item: String,
     pub assign: String,
     pub clear: String,
@@ -144,13 +141,10 @@ impl UiLabels {
             },
             status: i18n.t(Text::Status).to_owned(),
             equipment: i18n.t(Text::Equipment).to_owned(),
-            inventory: i18n.t(Text::Inventory).to_owned(),
             skills: i18n.t(Text::Skills).to_owned(),
             status_title: i18n.t(Text::StatusTitle).to_owned(),
             equipment_title: i18n.t(Text::EquipmentTitle).to_owned(),
-            inventory_title: i18n.t(Text::InventoryTitle).to_owned(),
             skills_title: i18n.t(Text::SkillsTitle).to_owned(),
-            inventory_empty: i18n.t(Text::InventoryEmpty).to_owned(),
             no_item: i18n.t(Text::NoItem).to_owned(),
             assign: if en {
                 "Assign".to_owned()
@@ -414,13 +408,6 @@ pub struct UiEquipmentSlot {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct UiInventoryItem {
-    pub code: u8,
-    pub kind: String,
-    pub name: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct UiAttributes {
     pub speed: u32,
     pub strength: u32,
@@ -460,7 +447,6 @@ pub struct UiPlayerState {
     pub slots: Vec<UiSkillSlotState>,
     pub catalog: Vec<UiCatalogEntry>,
     pub equipment_slots: Vec<UiEquipmentSlot>,
-    pub inventory: Vec<UiInventoryItem>,
     pub sigma_mode: bool,
 }
 
@@ -636,7 +622,6 @@ fn draft_player_state(
         slots: Vec::new(),
         catalog: Vec::new(),
         equipment_slots: Vec::new(),
-        inventory: Vec::new(),
         sigma_mode: false,
     }
 }
@@ -698,16 +683,6 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
         })
         .collect();
 
-    let inventory = p
-        .inventory
-        .iter()
-        .map(|kind| UiInventoryItem {
-            code: kind.code(),
-            kind: format!("{:?}", kind),
-            name: i18n.item(*kind).to_owned(),
-        })
-        .collect();
-
     Some(UiPlayerState {
         character: format!("{:?}", p.character),
         character_code: p.character.code(),
@@ -741,7 +716,6 @@ fn player_state(entity: &EntitySnapshot, i18n: I18n) -> Option<UiPlayerState> {
         slots,
         catalog,
         equipment_slots,
-        inventory,
         sigma_mode: p.sigma_mode,
     })
 }
@@ -979,6 +953,8 @@ fn action_label(action: InputAction, is_en: bool) -> &'static str {
         (InputAction::OpenMenu, false) => "Abrir menu / pausar",
         (InputAction::OpenSkills, true) => "Open skills",
         (InputAction::OpenSkills, false) => "Abrir habilidades",
+        (InputAction::Interact, true) => "Interact / take item",
+        (InputAction::Interact, false) => "Interagir / pegar item",
     }
 }
 

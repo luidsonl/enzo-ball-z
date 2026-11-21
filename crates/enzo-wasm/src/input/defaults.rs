@@ -68,6 +68,7 @@ pub fn default_bindings() -> KeyBindings {
     // OpenSkills is intentionally left unbound by default until the UI flow
     // and browser-focus handling are finalized.
     bind(&mut bindings, InputAction::OpenSkills, &[]);
+    bind(&mut bindings, InputAction::Interact, &[KeyCode::E]);
 
     bindings
 }
@@ -114,5 +115,6 @@ mod tests {
         }
         assert!(!bindings.keys(InputAction::Slot1).is_empty());
         assert!(bindings.keys(InputAction::OpenSkills).is_empty());
+        assert_eq!(bindings.keys(InputAction::Interact), &[KeyCode::E]);
     }
 }

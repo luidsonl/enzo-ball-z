@@ -10,7 +10,7 @@ use crate::progression;
 use crate::skills::{Loadout, SkillId, SkillLock};
 use crate::state::GamePhase;
 
-pub const SNAPSHOT_VERSION: u16 = 4;
+pub const SNAPSHOT_VERSION: u16 = 5;
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -112,7 +112,6 @@ pub struct PlayerSnapshot {
         serde(default, deserialize_with = "de_equipped_slots")
     )]
     pub equipped: [Option<EquippedItemSnapshot>; EquipSlot::COUNT],
-    pub inventory: Vec<ItemKind>,
     pub pending_level_up: bool,
     pub farming: bool,
     pub sixseven_last: Option<SixSevenKey>,
@@ -363,7 +362,6 @@ impl PlayerSnapshot {
                     kind: item.kind,
                 })
             }),
-            inventory: player.inventory.clone(),
             pending_level_up: player.pending_level_up,
             farming: entity.locomotion.sixseven.is_active(),
             sixseven_last: entity.locomotion.sixseven.last_key,
